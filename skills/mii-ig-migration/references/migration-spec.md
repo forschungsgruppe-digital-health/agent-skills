@@ -176,8 +176,10 @@ Respect the Liquid build guard: no `{% … %}` or `{{ … }}` literals in `pagec
 inside HTML comments. An invalid `{% … %}` breaks the build hard; an unknown `{{ … }}` silently
 empties and leaks into the HTML.
 
-→ **Acceptance:** every required page exists with no empty mandatory sections; the scan reports no
-`[UNKNOWN]` and no unintentionally remaining directives.
+→ **Acceptance:** every page of the template's set exists; each mandatory Manteldokument section has
+its home per the mapping in §9, and any the source did not supply is listed in the report as a gap
+rather than silently absent; the scan reports no `[UNKNOWN]` and no unintentionally remaining
+directives.
 
 ### 5.5 Bilingual setup
 
@@ -245,21 +247,38 @@ branch is unchanged; a pull request carries `migration-report.md`; all review ga
 No content remodelling. No change to normative decisions. No independent publication. No invention
 of missing domain content.
 
-## 9. Open question — mandatory-section mapping
+## 9. Mandatory-section mapping
 
-`TODO(owner):` The Manteldokument requires sections including *Bezüge zu anderen Modulen*,
-*Referenzen* and *Anwendungsfälle/Szenarien*. The template ships a fixed, English-named page set
-(index, guidance, datasets-and-descriptions, implementer-guidance, researcher-guidance,
-profiles-and-extensions, terminology, examples, conformance, …) and none of those pages obviously
-carries the three sections above.
+The Manteldokument requires sections whose names do not appear in the template's page set. **They
+map onto sections *within* pages, not onto pages of their own.** That is why the page set looks
+like it is missing them and is not.
 
-Producing the mapping requires someone who knows the current Manteldokument edition. Until it
-exists:
+The mapping below is derived from `medizininformatik-initiative/kerndatensatz-basis` — the MII's own
+reference module, whose `input/pagecontent/` set is identical to the template's. It is evidence
+about what the MII actually does, not an interpretation of the Manteldokument's wording.
 
-- §5.4's acceptance criterion cannot be checked mechanically for section completeness.
-- A reviewer checks it by hand at Gate B.
-- Do **not** guess a mapping and do not create pages outside the template's page set to hold the
-  sections; either would produce a guide that looks conformant and is not.
+| Manteldokument section | Where it lives | Evidence |
+| --- | --- | --- |
+| **Bezüge zu anderen Modulen** | `index.md` § *Related guides* — the template ships a `TODO:` there instructing the author to name the module's formal dependencies. The machine-readable form is `dependencies` in `sushi-config.yaml`. Cross-references are additionally described in `implementer-guidance.md`. | template `index.md`; basis `implementer-guidance.md` lists "Module dependencies and cross-references" |
+| **Referenzen** | `index.md` § *Related guides* for external guides and the FHIR IG Registry; `downloads.md` for package and artefact references; inline artefact links throughout the narrative | template `index.md`; basis `downloads.md` |
+| **Anwendungsfälle / Szenarien** | `guidance.md`, which routes to `implementer-guidance.md` and `researcher-guidance.md`; `general-requirements.md`, which frames the requirements in terms of MII use cases; `examples.md` for the concrete scenarios | basis `general-requirements.md` (German) refers to "die Anwendungsfälle der Medizininformatik-Initiative"; basis `researcher-guidance.md` covers identifying data elements for a research question |
+
+### Two consequences for step 5.4
+
+**Never create a page outside the template's page set** to hold one of these sections. The page set
+and the menu are owned by the module template (`pages:` plus `input/includes/menu.xml` and its
+per-language mirror); an extra page is an unlisted orphan that the QA flags and that no menu
+reaches.
+
+**The reference module is itself incomplete on use cases.** `kerndatensatz-basis` opens its
+researcher guidance with a note that detailed guidance "will be added in a future version of this
+implementation guide". A migrated module therefore cannot be held to a higher standard than the
+reference, and guardrail 4 forbids writing the missing content. Record the gap in the migration
+report and raise it at Gate B; do not fill it.
+
+So §5.4's acceptance criterion is: each of the three sections has a **named home** in the page set
+per the table above, and any that the source guide did not supply is listed in the report as a gap
+rather than silently absent.
 
 ## Appendix — vendor-neutral prompt scaffold
 

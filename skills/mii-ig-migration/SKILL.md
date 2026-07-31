@@ -109,8 +109,10 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    hand, are [`references/fql-rules.tsv`](references/fql-rules.tsv). Ambiguous cases take
    professional judgement — when in doubt write `TODO:REVIEW` and move on. Do not invent content.
 
-   The template ships a fixed page set. Mapping the Manteldokument's mandatory sections onto it is
-   **not yet resolved** — see *Open questions*.
+   The template ships a fixed page set, and the Manteldokument's mandatory sections map onto
+   *sections within* those pages rather than onto pages of their own — see
+   [the section mapping](references/migration-spec.md). **Do not create a page outside the
+   template's page set** to hold one of them.
 
 5. **Set up the bilingual pages.** English is the default; German is the translation, living at
    `input/translations/de/pagecontent/<same-filename>.md`. These **do** render. The menu is
@@ -201,13 +203,21 @@ scripts/fql-scan.sh --strict
 
 Gate D is organizational, not technical. Nothing publishes before it.
 
-## Open questions
+## Mandatory sections
 
-- `TODO(owner):` **Mandatory-section mapping is unresolved.** The Manteldokument requires sections
-  including *Bezüge zu anderen Modulen*, *Referenzen* and *Anwendungsfälle/Szenarien*. The
-  template's page set is English-named and none of its pages obviously carries them. Producing the
-  mapping needs someone who knows the current Manteldokument; until then, step 4 cannot verify
-  section completeness, and a reviewer must check it by hand at Gate B.
+The Manteldokument requires sections that the template's English-named page set does not name.
+They are not missing: they live **inside** pages. The mapping, derived from
+`medizininformatik-initiative/kerndatensatz-basis` — the MII's own reference module, whose page set
+is identical to the template's — is in [the migration specification](references/migration-spec.md).
+
+Two things to carry into step 4:
+
+- **Never create a page outside the template's page set** to hold one of these sections. The page
+  set and the menu are owned by the module template, and an extra page is an unlisted orphan.
+- **The reference module itself is incomplete on use cases** — its researcher guidance says in as
+  many words that detail will follow in a future version. A migrated module is not held to a higher
+  standard than `kerndatensatz-basis`; record the gap in the report rather than inventing content
+  to fill it.
 
 ## Scope and delimitation
 
