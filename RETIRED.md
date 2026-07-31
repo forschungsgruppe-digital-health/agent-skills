@@ -19,12 +19,15 @@ expected behaviour.
 
 ## Tombstones
 
-Nothing has been retired yet. That is a fact about this catalog, not a missing file — an empty
-tombstone list is meaningful, while an absent one tells you nothing.
+Both entries below were **renamed, not withdrawn**, under the narrow pre-first-consumer exception in
+`CONTRIBUTING.md` — they existed only in `v0.4.0` and nothing had installed them. They are
+tombstoned anyway, because the rule that a name means one thing forever does not depend on whether a
+deprecation period was served.
 
 | Skill | Removed in | Reason | Successor |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| `fhir-ig-analyze` | v0.5.0 | Renamed for a consistent naming scheme: nominal action form. | `fhir-ig-analysis` |
+| `fhir-ig-translate` | v0.5.0 | Renamed for a consistent naming scheme, and the skill was generalised from one language pair to any, which is what earns its `fhir-` prefix. | `fhir-ig-translation` |
 
 <!--
 When retiring a skill, replace the placeholder row (or add a row) in the form:

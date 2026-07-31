@@ -4,11 +4,11 @@
   "generator": "scripts/build_index.py",
   "skills": [
     {
-      "url": "skill://fhir-ig-analyze/SKILL.md",
-      "path": "skills/fhir-ig-analyze/SKILL.md",
+      "url": "skill://fhir-ig-analysis/SKILL.md",
+      "path": "skills/fhir-ig-analysis/SKILL.md",
       "frontmatter": {
-        "name": "fhir-ig-analyze",
-        "description": "Measures one or more FHIR Implementation Guides read-only and reports the numbers as JSON and Markdown — scope, complexity, content hygiene, duplication, linguistics, maturity and risk — and compares several IGs side by side using normalised metrics. It builds, changes and publishes nothing. Use this skill when reviewing or QA-ing an MII KDS module IG before a release, when comparing a module against kerndatensatz-basis or another Implementierungsleitfaden, when tracking how a module grows between releases, or when someone asks how large, how clean or how mature a guide actually is. Do not use for migrating a guide onto the module template or for translating one; see mii-ig-migration and fhir-ig-translate."
+        "name": "fhir-ig-analysis",
+        "description": "Measures one or more FHIR Implementation Guides read-only and reports the numbers as JSON and Markdown — scope, complexity, content hygiene, duplication, linguistics, maturity and risk — and compares several IGs side by side using normalised metrics. It builds, changes and publishes nothing. Use this skill when reviewing or QA-ing an MII KDS module IG before a release, when comparing a module against kerndatensatz-basis or another Implementierungsleitfaden, when tracking how a module grows between releases, or when someone asks how large, how clean or how mature a guide actually is. Do not use for migrating a guide onto the module template or for translating one; see mii-ig-migration and fhir-ig-translation."
       },
       "metadata": {
         "fgdh.tier": "domain",
@@ -19,11 +19,11 @@
       }
     },
     {
-      "url": "skill://fhir-ig-translate/SKILL.md",
-      "path": "skills/fhir-ig-translate/SKILL.md",
+      "url": "skill://fhir-ig-translation/SKILL.md",
+      "path": "skills/fhir-ig-translation/SKILL.md",
       "frontmatter": {
-        "name": "fhir-ig-translate",
-        "description": "Sets up the German translation supplements an English-default MII KDS module Implementation Guide needs, putting each one exactly where the IG Publisher reads it — either by translating from the English source or by harvesting an already-published German rendering. The English source stays authoritative and every machine translation needs a bilingual human review. Use this skill when a module builds green and a German rendering is wanted, when the /de/ pages show English instead of German, when deciding where a .po supplement or a translated page belongs, or when the user mentions Übersetzung, translation supplement, input/translations, po file or i18n-default-lang. Do not use for measuring or comparing guides, for migrating one onto the template, or for the IG template package's own language mechanism; see fhir-ig-analyze and mii-ig-migration."
+        "name": "fhir-ig-translation",
+        "description": "Sets up the translation supplements an IG-Publisher-based FHIR Implementation Guide needs for its non-default languages, putting each one exactly where the publisher reads it — either by translating from the default-language source or by harvesting an already-published rendering in the target language. The default language stays authoritative and every machine translation needs a bilingual human review. Use this skill when a guide builds green and an additional language rendering is wanted, when the /<lang>/ pages show the default language instead of the translation, when deciding where a .po supplement or a translated page belongs, or when the user mentions Übersetzung, translation supplement, input/translations, po file, i18n-lang or i18n-default-lang. Do not use for measuring or comparing guides, for migrating one onto the MII KDS module template, or for a template package's own language mechanism; see fhir-ig-analysis and mii-ig-migration."
       },
       "metadata": {
         "fgdh.tier": "domain",
