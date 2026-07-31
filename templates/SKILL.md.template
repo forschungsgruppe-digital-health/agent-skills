@@ -33,10 +33,14 @@ If the skill is `deprecated` instead, replace the banner with:
     > **Deprecated.** <reason> Use <successor> instead. Removal may occur no earlier
     > than <release>.
 
-and append `Deprecated as of <version>; use <successor> instead.` to the description.
-That clause is the load-bearing part: an agent decides whether to activate a skill from
-the description alone, so a deprecation the description does not mention keeps
-triggering and keeps being followed.
+append `Deprecated as of <version>; use <successor> instead.` to the description, AND
+set `fgdh.replaced-by: "<successor>"` (or the literal `none`) in the metadata above --
+the validator requires that key whenever the status is `deprecated`, so a deprecation
+done from this template without it fails CI with `status/replaced-by`.
+
+The description clause is the load-bearing part of the three: an agent decides whether
+to activate a skill from the description alone, so a deprecation the description does
+not mention keeps triggering and keeps being followed.
 
 LICENSING. The `license:` field above covers `SKILL.md`, `references/` and `assets/`.
 Anything under `scripts/` is Apache-2.0, matching the repository's code licence. A skill

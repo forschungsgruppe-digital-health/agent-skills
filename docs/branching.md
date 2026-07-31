@@ -79,8 +79,15 @@ up", and the stale-branch guard excludes them:
 The consequence worth internalizing: **the pull request title is the commit message.** An
 invalid title silently breaks release automation, which is why CI lints it (below).
 
-Because squash merging is the only enabled method, the merge-method restriction is enforced at
-the repository level rather than inside the ruleset.
+The merge-method restriction is enforced **twice**, on purpose: squash is the only method enabled
+at the repository level, *and* the ruleset pins `allowed_merge_methods: ["squash"]`. Either alone
+would do the job today; together they mean that re-enabling merge commits in repository settings
+does not quietly re-open them on the trunk.
+
+An audit found the ruleset had originally been created *without* that parameter, so GitHub had
+defaulted it to all three methods. It was left out because the parameter could not be verified
+against the documentation at the time, and this repository does not write configuration keys it has
+not confirmed. GitHub's own API response later confirmed it, so it is now pinned in both places.
 
 ## The ruleset on `main`
 

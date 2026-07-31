@@ -75,7 +75,15 @@ is in `CONTRIBUTING.md`.
 - A skill removal is a two-release process. Never delete a skill folder in the same change that
   deprecates it.
 
-## Two traps
+## Three traps
+
+**The pull request body becomes the commit body.** Merges are squash merges, and Release Please
+runs the Conventional Commits parser over the whole message. A line in the body that looks like
+`feat!: something` is read as a second commit and corrupts the generated changelog -- it happened in
+v0.5.0. Never let `<type>:` or `<type>!:` begin a line in a body you write; the parser is not a
+Markdown renderer, so backticks around the token protect nothing. CI rejects it now. State the
+change classification in prose and let the title's type carry the machine-readable signal.
+
 
 **The `grep` for path portability is substring-based.** `grep -rnE '\]\(/|\.\./' skills/` cannot
 tell a violation from prose *documenting* the rule, so write "traverse upward with `..`" rather
