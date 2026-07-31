@@ -37,7 +37,7 @@ and carries them over unchanged. It does not invent them and does not ask.
 
 ### 2.1 Module identity — where each value comes from
 
-Read from `<SOURCE_REPO>/sushi-config.yaml` and `package.json`. Absent a `sushi-config.yaml`, read
+Read from the `sushi-config.yaml` and `package.json` at the root of `SOURCE_REPO_URL` (§2). Absent a `sushi-config.yaml`, read
 `package.json` plus the `ImplementationGuide` resource.
 
 | Field | Read from | Human input? | Written to |
