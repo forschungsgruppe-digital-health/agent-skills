@@ -84,11 +84,24 @@ what this skill produces is prose in the target language. Neither follows from t
 stated. The examples below use `de` as the target because that is the common case here; substitute
 the language you actually derived.
 
+
+> **Resolve the script path first.** The commands below name the tool relative to **this skill's
+> own directory**, not to your working directory — which is the project you are operating on. Set
+> `SKILL_DIR` to the directory containing this `SKILL.md` (you just read it, so you know where it
+> is) and use it in every invocation:
+>
+> ```bash
+> SKILL_DIR=<the directory containing this SKILL.md>   # e.g. .claude/skills/fhir-ig-translation
+> ```
+>
+> Running a bare `scripts/...` from the project root does not merely fail — if the project happens
+> to have its own `scripts/` directory with a same-named file, it silently runs **that** instead.
+
 1. **Scan** to get the target path for every page and resource:
 
    ```bash
-   scripts/ig-translate.sh --scan <lang>              # from the guide's root
-   scripts/ig-translate.sh --scan <lang> path/to/ig   # or point at it
+   "$SKILL_DIR/scripts/ig-translate.sh" --scan <lang>              # cwd = the guide's root
+   "$SKILL_DIR/scripts/ig-translate.sh" --scan <lang> path/to/ig   # or point at it
    ```
 
    The language argument is **required** — the script refuses to default it, so no run can silently
@@ -111,7 +124,7 @@ the language you actually derived.
 5. **Validate, then build:**
 
    ```bash
-   scripts/ig-translate.sh --validate <lang>
+   "$SKILL_DIR/scripts/ig-translate.sh" --validate <lang>
    ```
 
 6. **Bilingual human review is mandatory** before the translated rendering is trusted. Mark every
@@ -155,7 +168,7 @@ Both were wrong. The correct mechanism is a translation-source folder, as HL7's 
 ## Verification
 
 ```bash
-scripts/ig-translate.sh --validate <lang>
+"$SKILL_DIR/scripts/ig-translate.sh" --validate <lang>
 ```
 
 - Exit 2 with a clear message when run outside an IG, or when the language argument is missing — a

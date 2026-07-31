@@ -69,6 +69,19 @@ of art are kept as such. **Output language follows the target template: English 
 language and German is the translation.** This reverses the older convention — see *Language*
 below, and verify it against the target's `sushi-config.yaml` rather than trusting this sentence.
 
+
+> **Resolve the script path first.** The commands below name the tool relative to **this skill's
+> own directory**, not to your working directory — which is the project you are operating on. Set
+> `SKILL_DIR` to the directory containing this `SKILL.md` (you just read it, so you know where it
+> is) and use it in every invocation:
+>
+> ```bash
+> SKILL_DIR=<the directory containing this SKILL.md>   # e.g. .claude/skills/mii-ig-migration
+> ```
+>
+> Running a bare `scripts/...` from the project root does not merely fail — if the project happens
+> to have its own `scripts/` directory with a same-named file, it silently runs **that** instead.
+
 1. **Inventory the source.** From the rendered IG and the source repository, extract every
    artefact (profiles, extensions, value sets, code systems, capability statements, examples) and
    the narrative structure. Record each entry with its source path. Write
@@ -101,8 +114,8 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    translate Simplifier and FQL directives into IG Publisher equivalents:
 
    ```bash
-   scripts/fql-scan.sh                    # scan input/pagecontent
-   scripts/fql-scan.sh --strict           # exit 1 on any finding, for CI
+   "$SKILL_DIR/scripts/fql-scan.sh"                    # scan input/pagecontent
+   "$SKILL_DIR/scripts/fql-scan.sh" --strict           # exit 1 on any finding, for CI
    ```
 
    Apply the recommendation the scanner prints per finding. The mapping and the reasoning are in
@@ -179,7 +192,7 @@ Three facts, easy to conflate:
 ```bash
 grep -rn '{{' . --include='*.yaml' --include='*.yml' --include='*.md' --include='*.json'
 sushi .
-scripts/fql-scan.sh --strict
+"$SKILL_DIR/scripts/fql-scan.sh" --strict
 ```
 
 - Every `{{...}}` placeholder accounted for — an unreplaced one ships a bogus artefact silently.
