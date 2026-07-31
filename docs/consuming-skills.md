@@ -5,7 +5,7 @@ by how much you care about knowing exactly which version you are running.
 
 | Path | One-sentence trade-off |
 | --- | --- |
-| [One-off `npx skills add`](#1-one-off-install) | Fastest way to try a skill, but nothing records what you installed or when. |
+| [One-off `npx skills add`](#1-one-off-install) | Fastest way to try a skill; it records what you installed in `skills-lock.json`, but nothing tells you when the catalog moves on. |
 | [Pinned sync workflow](#2-pinned-sync-workflow) | Reproducible and reviewable, at the cost of one workflow file and a periodic pull request. |
 | [Git submodule](#3-git-submodule) | Exact, auditable pinning with no tooling at all, at the cost of submodules being submodules. |
 
@@ -65,6 +65,34 @@ ls .claude/skills/skill-authoring/references/       # relative references still 
 The `references/` check is the one that matters. A skill whose relative references did not survive
 installation fails silently: the agent reads `SKILL.md`, follows a pointer to a file that is not
 there, and improvises.
+
+### `skills-lock.json`
+
+The install writes a lock file recording, per skill, the source repository, the **ref you pinned**,
+the path inside the catalog, and a content hash:
+
+```json
+{
+  "version": 1,
+  "skills": {
+    "skill-authoring": {
+      "source": "forschungsgruppe-digital-health/agent-skills",
+      "ref": "v0.1.0",
+      "sourceType": "github",
+      "skillPath": "skills/skill-authoring/SKILL.md",
+      "computedHash": "298b1068…"
+    }
+  }
+}
+```
+
+Commit it. It is the cheapest possible answer to "which version of this skill is this project
+actually running", and `npx skills experimental_install` restores exactly that set. It is also a
+second, independent way to confirm that a pin took: if `ref` says `main` when you meant a tag, the
+tag did not apply.
+
+What the lock file does *not* do is tell you when the catalog has moved on — nothing checks it on a
+schedule. That is what path 2 is for.
 
 ## 2. Pinned sync workflow
 
