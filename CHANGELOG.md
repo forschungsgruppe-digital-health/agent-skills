@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.2.0...v0.3.0) (2026-07-31)
+
+
+### Skills and capabilities
+
+* **skills:** widen the mii-ig-migration trigger surface for the render symptom ([#17](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/17)) ([ddf55ea](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/ddf55ea04745c3b0cc804c391281beba8fc97edb))
+
 ## [0.2.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.1.0...v0.2.0) (2026-07-31)
 
 
