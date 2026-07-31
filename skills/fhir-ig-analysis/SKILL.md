@@ -54,10 +54,23 @@ Discover the context; do not assume it, and never create it.
 deliberate and does not follow from either fact on its own — the report prose was inherited and has
 not been translated. Do not "fix" it silently, and do not translate the numbers.
 
+
+> **Resolve the script path first.** The commands below name the tool relative to **this skill's
+> own directory**, not to your working directory — which is the project you are operating on. Set
+> `SKILL_DIR` to the directory containing this `SKILL.md` (you just read it, so you know where it
+> is) and use it in every invocation:
+>
+> ```bash
+> SKILL_DIR=<the directory containing this SKILL.md>   # e.g. .claude/skills/fhir-ig-analysis
+> ```
+>
+> Running a bare `scripts/...` from the project root does not merely fail — if the project happens
+> to have its own `scripts/` directory with a same-named file, it silently runs **that** instead.
+
 1. **Measure.** One IG or several, from the IG's root or anywhere:
 
    ```bash
-   python3 scripts/ig-stats.py run <input…> [-o OUTDIR] [--label a,b]
+   python3 "$SKILL_DIR/scripts/ig-stats.py" run <input…> [-o OUTDIR] [--label a,b]
    ```
 
    With two or more inputs this writes one report per IG **plus** `compare-report.md`
@@ -66,9 +79,9 @@ not been translated. Do not "fix" it silently, and do not translate the numbers.
 2. **Power-user entry points**, when you want the stages separately:
 
    ```bash
-   python3 scripts/ig-stats.py analyze <ig-dir> [-o stats.json]
-   python3 scripts/ig-stats.py report  <stats.json>  [-o report.md]
-   python3 scripts/ig-stats.py compare <stats.json…> [-o compare.md]
+   python3 "$SKILL_DIR/scripts/ig-stats.py" analyze <ig-dir> [-o stats.json]
+   python3 "$SKILL_DIR/scripts/ig-stats.py" report  <stats.json>  [-o report.md]
+   python3 "$SKILL_DIR/scripts/ig-stats.py" compare <stats.json…> [-o compare.md]
    ```
 
 3. **Read the mandatory-page finding carefully.** The page set the tool checks against lives in
@@ -89,7 +102,7 @@ not been translated. Do not "fix" it silently, and do not translate the numbers.
 ## Verification
 
 ```bash
-python3 scripts/ig-stats.py run <ig-dir> -o /tmp/igstats
+python3 "$SKILL_DIR/scripts/ig-stats.py" run <ig-dir> -o /tmp/igstats
 python3 -c "import json;d=json.load(open('/tmp/igstats/<name>-stats.json'));print(d['mode'],d['schemaVersion'])"
 ```
 

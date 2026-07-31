@@ -151,6 +151,7 @@ Outside the catalog repository, or if the validator is unavailable, confirm by h
 - [ ] all four mandatory sections are present, in order
 - [ ] `SKILL.md` is under 500 lines
 - [ ] no absolute path, no upward `..` traversal, every relative reference exists and is one level deep
+- [ ] bundled scripts are *referenced* relatively but *invoked* through a resolved `$SKILL_DIR`
 - [ ] `references/triggers.md` exists
 
 ## Scope and delimitation

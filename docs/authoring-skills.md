@@ -192,6 +192,18 @@ instruction wearing a `domain`-tier hat.
 **Vague descriptions.** "Helps with X" is not a capability and matches everything in the domain
 equally badly.
 
+**Documenting a bundled script as a bare relative path.** `scripts/tool.sh` is the correct way to
+*reference* a bundled file — relative to the skill root, which is what the specification asks for and
+what the validator checks. It is the wrong way to *invoke* one. When the skill runs, the working
+directory is the project being operated on, not the skill directory, so a bare `scripts/tool.sh`
+fails — and if that project happens to have its own `scripts/` with a same-named file, it silently
+runs **that** one instead. Resolve the skill directory first and invoke through it:
+
+```bash
+SKILL_DIR=<the directory containing this SKILL.md>
+"$SKILL_DIR/scripts/tool.sh" --flag
+```
+
 **A body that is really reference material.** If it is a table, a mapping, or a long enumeration,
 it belongs in `references/` — the body is paid for on every activation.
 
