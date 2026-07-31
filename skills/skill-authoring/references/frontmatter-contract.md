@@ -24,6 +24,22 @@ No other top-level field is defined, and the catalog's validator rejects unknown
 that check exists to catch `descriptions:` and `licence:`, which YAML would otherwise
 accept in silence.
 
+### If you declare `allowed-tools`, it must cover the skill's own commands
+
+A declared `allowed-tools` is a promise that the body's procedure can run under exactly those
+grants. The failure mode is subtle: a skill that grants `Bash(python3:*)` while shipping a
+**bash** script, or grants `Bash(sushi:*)` while its Verification section runs
+`scripts/foo.sh`, works fine interactively (the agent prompts for permission) and then fails
+or stalls in exactly the unattended/CI runs the grants exist for — and no mechanical check
+catches it, because the field is optional and free-form.
+
+So the rule is: **every command the body instructs running — bundled scripts included — is
+covered by a grant, or `allowed-tools` is omitted entirely.** The practical pattern for
+bundled shell scripts is to invoke them as `bash "$SKILL_DIR/scripts/<name>.sh"` and grant
+`Bash(bash:*)`, which keeps the grant honest without enumerating script paths. This is a
+review check, not a validator check; the reviewer greps the body's fenced commands against
+the grant list.
+
 ### Structural rules from the standard
 
 - Keep `SKILL.md` under 500 lines and the body under roughly 5000 tokens.

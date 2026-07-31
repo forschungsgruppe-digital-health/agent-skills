@@ -152,6 +152,9 @@ Outside the catalog repository, or if the validator is unavailable, confirm by h
 - [ ] `SKILL.md` is under 500 lines
 - [ ] no absolute path, no upward `..` traversal, every relative reference exists and is one level deep
 - [ ] bundled scripts are *referenced* relatively but *invoked* through a resolved `$SKILL_DIR`
+- [ ] if `allowed-tools` is declared, every command the body instructs running — bundled scripts
+      included — is covered by a grant (a bash script needs `Bash(bash:*)` + a `bash …`
+      invocation, not `Bash(python3:*)`); see [the frontmatter contract](references/frontmatter-contract.md)
 - [ ] `references/triggers.md` exists
 
 ## Scope and delimitation
