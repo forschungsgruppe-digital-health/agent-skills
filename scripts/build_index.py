@@ -130,6 +130,13 @@ SLUG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 LANGUAGE_TAG = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
 MD_LINK = re.compile(r"\]\(([^)\s]+)")
 URI_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:")
+# Code spans and fenced blocks must be stripped before extracting links.
+# Documentation about link syntax legitimately contains link syntax -- a skill
+# that explains `[Text](Type-id.html)` is describing an example, not linking to a
+# file. Without this, the portability check would force authors to avoid writing
+# about links, which is the opposite of useful.
+FENCED_BLOCK = re.compile(r"^```.*?^```", re.M | re.S)
+CODE_SPAN = re.compile(r"`+[^`\n]*`+")
 
 
 @dataclass
@@ -530,9 +537,21 @@ def check_status_mirroring(rel: str, frontmatter: dict, metadata: dict, body: st
         )
 
 
+def strip_code(text: str) -> str:
+    """Remove fenced blocks and inline code spans, preserving line count.
+
+    Line count is preserved so that a future line-numbered diagnostic still
+    points at the right line.
+    """
+    def blank(match: re.Match) -> str:
+        return "\n" * match.group(0).count("\n")
+
+    return CODE_SPAN.sub("", FENCED_BLOCK.sub(blank, text))
+
+
 def check_portability(skill_dir: Path, rel: str, text: str, out: list[Violation]) -> None:
     """Reject references that only work in the repository they were written in."""
-    for target in MD_LINK.findall(text):
+    for target in MD_LINK.findall(strip_code(text)):
         if target.startswith("#") or URI_SCHEME.match(target):
             continue
         clean = target.split("#", 1)[0].strip()
@@ -621,6 +640,19 @@ def collect(out: list[Violation]) -> list[Skill]:
         metadata = check_metadata(rel, frontmatter, out)
         check_status_mirroring(rel, frontmatter, metadata, body, out)
         check_portability(skill_dir, rel, body, out)
+
+        # Bundled Markdown is checked too. A broken reference inside references/
+        # fails exactly as silently as one in SKILL.md -- the agent follows a
+        # pointer to nothing and improvises -- and it is the failure mode that
+        # only shows up after installation, where nobody is looking.
+        for bundled in sorted(skill_dir.rglob("*.md")):
+            if bundled.name == "SKILL.md" and bundled.parent == skill_dir:
+                continue
+            bundled_rel = f"{SKILLS_REL}/{skill_dir.name}/{bundled.relative_to(skill_dir).as_posix()}"
+            try:
+                check_portability(bundled.parent, bundled_rel, bundled.read_text(encoding="utf-8"), out)
+            except (OSError, UnicodeDecodeError) as exc:
+                out.append(Violation(bundled_rel, "bundled/unreadable", f"cannot read: {exc}"))
 
         name = frontmatter.get("name")
         skills.append(
