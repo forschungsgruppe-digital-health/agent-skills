@@ -270,6 +270,24 @@ and it costs one click a release.
 - Incomplete work is merged as `experimental` with a `TODO(owner):` marker, never parked on a
   branch.
 
+### The pull request body is part of the commit message
+
+Because merges are squash merges, the body becomes the commit body too — and Release Please runs the
+Conventional Commits parser over the **whole** message, not just the subject.
+
+So a line in the body that looks like a commit header is read as a *second* commit and lands in the
+changelog as a bogus section. **Never let `<type>:` or `<type>!:` begin a line in the body.**
+
+This is not hypothetical. In `v0.5.0` a classification footer wrapped so that its commit-type token
+started a line, and the release notes gained a `### ` + backtick-feat heading plus a breaking-change
+entry consisting of a stray backtick and an arrow. CI now rejects such lines; the guard exists
+because the parser is not a Markdown renderer and does not care that the token was inside code
+formatting.
+
+Write the classification in prose — "this is a breaking change", "editorial only" — and let the
+**title's** type carry the machine-readable signal. It already does; repeating it in the body adds
+nothing but this failure mode.
+
 Full detail, including the two bot-branch exceptions and the review model in force, is in
 [docs/branching.md](docs/branching.md).
 
