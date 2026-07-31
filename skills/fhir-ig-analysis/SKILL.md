@@ -74,7 +74,15 @@ not been translated. Do not "fix" it silently, and do not translate the numbers.
    ```
 
    With two or more inputs this writes one report per IG **plus** `compare-report.md`
-   automatically.
+   automatically. `--label` sets the **display label** (report heading, compare columns), one
+   per input; output **filenames** always derive from the IG id.
+
+   Two consequences of how inputs resolve, so the numbers are read correctly: a **git URL is
+   shallow-cloned**, so the git-history metrics (bus factor, maintenance cadence) are reported
+   as *not derivable* (`git.history_complete: false`, values `null`) — measure a full local
+   clone when you need them. And the tool reports **counted maturity components without an
+   aggregated score**: a 0–100 "readiness" number would be a forecast, which this skill
+   deliberately does not produce.
 
 2. **Power-user entry points**, when you want the stages separately:
 
@@ -175,6 +183,18 @@ Reworked on 2026-07-31 for this catalog. Beyond the catalog contract, three subs
   corrected. The inherited list named eleven pages of which **six do not exist** in the template
   modules are built from (`use-cases`, `data-sets`, `uml`, `context`, `references`,
   `security-privacy`), so every measurement reported six false missing pages.
+
+Revised on 2026-08-01 after the skill's first real-task exercise (a dry run against
+`kerndatensatz-dokument` + `kerndatensatz-basis`). Four output defects were fixed, all in the
+direction of "measurement, not forecasting": the aggregated `Reifegrad`/"Freigabe-Indikator"
+score was removed (components are now reported unaggregated — schemaVersion 1.4); the
+"Empfehlungen" table's migration-scoping prose became neutral "Befunde & Einordnung"
+measurement explanations and its metric-less "Arbeitsweise" row was dropped; git-history
+metrics on shallow clones (including every clone the tool makes itself) now report
+`history_complete: false` and `null` instead of a fictive "100 % top author"; and
+`references/ig-stats-schema.json` was regenerated from the real output after drifting
+(`mandatory_missing` was declared but never emitted). The dry-run findings live in the
+`mii-kds-dokument-ig-inoffiziell` sandbox under `docs/reports/dry-run-2026-07-31/`.
 
 Original licence: CC-BY-4.0, as declared by both source repositories. `scripts/` is Apache-2.0,
 matching this repository's code licence.

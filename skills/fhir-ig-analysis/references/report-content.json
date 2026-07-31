@@ -12,7 +12,7 @@
     "security-and-privacy",
     "translationinfo"
   ],
-  "_comment": "Hand-editierbare, NEUTRALE Report-Texte für ig-analyze. Self-contained (kein Bezug zu anderen Skills/Dateien des Repos). Quelle der Direktiven-Erkennung + laienverständliche Erklärungen + Glossar. Wird von scripts/ig-stats.py geladen.",
+  "_comment": "Hand-editierbare, NEUTRALE Report-Texte für ig-analyze. Self-contained (kein Bezug zu anderen Skills/Dateien des Repos nötig zur Laufzeit). Direktiven-Muster + laienverständliche Erklärungen + Glossar. Wird von scripts/ig-stats.py geladen.",
   "palette": [
     "#4E79A7",
     "#F28E2B",
@@ -27,6 +27,7 @@
     "#86BCB6",
     "#D37295"
   ],
+  "directive_patterns_note": "Label-Taxonomie abgeleitet aus der normativen fql-rules.tsv des Katalog-Skills mii-ig-migration; einzige gewollte Abweichung: dessen 'render' ist hier in 'render-image' + 'render-resource' aufgeteilt. Nach Änderungen an einer der beiden Dateien im Katalog scripts/check_directive_rules.py laufen lassen (CI prüft das).",
   "directive_patterns": {
     "page-title": "\\{\\{page-title\\}\\}",
     "index-root": "\\{\\{index:root\\}\\}",
@@ -94,39 +95,35 @@
   "mapping_rows": [
     {
       "bereich": "Artefakte (FSH)",
-      "empfehlung": "Liegen die Artefakte bereits als FSH vor, können sie unverändert nach input/fsh/ übernommen werden; ein Rückwandeln aus fertigen FHIR-Dateien entfällt. Wichtig: ids und Canonical-URLs bleiben gleich, damit bestehende Verweise weiter funktionieren (Bestandsschutz)."
+      "einordnung": "Zählt die publizierten Konformitätsressourcen und ob FSH-Quelltext vorliegt. FSH-Quellen machen den Bestand direkt les-, diff- und weiterverarbeitbar; ohne sie ist nur das generierte JSON/XML die Quelle."
     },
     {
       "bereich": "Narrative",
-      "empfehlung": "Die frei geschriebenen Erklärseiten gehören als Markdown-Dateien nach input/pagecontent/. Reine Platzhalter-/Navigationsseiten werden nicht übernommen, da Navigation und Inhaltsverzeichnis automatisch entstehen."
+      "einordnung": "Anzahl und Format der Erklärseiten (source = Plattformformat, target = IG-Publisher-Format). Das Format bestimmt, welche Werkzeuge die Seiten unverändert verarbeiten können."
     },
     {
       "bereich": "Direktiven",
-      "empfehlung": "Plattformspezifische Platzhalter/Tags werden durch die passenden Mechanismen des IG Publishers ersetzt (meist Vorlagen-Includes oder normale Markdown-Konstrukte). Direktiven ohne bekanntes Gegenstück werden einzeln von Hand geprüft und sinnvoll übersetzt."
+      "einordnung": "Vorkommen plattformspezifischer Platzhalter/Tags, die nur die Quellplattform interpretiert. Je mehr davon, desto stärker ist die Darstellung an die Plattform gebunden (vgl. Lock-in-Kennzahl)."
     },
     {
       "bereich": "Dependencies",
-      "empfehlung": "Alle deklarierten Paket-Abhängigkeiten werden mit fester Version in die sushi-config.yaml übernommen. Feste Versionen (Pinning) sind reproduzierbaren Builds vorzuziehen; bewegliche Einträge werden auf eine konkrete Version festgelegt."
+      "einordnung": "Deklarierte Paket-Abhängigkeiten und ihr Pinning. Floating-Einträge folgen automatisch neuen Versionen und machen Builds weniger reproduzierbar — der Wert zeigt, wie reproduzierbar der aktuelle Stand ist."
     },
     {
       "bereich": "Mehrsprachigkeit",
-      "empfehlung": "In Ressourcen eingebettete Übersetzungen werden vom Build automatisch in die jeweilige Sprachausgabe übernommen. Für übersetzte Erklärseiten legt man pro Sprache eigene Seiten an; eine Sprache bleibt führend, jede maschinelle Übersetzung ist menschlich zu prüfen."
+      "einordnung": "Ob Übersetzungen in den FSH-Quellen (translation-Extensions) und/oder als Publisher-Supplements vorliegen. Die beiden Mechanismen decken unterschiedliche Textarten ab; der Wert zeigt den vorhandenen Stand, nicht den Bedarf."
     },
     {
       "bereich": "Pflichtseiten",
-      "empfehlung": "Das Standard-Seitenraster sollte vollständig vorhanden sein (z.B. Startseite, Anwendungsfälle, Datensätze, Konformität, Kontext, Referenzen, Änderungen, Downloads, Datenschutz, Übersetzungshinweis). Fehlende Zielseiten werden ergänzt und in die Seiten-/Menükonfiguration aufgenommen."
+      "einordnung": "Wie viele Seiten des hinterlegten Pflicht-Rasters (mandatory_pages in dieser Datei) im Zielformat existieren. Die Aussagekraft hängt vom Raster ab: Nutzt ein Guide legitim ein anderes Seitenraster, wird das Raster korrigiert — nicht die Seiten als fehlend gewertet."
     },
     {
       "bereich": "QC-Regeln",
-      "empfehlung": "Die im Quellprojekt definierten Qualitätsregeln (qc/custom.rules.yaml) werden übernommen und in der CI-Pipeline regelmäßig ausgeführt, damit Validierung und Namenskonventionen automatisch geprüft werden."
+      "einordnung": "Anzahl der im Projekt definierten Qualitätsregeln (qc/custom.rules.yaml). Statisch wird nur die Definition gezählt; Verletzungen zeigt erst der Qualitätslauf eines Builds."
     },
     {
       "bereich": "Metadaten/Config",
-      "empfehlung": "Die Kerndaten des IG (id, Version, Status, Publisher, Lizenz) werden in sushi-config.yaml und ig.ini ins Zielformat überführt, inklusive Seiten-, Menü- und Sprachkonfiguration; die gewünschte Zielversion wird gesetzt."
-    },
-    {
-      "bereich": "Arbeitsweise",
-      "empfehlung": "Änderungen entstehen isoliert auf einem eigenen Arbeitszweig, getrennt vom Hauptstand. Änderungen werden über einen Pull Request eingebracht und vor dem Zusammenführen menschlich geprüft, statt direkt auf den Hauptzweig zu schreiben."
+      "einordnung": "Kern-Identität (id, Version) wie in sushi-config.yaml/package.json deklariert; die vollständigen Identitätsfelder stehen im Anhang."
     }
   ],
   "section_intros": {
@@ -134,11 +131,11 @@
     "direktiven": "Dieser Abschnitt listet die plattformspezifischen Platzhalter in den Erklärseiten, die ein generischer IG Publisher nicht versteht und die daher umgesetzt werden müssen.",
     "inhaltsumfang": "Linguistische Kennzahlen zum Textumfang (Wörter je Seite, Durchschnitt) sowie Hinweise auf inhaltliche Dopplungen und nicht referenzierte Dateien (Dead-Code-Analogie) - hilft, Umfang und Aufräumpotenzial einzuschätzen.",
     "hygiene_detail": "Konkrete Fundstellen doppelter Inhaltsblöcke sowie Listen nicht referenzierter Bilder und nicht eingebundener Beispiele.",
-    "reife": "Verdichteter Reifegrad als Freigabe-Indikator: Status, Vollständigkeit der Dokumentation, Beispiel-Abdeckung der Profile und Governance-Reife.",
+    "reife": "Gezählte Reife-Komponenten nebeneinander: Status, Vollständigkeit der Dokumentation, Beispiel-Abdeckung der Profile und Governance-Merkmale. Bewusst kein verdichteter Score und kein Freigabe-Urteil — die Einordnung bleibt menschlich.",
     "strategie": "Strategische Kennzahlen: Bindung an die Quellplattform (Lock-in), Anteil standardisierter Terminologie, Wiederverwendung externer Bausteine und Zukunftssicherheit (FHIR-Version, Pflege-Aktivität).",
     "risiko": "Entscheidungsrelevante Risiken für die Freigabe: Terminologie-Lizenzen, unterdrückte Warnungen, Datenschutz-Substanz, Wissenskonzentration (Bus-Faktor) und Kompatibilitätsbruch zur Vorversion.",
-    "empfehlungen": "Hier stehen je Themenbereich konkrete, aus den Kennzahlen abgeleitete Schritte zur Verbesserung des IG.",
-    "direktiven_mapping": "Dieser Abschnitt ordnet jedem Direktiven-Typ sein Gegenstück im IG-Publisher-Format zu, sortiert nach Häufigkeit.",
+    "empfehlungen": "Je Themenbereich der gemessene Befund und eine neutrale Einordnung, was er über den Guide aussagt — keine Handlungs- oder Migrationsanweisungen.",
+    "direktiven_mapping": "Dieser Abschnitt ordnet jedem Direktiven-Typ sein dokumentiertes Standard-Gegenstück im IG-Publisher-Format zu — eine Faktenreferenz, kein Arbeitsauftrag; sortiert nach Häufigkeit.",
     "anhang": "Im Anhang steht jeder Einzelwert mit seiner Quelle, damit man die Kennzahlen nachvollziehen kann, ohne im Projekt suchen zu müssen.",
     "identität": "Kerndaten des IG (Kennungen, Version, Status, Herausgeber) und woher sie stammen.",
     "dependencies": "Die FHIR-Pakete, auf denen der IG aufbaut, samt Version und ob diese fest oder offen angegeben ist.",
@@ -177,9 +174,9 @@
       "herkunft": "Heuristik: Datei-/Artefaktname kommt im Seitentext nicht vor (kein Beweis für Ungenutztheit)."
     },
     {
-      "metrik": "Reifegrad (Score)",
-      "misst": "Freigabe-Indikator 0-100 mit Band (in Entwicklung/fortgeschritten/technisch reif).",
-      "herkunft": "Mittelwert aus Status, Doku-Vollständigkeit (Inhalt vs. Stubs), Beispiel-Abdeckung der Profile und Governance-Reife."
+      "metrik": "Reife-Komponenten",
+      "misst": "Status, Doku-Vollständigkeit (Inhalt vs. Stubs), Beispiel-Abdeckung der Profile und Governance-Merkmale — nebeneinander, bewusst nicht zu einem Score verdichtet.",
+      "herkunft": "Gezählt/abgeleitet aus sushi-config, Narrative, artifacts_detail und Repo-Dateien; die Freigabe-Einordnung bleibt menschlich."
     },
     {
       "metrik": "Hersteller-Lock-in",
@@ -204,12 +201,12 @@
     {
       "metrik": "Pflege-Kadenz",
       "misst": "Lebendigkeit der Pflege (Commits/Jahr, Tage seit letztem Commit).",
-      "herkunft": "Git-Historie des analysierten Repos."
+      "herkunft": "Git-Historie des analysierten Repos. Erfordert vollständige Git-Historie: bei einem shallow clone (jeder URL-Input wird shallow geklont) nicht ermittelbar und daher null."
     },
     {
       "metrik": "Bus-Faktor (Wissenskonzentration)",
       "misst": "Schlüsselpersonen-Risiko: Anteil des Top-Autors an allen Commits.",
-      "herkunft": "Git-Historie, Autoren nach E-Mail gruppiert (Alias-robust)."
+      "herkunft": "Git-Historie, Autoren nach E-Mail gruppiert (Alias-robust). Erfordert vollständige Git-Historie: bei einem shallow clone (jeder URL-Input wird shallow geklont) nicht ermittelbar und daher null."
     },
     {
       "metrik": "Terminologie-Lizenz",
