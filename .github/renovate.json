@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "OPTIONAL. Renovate needs an installed app or a self-hosted runner; this repository is",
+    "fully functional without it, and .github/dependabot.yml covers everything declared in a",
+    "manifest. Renovate is here for exactly one thing Dependabot cannot do: track a version",
+    "string in an arbitrary file. See docs/watchlist.yaml for what is tracked and why, and",
+    "docs/lifecycle.md section 6 for the three-mechanism split.",
+    "Note the naming history: this feature was `regexManagers` and is now `customManagers`",
+    "with customType 'regex'. Older examples on the web use the retired key."
+  ],
+  "extends": ["config:recommended"],
+  "enabledManagers": ["custom.regex"],
+  "commitMessagePrefix": "build(deps):",
+  "labels": ["dependencies"],
+  "schedule": ["before 6am on monday"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Versions recorded in docs/watchlist.yaml that no manifest of ours declares.",
+      "managerFilePatterns": ["/^docs/watchlist\\.yaml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?\\s+[A-Za-z0-9_]+?:\\s*[\"'](?<currentValue>[^\"']+)[\"']"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
+    }
+  ]
+}

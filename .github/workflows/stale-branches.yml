@@ -1,0 +1,96 @@
+# Report branches that have stopped being short-lived.
+#
+# This is a reminder, not a blocker, and it must stay that way. Deleting
+# someone's branch automatically is hostile; letting branches age silently is
+# how trunk-based development quietly turns into GitFlow. One tracking issue,
+# updated in place, is the middle path.
+#
+# Deliberately NOT granted `contents: write`. It reports; it does not act.
+name: stale-branches
+
+on:
+  schedule:
+    - cron: '31 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    name: report
+    runs-on: ubuntu-latest
+    steps:
+      - name: List branches older than three days, excluding the bot exceptions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- watch-id: stale-branches -->'
+          CUTOFF=$(date -u -d '3 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "cutoff: $CUTOFF"
+
+          # The two documented exceptions from docs/branching.md. Both are
+          # bot-maintained and legitimately outlive two days:
+          #   - release-please--branches--main is a continuously rewritten
+          #     proposal, not a divergent feature branch;
+          #   - dependabot/** and renovate/** disappear with their pull request.
+          gh api --paginate "repos/$REPO/branches?per_page=100" \
+            --jq '.[] | select(.name != "main") | select(.name | startswith("release-please--") or startswith("dependabot/") or startswith("renovate/") | not) | .name' \
+            > /tmp/candidates.txt || true
+
+          : > /tmp/stale.txt
+          while read -r branch; do
+            [ -z "$branch" ] && continue
+            committed=$(gh api "repos/$REPO/branches/$branch" --jq '.commit.commit.committer.date')
+            if [[ "$committed" < "$CUTOFF" ]]; then
+              author=$(gh api "repos/$REPO/branches/$branch" --jq '.commit.commit.author.name')
+              printf '| `%s` | %s | %s |\n' "$branch" "$committed" "$author" >> /tmp/stale.txt
+            fi
+          done < /tmp/candidates.txt
+
+          existing=$(gh issue list --repo "$REPO" --state open --limit 100 --json number,body \
+            --jq "[.[] | select(.body != null and (.body | contains(\"$MARKER\")))][0].number")
+
+          if [ ! -s /tmp/stale.txt ]; then
+            echo "no stale branches"
+            if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+              gh issue close "$existing" --repo "$REPO" \
+                --comment "No branch is older than three days any more. Closing; the watch will reopen this if that changes."
+            fi
+            exit 0
+          fi
+
+          {
+            echo "$MARKER"
+            echo
+            echo "These branches have had no commit for more than three days."
+            echo
+            echo "| Branch | Last commit | Author |"
+            echo "| --- | --- | --- |"
+            cat /tmp/stale.txt
+            echo
+            echo "The working rule from trunk-based development is that a branch lasting longer"
+            echo "than a couple of days has stopped being a short-lived branch and become a"
+            echo "feature branch — the thing the practice exists to avoid."
+            echo "See <https://trunkbaseddevelopment.com/short-lived-feature-branches/>."
+            echo
+            echo "For each one: merge it, or merge the part that is complete and correct and open"
+            echo "an issue for the rest, or delete it. An unfinished skill is merged as"
+            echo '`fgdh.status: "experimental"` with the matching body banner and a `TODO(owner):`'
+            echo "marker — never parked on a branch, where it is invisible to everyone but its author."
+            echo
+            echo "Nothing here is deleted automatically. This issue is a reminder."
+          } > /tmp/issue.md
+
+          if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+            gh issue edit "$existing" --repo "$REPO" --body-file /tmp/issue.md
+            echo "updated issue #$existing"
+          else
+            gh issue create --repo "$REPO" --title "stale branches: not merged within three days" \
+              --body-file /tmp/issue.md --label stale-branch || \
+            gh issue create --repo "$REPO" --title "stale branches: not merged within three days" \
+              --body-file /tmp/issue.md
+          fi
