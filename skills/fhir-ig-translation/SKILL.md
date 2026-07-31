@@ -12,7 +12,7 @@ description: Sets up the translation supplements an IG-Publisher-based FHIR Impl
   onto the MII KDS module template, or for a template package's own language mechanism; see
   fhir-ig-analysis and mii-ig-migration.
 license: CC-BY-4.0
-allowed-tools: Read Grep Glob Edit Write Bash(python3:*)
+allowed-tools: Read Grep Glob Edit Write Bash(python3:*) Bash(bash:*)
 metadata:
   fgdh.tier: "domain"
   fgdh.domain: "fhir-ig"
@@ -100,8 +100,8 @@ the language you actually derived.
 1. **Scan** to get the target path for every page and resource:
 
    ```bash
-   "$SKILL_DIR/scripts/ig-translate.sh" --scan <lang>              # cwd = the guide's root
-   "$SKILL_DIR/scripts/ig-translate.sh" --scan <lang> path/to/ig   # or point at it
+   bash "$SKILL_DIR/scripts/ig-translate.sh" --scan <lang>              # cwd = the guide's root
+   bash "$SKILL_DIR/scripts/ig-translate.sh" --scan <lang> path/to/ig   # or point at it
    ```
 
    The language argument is **required** — the script refuses to default it, so no run can silently
@@ -124,8 +124,12 @@ the language you actually derived.
 5. **Validate, then build:**
 
    ```bash
-   "$SKILL_DIR/scripts/ig-translate.sh" --validate <lang>
+   bash "$SKILL_DIR/scripts/ig-translate.sh" --validate <lang>
    ```
+
+   Findings (`[WARN]`) exit 1; a run that finds **nothing to validate** says so explicitly and
+   exits 0 — add `--strict` to make an empty translation set fail too, which is the right wiring
+   for CI.
 
 6. **Bilingual human review is mandatory** before the translated rendering is trusted. Mark every
    machine translation `TODO:REVIEW` until a human has signed it off.
@@ -168,12 +172,18 @@ Both were wrong. The correct mechanism is a translation-source folder, as HL7's 
 ## Verification
 
 ```bash
-"$SKILL_DIR/scripts/ig-translate.sh" --validate <lang>
+bash "$SKILL_DIR/scripts/ig-translate.sh" --validate <lang>          # --strict: empty set fails too
 ```
 
 - Exit 2 with a clear message when run outside an IG, or when the language argument is missing — a
   silent empty scan is the failure mode this guards against.
-- `--validate` reports `[OK]` per supplement and per page, and no `[WARN]`.
+- `--validate` reports `[OK]` per supplement and per page, and no `[WARN]`; any `[WARN]` exits 1,
+  and its summary line states how many supplements and pages were actually checked. "Checked: 0"
+  with exit 0 is an explicit *nothing to validate*, never a claim that translations are valid
+  (`--strict` turns it into a failure).
+- The script WARNs when `<lang>` is not among the guide's `i18n-lang` targets or when
+  `i18n-default-lang` is undeclared — a best-effort echo of Preconditions 2, not a substitute
+  for it.
 - Every `.po` filename is `<Type>-<id>` and matches a real `fsh-generated/resources/<Type>-<id>.json`.
 - No supplement exists for an unsupported type, and no `menu.po` exists — the publisher ignores both.
 - Every translated page has a source page of the same name under `input/pagecontent/`.
@@ -221,7 +231,7 @@ If a skill of this name is provided both by this catalog and locally, the local 
   harvest mode.
 - [`references/triggers.md`](references/triggers.md) — the Gate 3 prompt set.
 - [`scripts/ig-translate.sh`](scripts/ig-translate.sh) — scan and validate; dry-run by design, it
-  writes nothing.
+  writes nothing. Validation findings exit 1; `--strict` also fails an empty translation set.
 
 ## Provenance
 
@@ -246,6 +256,14 @@ Reworked on 2026-07-31 for this catalog. Beyond the catalog contract, four subst
   overclaim. It now reads `i18n-default-lang` and `i18n-lang` from the guide being worked on, the
   script requires an explicit language argument instead of defaulting to `de`, and the mechanics are
   stated for any language pair. That is what earns the prefix.
+
+Revised on 2026-08-01 after the skill's first real-task exercise (a dry run against
+`kerndatensatz-dokument`): `--validate` findings now exit 1 and an empty translation set is
+reported explicitly (and fails under `--strict`) instead of an unconditional exit 0; the script
+cross-checks `<lang>` against the guide's i18n parameters with best-effort warnings; the harvest
+config's `page_map` example now covers non-English source page names; and the `allowed-tools`
+grant covers executing the bundled bash script. The dry-run findings live in the
+`mii-kds-dokument-ig-inoffiziell` sandbox under `docs/reports/dry-run-2026-07-31/`.
 
 Original licence: CC-BY-4.0, as declared by both source repositories. `scripts/` is Apache-2.0,
 matching this repository's code licence.

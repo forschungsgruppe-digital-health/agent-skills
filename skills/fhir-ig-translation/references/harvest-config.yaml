@@ -31,9 +31,19 @@ narratives:
   # Map a page in the harvested guide -> the page it becomes in the target guide.
   # Target file is input/translations/<target_lang>/pagecontent/<right-hand>.md
   #
-  # The names below are the MII KDS module template's ACTUAL page names. Replace
-  # them with the page set of the guide you are working on; an entry naming a page
-  # that does not exist is silently harvested into a file nothing renders.
+  # LEFT-HAND keys are the HARVESTED guide's own page identifiers — in whatever
+  # language that rendering uses. A German Simplifier guide has German page names;
+  # do not translate the keys, map them. Right-hand names below are the MII KDS
+  # module template's ACTUAL page names; replace them with the page set of the
+  # guide you are working on. An entry naming a page that does not exist is
+  # silently harvested into a file nothing renders — verify both sides.
+  #
+  # Example for a German Simplifier source (kerndatensatz-style page names):
+  #   Beschreibung:               guidance
+  #   Kontext-Bezuege:            index                  # lands in § Related guides
+  #   Referenzen:                 index
+  #   Datensaetze:                datasets-and-descriptions
+  #   Release-Notes:              changes
   page_map:
     index:                      index
     guidance:                   guidance
