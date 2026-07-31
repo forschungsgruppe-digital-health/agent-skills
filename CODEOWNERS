@@ -18,3 +18,4 @@
 # Per-skill ownership. Add one line per skill directory, matching the value of
 # `fgdh.owner` in that skill's SKILL.md frontmatter, in the same pull request
 # that adds the skill.
+/skills/skill-authoring/        @msusky
