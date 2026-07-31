@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/fhir/kds-sample/ig-stats-schema.json",
+  "title": "ig-stats",
+  "description": "Maschinenlesbare Statistik eines FHIR-IG (Ausgabe von scripts/ig-stats.py analyze). Build-only-Felder sind im statischen Modus null. Ab 1.1: Detail-/Provenienz-Arrays (artifacts_detail, narrative.files, directives.occurrences, quality.qc_rules, i18n.*_files) + artifacts.total = nur publizierte Artefakte (RuleSets/Invarianten/Mappings separat).",
+  "type": "object",
+  "required": ["schemaVersion", "tool", "mode", "analyzed", "identity", "artifacts"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "tool": { "type": "string" },
+    "mode": { "type": "string", "enum": ["static", "full", "reduced"], "description": "reduced = nur generierte Ressourcen (Package), kein FSH/Narrative" },
+    "analyzed": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "label": { "type": "string" },
+        "git_commit": { "type": ["string", "null"] },
+        "timestamp": { "type": ["string", "null"] }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "canonical": { "type": ["string", "null"] },
+        "packageId": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "title": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "calver": { "type": ["boolean", "null"] },
+        "status": { "type": ["string", "null"] },
+        "fhirVersion": { "type": ["string", "null"] },
+        "license": { "type": ["string", "null"] },
+        "publisher": { "type": ["string", "null"] }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Zählungen je Artefakttyp (FSH + fsh-generated).",
+      "properties": {
+        "profiles": { "type": "integer" },
+        "extensions": { "type": "integer" },
+        "valuesets": { "type": "integer" },
+        "codesystems": { "type": "integer" },
+        "logicals": { "type": "integer" },
+        "capabilitystatements": { "type": "integer" },
+        "questionnaires": { "type": "integer" },
+        "searchparameters": { "type": "integer" },
+        "operations": { "type": "integer" },
+        "examples": { "type": "integer" },
+        "mappings": { "type": "integer" },
+        "invariants": { "type": "integer" },
+        "rulesets": { "type": "integer" },
+        "total": { "type": "integer", "description": "nur publizierte Artefakte (ohne rulesets/invariants/mappings)" }
+      }
+    },
+    "artifacts_detail": {
+      "type": "array",
+      "description": "Provenienz je Artefakt: Typ, Name, ggf. InstanceOf, Quelldatei[:Zeile].",
+      "items": { "type": "object" }
+    },
+    "dependencies": {
+      "type": "object",
+      "properties": {
+        "count": { "type": "integer" },
+        "pinned": { "type": "integer" },
+        "floating": { "type": "integer" },
+        "items": { "type": "object" },
+        "floating_items": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "narrative": {
+      "type": "object",
+      "properties": {
+        "pages": { "type": "integer" },
+        "words": { "type": "integer" },
+        "images": { "type": "integer" },
+        "mandatory_present": { "type": "array", "items": { "type": "string" } },
+        "mandatory_missing": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "i18n": {
+      "type": "object",
+      "properties": {
+        "default_lang": { "type": ["string", "null"] },
+        "languages": { "type": "array", "items": { "type": "string" } },
+        "translation_supplements": { "type": "integer" },
+        "translated_pages": { "type": "integer" },
+        "fsh_translation_ext": { "type": "boolean" }
+      }
+    },
+    "directives": {
+      "type": "object",
+      "description": "Simplifier-/FQL-Direktiven in Narrativen (Treiber für offenen Arbeitsbedarf).",
+      "properties": {
+        "total": { "type": "integer" },
+        "by_label": { "type": "object" },
+        "unknown": { "type": "integer" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "description": "qc_* statisch; qa_* nur im full-Modus (sonst null).",
+      "properties": {
+        "qc_rules_defined": { "type": ["integer", "null"] },
+        "suppressed_messages": { "type": ["integer", "null"] },
+        "qa_errors": { "type": ["integer", "null"] },
+        "qa_warnings": { "type": ["integer", "null"] },
+        "qa_hints": { "type": ["integer", "null"] },
+        "broken_links": { "type": ["integer", "null"] },
+        "qa_categories": { "type": ["object", "null"] }
+      }
+    },
+    "linguistics": {
+      "type": "object",
+      "description": "Textumfang der Erklaerseiten (Woerter je Seite, Durchschnitt/Median, Extremwerte).",
+      "properties": {
+        "content_pages": { "type": "integer" },
+        "words_total": { "type": "integer" },
+        "words_avg": { "type": "number" },
+        "words_median": { "type": "integer" },
+        "words_min": { "type": "integer" },
+        "words_max": { "type": "integer" },
+        "longest_page": { "type": ["string", "null"] },
+        "shortest_page": { "type": ["string", "null"] },
+        "per_page": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "duplication": {
+      "type": "object",
+      "description": "Inhaltliche Dopplungen: identische Absaetze (>= 12 Woerter) und identische Seiten.",
+      "properties": {
+        "duplicate_block_count": { "type": "integer" },
+        "duplicate_blocks": { "type": "array", "items": { "type": "object" } },
+        "duplicate_file_groups": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } }
+      }
+    },
+    "hygiene": {
+      "type": "object",
+      "description": "Ungenutzte/nicht-referenzierte Dateien (Dead-Code-Analogie, konservativ/heuristisch).",
+      "properties": {
+        "images_total": { "type": "integer" },
+        "unreferenced_images": { "type": "array", "items": { "type": "string" } },
+        "examples_total": { "type": "integer" },
+        "examples_not_in_narrative": { "type": "array", "items": { "type": "string" } },
+        "note": { "type": "string" }
+      }
+    },
+    "maturity": {
+      "type": "object",
+      "description": "Gruppe K: Reife & Freigabe (Score, Doku-Vollstaendigkeit, Beispiel-Abdeckung, Governance).",
+      "properties": {
+        "score": { "type": ["integer", "null"] },
+        "band": { "type": "string" },
+        "components": { "type": "object" },
+        "doc_health_pct": { "type": ["integer", "null"] },
+        "example_coverage": { "type": "object" },
+        "governance": { "type": "object" }
+      }
+    },
+    "portfolio": {
+      "type": "object",
+      "description": "Gruppe L: Strategie - Lock-in, Standard-Anteil, Wiederverwendung, FHIR-Aktualitaet, Pflege-Kadenz."
+    },
+    "risk": {
+      "type": "object",
+      "description": "Gruppe N: Risiko & Compliance - Terminologie-Lizenz, unterdrueckte Warnungen, Datenschutz-Substanz, Bus-Faktor, Breaking-Change (build)."
+    },
+    "git": {
+      "type": "object",
+      "description": "Git-Historie (commits, authors, top_author_share, days_since_last, commits_per_year, tags) fuer Bus-Faktor/Kadenz."
+    }
+  }
+}
