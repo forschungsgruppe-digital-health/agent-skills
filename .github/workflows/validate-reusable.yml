@@ -1,0 +1,108 @@
+# Skill validation exposed for consuming repositories.
+#
+# A consumer has skills but not the catalog's scripts, so this workflow checks
+# out the caller's repository AND the catalog at a pinned ref, then runs the
+# catalog's checks against the caller's skills directory.
+#
+# Usage in a consuming repository (pin the tag; never track the default branch):
+#
+#   jobs:
+#     validate-skills:
+#       uses: forschungsgruppe-digital-health/agent-skills/.github/workflows/validate-reusable.yml@v0.1.0
+#       with:
+#         skills-path: .claude/skills
+#         catalog-ref: v0.1.0
+#
+# The catalog's own gate is `validate.yml`, not this file: that one has to test
+# the scripts in the pull request under review rather than a released copy.
+name: validate-reusable
+
+on:
+  workflow_call:
+    inputs:
+      skills-path:
+        description: Directory in the calling repository that contains the skill folders.
+        type: string
+        default: "skills"
+      warn-threshold:
+        description: Report description pairs at or above this Jaccard similarity.
+        type: string
+        default: "0.40"
+      fail-threshold:
+        description: Fail at or above this Jaccard similarity.
+        type: string
+        default: "0.60"
+      catalog-ref:
+        description: >-
+          Ref of the catalog to take the validation scripts from. Pin this to the same tag
+          you install skills from, so the rules that gate your repository are the rules of
+          the release you actually consume.
+        type: string
+        default: "main"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-skills:
+    name: validate-skills
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the calling repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check out the catalog (scripts and pinned dependencies)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: forschungsgruppe-digital-health/agent-skills
+          ref: ${{ inputs.catalog-ref }}
+          path: .agent-skills-catalog
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Install pinned dependencies
+        run: pip install -r .agent-skills-catalog/requirements.txt
+
+      - name: Specification conformance (agentskills validate)
+        env:
+          SKILLS_PATH: ${{ inputs.skills-path }}
+        run: |
+          if [ ! -d "$SKILLS_PATH" ]; then
+            echo "::error::skills-path '$SKILLS_PATH' does not exist in this repository."
+            exit 1
+          fi
+          status=0
+          found=0
+          shopt -s nullglob
+          for dir in "$SKILLS_PATH"/*/; do
+            dir="${dir%/}"
+            [ -f "$dir/SKILL.md" ] || continue
+            found=1
+            agentskills validate "$dir" || status=1
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::warning::No SKILL.md found under '$SKILLS_PATH'. Nothing was validated."
+          fi
+          exit $status
+
+      - name: Catalog contract
+        env:
+          SKILLS_PATH: ${{ inputs.skills-path }}
+        # --validate-only, not --check: generation and the drift test are
+        # catalog-specific. A consumer has no committed index to drift against,
+        # and writing one into their tree would be a surprise, not a service.
+        run: |
+          python .agent-skills-catalog/scripts/build_index.py \
+            --skills-dir "$SKILLS_PATH" --validate-only
+
+      - name: Trigger collision between descriptions
+        env:
+          SKILLS_PATH: ${{ inputs.skills-path }}
+          WARN: ${{ inputs.warn-threshold }}
+          FAIL: ${{ inputs.fail-threshold }}
+        run: |
+          python .agent-skills-catalog/scripts/check_descriptions.py \
+            --skills-dir "$SKILLS_PATH" --warn "$WARN" --fail "$FAIL"

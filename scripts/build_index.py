@@ -26,6 +26,12 @@ Usage:
     python scripts/build_index.py --check    # write nothing; exit 1 on drift
     python scripts/build_index.py --json     # violation report as JSON on stderr
 
+    # Validate skills that live somewhere else -- a consuming repository with
+    # the catalog installed into .claude/skills/, for example. Generation and
+    # the drift check are catalog-specific and meaningless there, so this mode
+    # validates and writes nothing.
+    python scripts/build_index.py --skills-dir .claude/skills --validate-only
+
 Exit codes:
     0  clean
     1  validation failure or drift
@@ -47,8 +53,24 @@ from lib.frontmatter import FrontmatterError, load  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
+SKILLS_REL = "skills"
 INDEX_PATH = SKILLS_DIR / "index.json"
 CATALOG_PATH = REPO_ROOT / "CATALOG.md"
+
+
+def configure(skills_dir: Path) -> None:
+    """Point the builder at a different skills directory.
+
+    Used by `--skills-dir` so the reusable validation workflow can check a
+    consuming repository's installed skills. The generated-artefact paths follow
+    the skills directory, but `--validate-only` is the only sensible mode there:
+    a consumer has no committed index to drift against.
+    """
+    global SKILLS_DIR, SKILLS_REL, INDEX_PATH, CATALOG_PATH
+    SKILLS_REL = skills_dir.as_posix().rstrip("/")
+    SKILLS_DIR = skills_dir.resolve()
+    INDEX_PATH = SKILLS_DIR / "index.json"
+    CATALOG_PATH = SKILLS_DIR.parent / "CATALOG.md"
 
 GENERATOR = "scripts/build_index.py"
 SCHEMA_VERSION = "1"
@@ -178,7 +200,7 @@ def leading_banner(body: str) -> str:
 
 
 def check_name(skill_dir: Path, frontmatter: dict, out: list[Violation]) -> None:
-    rel = f"skills/{skill_dir.name}/SKILL.md"
+    rel = f"{SKILLS_REL}/{skill_dir.name}/SKILL.md"
     name = frontmatter.get("name")
 
     if name is None:
@@ -564,11 +586,11 @@ def collect(out: list[Violation]) -> list[Skill]:
 
     for skill_dir in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
         skill_md = skill_dir / "SKILL.md"
-        rel = f"skills/{skill_dir.name}/SKILL.md"
+        rel = f"{SKILLS_REL}/{skill_dir.name}/SKILL.md"
         if not skill_md.is_file():
             out.append(
                 Violation(
-                    f"skills/{skill_dir.name}/",
+                    f"{SKILLS_REL}/{skill_dir.name}/",
                     "skill/missing-skill-md",
                     "a directory under skills/ must contain a SKILL.md",
                 )
@@ -605,7 +627,7 @@ def collect(out: list[Violation]) -> list[Skill]:
             Skill(
                 name=name if isinstance(name, str) else skill_dir.name,
                 directory=skill_dir.name,
-                path=f"skills/{skill_dir.name}/SKILL.md",
+                path=f"{SKILLS_REL}/{skill_dir.name}/SKILL.md",
                 frontmatter=frontmatter,
                 metadata=metadata,
             )
@@ -721,7 +743,7 @@ def render_catalog(skills: list[Skill]) -> str:
     return "\n".join(lines)
 
 
-def run(check: bool, as_json: bool) -> int:
+def run(check: bool, as_json: bool, validate_only: bool = False) -> int:
     violations: list[Violation] = []
     skills = collect(violations)
 
@@ -740,6 +762,14 @@ def run(check: bool, as_json: bool) -> int:
                 print(f"  {violation.render()}", file=sys.stderr)
         return 1
 
+    if validate_only:
+        if as_json:
+            json.dump({"ok": True, "skills": len(skills), "written": False}, sys.stderr, indent=2)
+            sys.stderr.write("\n")
+        else:
+            print(f"valid: {len(skills)} skill(s) in {SKILLS_REL}/ (nothing generated)")
+        return 0
+
     index_text = render_index(skills)
     catalog_text = render_catalog(skills)
 
@@ -748,7 +778,11 @@ def run(check: bool, as_json: bool) -> int:
         for path, expected in ((INDEX_PATH, index_text), (CATALOG_PATH, catalog_text)):
             actual = path.read_text(encoding="utf-8") if path.is_file() else None
             if actual != expected:
-                drifted.append(path.relative_to(REPO_ROOT).as_posix())
+                try:
+                    drifted.append(path.relative_to(REPO_ROOT).as_posix())
+                except ValueError:
+                    # --skills-dir pointed outside the repository; report the path as given.
+                    drifted.append(path.as_posix())
         if drifted:
             if as_json:
                 json.dump({"ok": False, "drift": drifted}, sys.stderr, indent=2)
@@ -794,10 +828,35 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="emit a machine-readable report on stderr",
     )
+    parser.add_argument(
+        "--skills-dir",
+        type=Path,
+        default=None,
+        help="validate the skills in this directory instead of ./skills (implies --validate-only "
+        "unless --check is given); used by the reusable workflow for consuming repositories",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="validate and write nothing; skip generation and the drift check entirely",
+    )
     args = parser.parse_args(argv)
 
+    validate_only = args.validate_only
+    if args.skills_dir is not None:
+        if not args.skills_dir.is_dir():
+            print(f"--skills-dir: {args.skills_dir} is not a directory", file=sys.stderr)
+            return 2
+        configure(args.skills_dir)
+        if not args.check:
+            validate_only = True
+
+    if args.check and validate_only:
+        print("--check and --validate-only are mutually exclusive", file=sys.stderr)
+        return 2
+
     try:
-        return run(check=args.check, as_json=args.as_json)
+        return run(check=args.check, as_json=args.as_json, validate_only=validate_only)
     except Exception as exc:  # noqa: BLE001 - exit code 2 means "the tool broke"
         print(f"internal error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2

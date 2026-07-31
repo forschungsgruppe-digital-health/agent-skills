@@ -98,9 +98,17 @@ Rules enabled:
 - **Require a pull request before merging** (`pull_request`) — with conversation resolution
   required; see the review model below.
 - **Require linear history** (`required_linear_history`) — no merge commits reach the trunk.
-- **Require status checks to pass** (`required_status_checks`) — added in a later change, once
-  the validation workflow has run at least once and its job names are known. Requiring a check
-  that has never reported blocks every merge, including the one that would create the check.
+- **Require status checks to pass** (`required_status_checks`) — the `validate` and `pr-title`
+  jobs of `.github/workflows/validate.yml`, each bound to `integration_id: 15368` (the GitHub
+  Actions app) so a check of the same name reported by a different app cannot satisfy the rule.
+  `strict_required_status_checks_policy` is on: a branch must be up to date with `main` before
+  it can merge. That is what makes "integrate frequently" enforceable rather than aspirational,
+  and it is the reason a branch left open for a week becomes work rather than a click.
+
+  These were added *after* the workflow had reported once and its job names were known.
+  Requiring a check that has never run blocks every merge, including the one that would create
+  the check — so the ordering here is a constraint, not a preference. If you add a job and
+  require it in the same change, you will lock the repository.
 
 ### Applying or restoring it
 

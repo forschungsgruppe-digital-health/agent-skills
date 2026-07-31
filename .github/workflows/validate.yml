@@ -1,0 +1,93 @@
+# The catalog's own gate. Every rule here is deterministic: pass or fail comes
+# from an exit code, never from a judgement.
+#
+# This workflow is deliberately self-contained rather than delegating to
+# validate-reusable.yml. It has to test the scripts *in the pull request under
+# review*, whereas the reusable workflow checks out the catalog at a pinned tag
+# for consumers who do not have the scripts. Sharing one file would mean a pull
+# request could only ever be validated by the previously released validator,
+# which is exactly backwards.
+name: validate
+
+on:
+  pull_request:
+    # `edited` matters: without it, fixing an invalid pull request title never
+    # re-runs the title check and the merge stays blocked on a stale result.
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Install pinned dependencies
+        run: pip install -r requirements.txt
+
+      - name: Specification conformance (agentskills validate)
+        # The reference validator from the Agent Skills project, published to
+        # PyPI as `skills-ref` and pinned in requirements.txt. Note that the
+        # console script it installs is named `agentskills`, not `skills-ref`:
+        # the specification page and the project's own pyproject.toml both say
+        # otherwise, and the installed artifact is the authority.
+        run: |
+          status=0
+          shopt -s nullglob
+          for dir in skills/*/; do
+            dir="${dir%/}"
+            [ -f "$dir/SKILL.md" ] || continue
+            agentskills validate "$dir" || status=1
+          done
+          exit $status
+
+      - name: Catalog contract and generated-artefact drift
+        run: python scripts/build_index.py --check
+
+      - name: Trigger collision between descriptions
+        run: python scripts/check_descriptions.py
+
+  pr-title:
+    # The pull request title becomes the trunk commit message, because merges
+    # are squash merges configured with squash_merge_commit_title=PR_TITLE. An
+    # invalid title therefore does not just look untidy -- it silently breaks
+    # release automation, which parses the trunk commits.
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Title must be a Conventional Commit
+        env:
+          # Passed through the environment rather than interpolated into the
+          # script. A pull request title is attacker-controlled text, and
+          # ${{ }} interpolation would splice it straight into the shell.
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|docs|refactor|test|chore|perf|build|ci|style|revert)(\([a-z0-9._/-]+\))?!?: .+'
+          if ! printf '%s' "$TITLE" | grep -Eq "$pattern"; then
+            echo "::error::Pull request title is not a Conventional Commit: '$TITLE'"
+            echo "Expected: <type>[(scope)][!]: <description>"
+            echo "Allowed types: feat, fix, docs, refactor, test, chore, perf, build, ci, style, revert"
+            echo "The title becomes the commit message on main and is what Release Please parses."
+            exit 1
+          fi
+          case "$TITLE" in
+            *.) echo "::error::Pull request title must not end with a period."; exit 1 ;;
+          esac
+          if [ "${#TITLE}" -gt 100 ]; then
+            echo "::error::Pull request title is ${#TITLE} characters; keep it under 100."
+            exit 1
+          fi
+          echo "OK: $TITLE"

@@ -41,6 +41,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 DEFAULT_STOPWORDS_FILE = REPO_ROOT / "scripts" / "domain-stopwords.txt"
 
+
+def configure(skills_dir: Path) -> None:
+    """Point the checker at a different skills directory (see `--skills-dir`)."""
+    global SKILLS_DIR
+    SKILLS_DIR = skills_dir.resolve()
+
 MIN_TOKEN_LENGTH = 3
 
 # A small built-in English stopword list. Deliberately small: an aggressive list
@@ -165,6 +171,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--warn", type=float, default=0.40, help="report pairs at or above this")
     parser.add_argument("--fail", type=float, default=0.60, help="exit 1 at or above this")
     parser.add_argument(
+        "--skills-dir",
+        type=Path,
+        default=None,
+        help="compare the skills in this directory instead of ./skills; used by the reusable "
+        "workflow for consuming repositories",
+    )
+    parser.add_argument(
         "--stopword",
         action="append",
         default=[],
@@ -187,6 +200,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.fail < args.warn:
         print("--fail must not be below --warn", file=sys.stderr)
         return 2
+
+    if args.skills_dir is not None:
+        if not args.skills_dir.is_dir():
+            print(f"--skills-dir: {args.skills_dir} is not a directory", file=sys.stderr)
+            return 2
+        configure(args.skills_dir)
 
     files = list(args.stopwords_files) or [DEFAULT_STOPWORDS_FILE]
 
