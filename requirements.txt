@@ -1,0 +1,10 @@
+# Pinned exactly, not with a range. A validation result must never change
+# because a transitive parser update changed behaviour: CI compares generated
+# bytes, so an unpinned YAML parser turns "the tree is clean" into "the tree is
+# clean today".
+#
+# Everything else the scripts need comes from the Python standard library.
+# scripts/check_owners.py and scripts/watch_specs.py deliberately use urllib
+# rather than requests so that the only third-party dependency in this
+# repository is the YAML parser.
+PyYAML==6.0.3
