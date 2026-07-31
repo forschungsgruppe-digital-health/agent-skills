@@ -12,7 +12,7 @@ description: Migrates an existing Simplifier-published MII KDS module Implementa
   new profiles, for creating a module from scratch, or for translating a guide already on the
   template; the module template ships recipes and an ig-translate skill for those.
 license: CC-BY-4.0
-allowed-tools: Read Grep Glob WebFetch Bash(sushi:*) Bash(gofsh:*) Bash(git clone:*) Bash(git status:*) Bash(git diff:*)
+allowed-tools: Read Grep Glob WebFetch Bash(sushi:*) Bash(gofsh:*) Bash(bash:*) Bash(git clone:*) Bash(git status:*) Bash(git diff:*)
 metadata:
   fgdh.tier: "domain"
   fgdh.domain: "fhir-ig"
@@ -45,22 +45,38 @@ Discover the context. Do not assume any of it, and do not create what is missing
    - `input/fsh/` present but empty → report it; a migration with no artefacts to move is a
      configuration error, not a no-op.
 
-3. **The target template.** Determine which state the module is in:
-   - **Already on the template** — a vendored `ig-template/` directory, or a `template` entry in
-     `ig.ini` pointing at it. Then this is a *re-migration* or a partial one; report what is
-     already in place before changing anything.
-   - **Not yet on the template** — create the module repository from
-     `forschungsgruppe-digital-health/mii-kds-module-template` and migrate into it. Read that
-     repository at the ref you intend to use; do not rely on this skill's description of it.
+3. **The target template.** Determine which state the module is in — discovery only here; the
+   skeleton is created later, in step 3 of the procedure:
+   - **Already on the module template** — a vendored `ig-template/` directory, or a `template`
+     entry in `ig.ini` pointing at it. Then this is a *re-migration* or a partial one; report
+     what is already in place before changing anything.
+   - **Plain Simplifier project** — Simplifier files only (`.simplifier/`, `project.yaml`,
+     `implementation-guides/`), no IG-Publisher scaffolding. The normal starting state.
+   - **Hybrid, or on another template** — IG-Publisher files exist alongside the Simplifier
+     files: an `ig.ini` naming some other template (e.g. `fhir.base.template`), `_genonce.sh`
+     & co., a committed `fsh-generated/`, or a committed rendered output (which may be live
+     GitHub Pages). Still a migration, not a re-migration — but inventory those files and
+     record in the migration report which of them the module template replaces (`ig.ini`, the
+     `_gen*`/`_update*` scripts), which carry content to transfer (`input/`, `fsh-generated/`),
+     and which are retired only after Gate D (the Simplifier project files, a committed
+     rendered output). Deleting any of them is not this skill's work — list, do not remove.
+
+   In every state, read `forschungsgruppe-digital-health/mii-kds-module-template` at the ref
+   you intend to use; do not rely on this skill's description of it.
 
 4. **Unreplaced placeholders.** The template does not build until every `{{...}}` placeholder is
    replaced, and an unreplaced one **ships a bogus artefact** rather than failing loudly. Before
-   and after migrating, grep the working tree for `{{` and account for every hit. The template's
-   own `sushi-config.yaml` header block enumerates them and says which are active.
+   and after migrating, grep the working tree for `{{` and account for every hit. Scope the
+   check: exclude `.github/**` (GitHub-Actions `${{ … }}` expressions match the pattern but are
+   not placeholders), and count Simplifier directives in narrative sources as accounted — they
+   are step-5 material, not placeholders. The template's own `sushi-config.yaml` header block
+   enumerates the real placeholders and says which are active.
 
 5. **The toolchain.** `sushi` and the IG Publisher must be runnable; `gofsh` is needed only if the
-   source ships JSON/XML rather than FSH. Missing → report which one and stop before step 3. Do
-   not fetch and execute a toolchain to get past this.
+   source ships JSON/XML rather than FSH. Missing → report which one and **stop after step 2**:
+   the inventory and the identity read are still useful, but do not create the skeleton or
+   transfer artefacts on top of an unverifiable build. Do not fetch and execute a toolchain to
+   get past this.
 
 ## Procedure
 
@@ -90,8 +106,10 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
 2. **Read the module's identity — do not ask for it, and do not invent it.** From the source
    repository's `sushi-config.yaml` and `package.json` (or, absent a `sushi-config.yaml`, from
    `package.json` plus the `ImplementationGuide` resource), read `title`, `packageId`, `canonical`,
-   `status`, `releaseLabel`, `dependencies` and `publisher`, and carry them over **unchanged**.
-   Resolve floating pins (`1.5.x`) to concrete versions.
+   `status`, `releaseLabel`, `license`, `dependencies` and `publisher`, and carry them over
+   **unchanged**. When the two files disagree on a field, `sushi-config.yaml` wins — it is what
+   the build reads; record the disagreement. Resolve floating pins (`1.5.x`) to concrete
+   versions.
 
    The **target version** is the only identity value that is a human decision. It is MII CalVer
    `YYYY.n.n`, not SemVer; the default is the source's version.
@@ -101,22 +119,36 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    `packageId: de.medizininformatikinitiative.kerndatensatz.<slug>`. Those are what a *new* module
    gets. A module that is already published keeps its own values — changing a published canonical
    breaks every consumer of it. Report any divergence explicitly and let a human decide; never
-   normalize silently.
+   normalize silently. The same rule covers every identity value the template pre-fills as a
+   **literal** rather than a placeholder — `license` above all: the template ships
+   `license: CC-BY-4.0` as a literal, so no placeholder check will flag it, and MII modules
+   commonly declare `CC0-1.0`. Relicensing is a human decision, never a default.
 
-3. **Transfer the artefacts.** Move the FSH sources across; convert JSON/XML with `gofsh` where
-   that is all the source has. IDs and URLs unchanged. **Delete the template's example artefacts
-   before migrating** — `input/fsh/profiles/example-patient.fsh` and
+3. **Create the skeleton** (spec §5.2). The migration happens **in place**: on a working branch
+   of the module's existing repository, vendor the template checked out in Preconditions 3 and
+   run its first-run bootstrap — do not mint a new repository; the module's history, issues and
+   consumers stay where they are (a new repository is a human decision, recorded in the
+   migration report, never a default). Replace every `{{...}}` placeholder from the identity
+   read in step 2, and **delete the template's example artefacts** —
+   `input/fsh/profiles/example-patient.fsh` and
    `input/fsh/instances/example-patient-instance.fsh` — so they cannot collide with the module's
    real examples. Verify the paths against the template you actually checked out; example
    filenames are template-version-specific.
 
-4. **Migrate the narrative.** Move the Manteldokument content into `input/pagecontent/*.md` and
+4. **Transfer the artefacts.** Move the FSH sources across; convert JSON/XML with `gofsh` where
+   that is all the source has. IDs and URLs unchanged.
+
+5. **Migrate the narrative.** Move the Manteldokument content into `input/pagecontent/*.md` and
    translate Simplifier and FQL directives into IG Publisher equivalents:
 
    ```bash
-   "$SKILL_DIR/scripts/fql-scan.sh"                    # scan input/pagecontent
-   "$SKILL_DIR/scripts/fql-scan.sh" --strict           # exit 1 on any finding, for CI
+   bash "$SKILL_DIR/scripts/fql-scan.sh"                # scan (recursive; see below)
+   bash "$SKILL_DIR/scripts/fql-scan.sh" --strict       # exit 1 on any finding, for CI
    ```
+
+   The scan is recursive and, pre-migration, includes `implementation-guides/**` where a
+   Simplifier project keeps its pages; it prints how many files it scanned, and a run whose
+   target set is empty exits 2 — never read "nothing scanned" as "nothing found".
 
    Apply the recommendation the scanner prints per finding. The mapping and the reasoning are in
    [the FQL crosswalk](references/fql-crosswalk.md); the machine-readable rules, extensible by
@@ -128,27 +160,32 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    [the section mapping](references/migration-spec.md). **Do not create a page outside the
    template's page set** to hold one of them.
 
-5. **Set up the bilingual pages.** English is the default; German is the translation, living at
+6. **Set up the bilingual pages.** English is the default; German is the translation, living at
    `input/translations/de/pagecontent/<same-filename>.md`. These **do** render. The menu is
    `input/includes/menu.xml` with a per-language mirror at
    `input/translations/de/includes/menu.xml` — not a `menu:` property in `sushi-config.yaml`, which
    would compete with it. Resource translations are `.po` supplements under
    `input/translations/de/`; check the target's own translation recipe for which resource types and
-   fields actually render before investing in a supplement.
+   fields actually render before investing in a supplement. When the source narrative is
+   German-only, the German pages come first and the English defaults are produced from them —
+   see *Language* below for the one sanctioned exception to the no-fabrication guardrail.
 
-6. **Build and QA.** `sushi .`, then the IG Publisher. The target pins its toolchain in the build
+7. **Build and QA.** `sushi .`, then the IG Publisher. The target pins its toolchain in the build
    workflow's `env:` block — read the pins from there rather than from this file. Acceptance:
    `qa.txt` reports `Errors: 0` and every example validates.
 
-7. **Report.** Write `.ai-log/migration-report.md`: the mapping table, the assumptions, every
+8. **Report.** Write `.ai-log/migration-report.md`: the mapping table, the assumptions, every
    `TODO:REVIEW`, and the QA summary. Every open point is either addressed or explicitly marked.
 
-8. **Open a pull request** with the report as its description. **Do not publish.** Determine the
-   target branch from the module repository's own branching convention — do not assume one. The
-   template previews every non-`main` branch to `gh-pages` under `branches/<branch>/` and reserves
-   `main` and tags for formal publication, so a working branch gets a preview without touching the
-   default branch. If the module repository has a different convention, follow that one and say
-   which you followed.
+9. **Open a pull request** with the report as its description. **Do not publish.** Determine the
+   target branch from the module repository's own branching convention — **discover it, do not
+   assume it**: the default branch, the bases of previously merged pull requests, and
+   CONTRIBUTING/README are the evidence. The template previews every non-`main` branch to
+   `gh-pages` under `branches/<branch>/` and reserves `main` and tags for formal publication, so
+   a working branch gets a preview without touching the default branch. If the module repository
+   has a different convention, follow that one and say which you followed — and if its
+   conventional PR base is itself the publication branch (for example GitHub Pages served from
+   it), say so in the pull request description and at Gate D: there, merging publishes.
 
 ## Guardrails
 
@@ -186,13 +223,24 @@ Three facts, easy to conflate:
   (guardrail 1). That file uses **glob matching with `%` wildcards, not regex**, and the publisher
   emits the message in German or English depending on JVM locale, so match the locale-stable
   token: `%(de-DE)%`.
+- **A German-only source inverts the direction — and that is this skill's to handle.** The normal
+  KDS case: the source's entire narrative is German, while the target's default language is
+  English, so the migration makes the German text the *translation* of English pages that do not
+  yet exist. Transfer the source text into `input/translations/de/pagecontent/` (it is the
+  translation now) and produce the default-language `input/pagecontent/*.md` as **machine
+  translations of the German source, every page marked `TODO:REVIEW`**, reviewed at Gate C. This
+  is the one sanctioned exception to guardrail 3 (no fabrication): the translation traces to the
+  source page it renders, and the German text stays the authoritative reference until Gate C
+  signs the English pages off. A top-level `language:` value in the source's `sushi-config.yaml`
+  is part of its old single-language setup, not identity — do not carry it into the template's
+  i18n configuration.
 
 ## Verification
 
 ```bash
-grep -rn '{{' . --include='*.yaml' --include='*.yml' --include='*.md' --include='*.json'
+grep -rn '{{' . --include='*.yaml' --include='*.yml' --include='*.md' --include='*.json' | grep -v '\${{'
 sushi .
-"$SKILL_DIR/scripts/fql-scan.sh" --strict
+bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
 ```
 
 - Every `{{...}}` placeholder accounted for — an unreplaced one ships a bogus artefact silently.
@@ -200,7 +248,10 @@ sushi .
 - IG Publisher `qa.txt` reports `Errors: 0`; every example validates.
 - **Canonical URL diff against the source is empty.** This is the guardrail-1 check and the one
   that matters most; a non-empty diff is a stop, not a warning.
-- `fql-scan.sh --strict` exits 0, or every remaining finding is a deliberate `TODO:REVIEW`.
+- **The `license` (and every other identity value) diff against the source is empty**, or the
+  divergence is reported and human-decided — never silently normalized to a template value.
+- `fql-scan.sh --strict` exits 0 **and reports a non-zero scanned-file count**, or every
+  remaining finding is a deliberate `TODO:REVIEW`. An empty target set exits 2 and is not a pass.
 - No `[UNKNOWN]` findings; an unknown directive means a rule is missing from `fql-rules.tsv`.
 - The IG builds both language variants and the German pages render.
 - Template example artefacts are gone.
@@ -210,9 +261,9 @@ sushi .
 
 | Gate | After step | What is reviewed |
 | --- | --- | --- |
-| **A** | 3 | Canonical URL and ID preservation; artefact completeness |
-| **B** | 4 | The narrative, especially any section added to satisfy the Manteldokument |
-| **C** | 5 | Language handling and translation |
+| **A** | 4 | Canonical URL, ID **and licence/identity** preservation; artefact completeness |
+| **B** | 5 | The narrative, especially any section added to satisfy the Manteldokument |
+| **C** | 6 | Language handling and translation, including machine-translated default pages |
 | **D** | before merge | Release per KDS governance (TF KDS / AG IOP / NSG) |
 
 Gate D is organizational, not technical. Nothing publishes before it.
@@ -222,9 +273,10 @@ Gate D is organizational, not technical. Nothing publishes before it.
 The Manteldokument requires sections that the template's English-named page set does not name.
 They are not missing: they live **inside** pages. The mapping, derived from
 `medizininformatik-initiative/kerndatensatz-basis` — the MII's own reference module, whose page set
-is identical to the template's — is in [the migration specification](references/migration-spec.md).
+matches the template's except for two template-only pages (`security-and-privacy`,
+`rendering-artifacts`) — is in [the migration specification](references/migration-spec.md).
 
-Two things to carry into step 4:
+Two things to carry into step 5:
 
 - **Never create a page outside the template's page set** to hold one of these sections. The page
   set and the menu are owned by the module template, and an extra page is an unlisted orphan.
@@ -263,6 +315,14 @@ German to English, that the `hl7-ig-build` branch convention no longer exists, a
 tool and example paths had moved. The original bundled `references/agent-manifest.yaml` was dropped
 because it duplicated the guardrails and had already gone stale against them. See the repository
 history for the diff.
+
+Revised on 2026-08-01 after the skill's first real-task exercise (a dry run against
+`kerndatensatz-dokument`): the identity read-list gained `license` and a
+sushi-config-wins conflict rule; target-state discovery gained the hybrid/other-template state;
+skeleton creation became an explicit in-place procedure step; the German-only-source language
+inversion, the branch-convention discovery recipe, and the scoped placeholder check were added;
+`fql-scan.sh` became recursive with an empty-target failure. The dry-run findings live in the
+`mii-kds-dokument-ig-inoffiziell` sandbox under `docs/reports/dry-run-2026-07-31/`.
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill.
 `scripts/` is Apache-2.0, matching this repository's code licence.
