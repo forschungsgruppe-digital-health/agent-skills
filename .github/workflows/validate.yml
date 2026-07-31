@@ -59,6 +59,42 @@ jobs:
       - name: Trigger collision between descriptions
         run: python scripts/check_descriptions.py
 
+      - name: Every relative link in every Markdown file resolves
+        # build_index.py checks links inside skills/ only, because that is where
+        # portability decides whether an installed skill still works. Nothing
+        # checked README.md, AGENTS.md or docs/ — and a broken link shipped there
+        # for exactly that reason, in the paragraph explaining the rule.
+        #
+        # This reuses build_index's own strip_code() and MD_LINK rather than
+        # reimplementing them, so the two can never disagree about what counts
+        # as a link.
+        run: |
+          python - <<'PY'
+          import pathlib, re, subprocess, sys
+          sys.path.insert(0, 'scripts')
+          import build_index as B
+
+          files = [f for f in subprocess.run(['git', 'ls-files'], capture_output=True, text=True)
+                   .stdout.split() if f.endswith(('.md', '.template'))]
+          scheme = re.compile(r'^[a-z][a-z0-9+.-]*:')
+          broken, checked = [], 0
+          for f in files:
+              p = pathlib.Path(f)
+              for target in B.MD_LINK.findall(B.strip_code(p.read_text(encoding='utf-8'))):
+                  if target.startswith('#') or scheme.match(target):
+                      continue
+                  clean = target.split('#', 1)[0]
+                  if not clean:
+                      continue
+                  checked += 1
+                  if not (p.parent / clean).exists():
+                      broken.append(f'{f} -> {target}')
+          print(f'{len(files)} Markdown file(s), {checked} relative link(s) checked')
+          for b in broken:
+              print(f'::error::broken relative link: {b}')
+          sys.exit(1 if broken else 0)
+          PY
+
   pr-title:
     # The pull request title becomes the trunk commit message, because merges
     # are squash merges configured with squash_merge_commit_title=PR_TITLE. An
