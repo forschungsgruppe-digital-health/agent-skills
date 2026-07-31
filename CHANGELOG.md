@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.4.0...v0.5.0) (2026-07-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* ` → MINOR pre-1.0.
+* adopt a scope-accurate naming scheme and generalise the translation skill ([#21](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/21))
+
+### `feat
+
+* ` → MINOR pre-1.0. ([6665682](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/666568264b375f37baa33734aeca9a84ef23cfb9))
+
+
+### Skills and capabilities
+
+* adopt a scope-accurate naming scheme and generalise the translation skill ([#21](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/21)) ([6665682](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/666568264b375f37baa33734aeca9a84ef23cfb9))
+
 ## [0.4.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.3.0...v0.4.0) (2026-07-31)
 
 
