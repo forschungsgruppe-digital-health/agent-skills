@@ -1,0 +1,46 @@
+# Dependabot raises pull requests for dependencies declared in a manifest or
+# lock file of a supported package manager. That covers this repository's
+# TOOLING and nothing else: a specification is not a declared dependency, so it
+# is watched by scripts/watch_specs.py instead. See docs/lifecycle.md section 6.
+#
+# The commit-message prefix is load-bearing, not cosmetic. Merges here are
+# squash merges configured with squash_merge_commit_title=PR_TITLE, and CI
+# rejects a pull request title that is not a Conventional Commit. Dependabot's
+# default title ("Bump actions/checkout from 7.0.0 to 7.0.1") would fail that
+# check on every single update. `prefix: build` plus `include: scope` produces
+# "build(deps): bump actions/checkout from 7.0.0 to 7.0.1", which passes.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      # One pull request per week for routine action bumps rather than five.
+      # Majors stay separate: a major action bump is a change worth reading.
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    # NOT grouped. There are two pinned dependencies, and one of them is the
+    # reference validator for the format contract: a bump to `skills-ref` can
+    # change what passes validation and deserves its own pull request to read.

@@ -1,0 +1,99 @@
+# Watch the upstreams that have no version to track, and check that skill
+# owners still resolve. Both are slow failures that only surface if something
+# looks for them.
+#
+# Deliberately NOT granted `contents: write`. Acknowledging an upstream change
+# means assessing its impact and moving `last_seen_sha256` in a pull request; an
+# automatic commit would silently close the loop this workflow exists to open.
+# The workflow reports. A human acknowledges.
+name: spec-watch
+
+on:
+  schedule:
+    # Mondays, 06:17 UTC. Off the hour on purpose: scheduled workflows queue
+    # behind everyone else's on the hour.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    name: watch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Install pinned dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch and hash every watched upstream
+        id: specs
+        # Exit 1 means an upstream was unreachable. That is worth seeing in the
+        # log but must not stop the owner check, which is unrelated.
+        run: |
+          python scripts/watch_specs.py --json > /tmp/watch.json || echo "one or more upstreams were unreachable"
+          python scripts/watch_specs.py || true
+
+      - name: Check that every skill owner still resolves
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/check_owners.py --json > /tmp/owners.json
+          python scripts/check_owners.py --report
+
+      - name: Open or update one tracking issue per finding
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        # One issue per watch id, rewritten in place. One issue per RUN would
+        # turn the watch into noise, and noise is why watches get disabled.
+        run: |
+          set -euo pipefail
+
+          upsert() {
+            local marker="$1" title="$2" body_file="$3"
+            local existing
+            existing=$(gh issue list --repo "$REPO" --state open --limit 100 \
+              --json number,body \
+              --jq "[.[] | select(.body != null and (.body | contains(\"$marker\")))][0].number")
+            if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+              gh issue edit "$existing" --repo "$REPO" --title "$title" --body-file "$body_file"
+              gh issue comment "$existing" --repo "$REPO" \
+                --body "Still differing as of run \`${{ github.run_id }}\`. The body above has been refreshed."
+              echo "updated issue #$existing"
+            else
+              gh issue create --repo "$REPO" --title "$title" --body-file "$body_file" \
+                --label spec-watch || \
+              gh issue create --repo "$REPO" --title "$title" --body-file "$body_file"
+              echo "opened a new issue"
+            fi
+          }
+
+          # Specification and proposal drift: one issue per watch id.
+          count=$(jq '[.[] | select(.status == "changed")] | length' /tmp/watch.json)
+          echo "$count changed upstream(s)"
+          for i in $(seq 0 $((count - 1))); do
+            [ "$count" -eq 0 ] && break
+            id=$(jq -r "[.[] | select(.status == \"changed\")][$i].id" /tmp/watch.json)
+            jq -r "[.[] | select(.status == \"changed\")][$i].issue_body" /tmp/watch.json > /tmp/body.md
+            jq -r "[.[] | select(.status == \"changed\")][$i].issue_title" /tmp/watch.json > /tmp/title.txt
+            upsert "<!-- watch-id: $id -->" "$(cat /tmp/title.txt)" /tmp/body.md
+          done
+
+          # Ownership decay, folded into the same mechanism under its own id.
+          if [ "$(jq -r '.issue_body != null' /tmp/owners.json)" = "true" ]; then
+            jq -r '.issue_body' /tmp/owners.json > /tmp/owners.md
+            upsert "<!-- watch-id: owner-resolution -->" \
+              "$(jq -r '.issue_title' /tmp/owners.json)" /tmp/owners.md
+          else
+            echo "every owner resolved"
+          fi
