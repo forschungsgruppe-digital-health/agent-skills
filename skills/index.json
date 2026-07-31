@@ -4,6 +4,21 @@
   "generator": "scripts/build_index.py",
   "skills": [
     {
+      "url": "skill://mii-ig-migration/SKILL.md",
+      "path": "skills/mii-ig-migration/SKILL.md",
+      "frontmatter": {
+        "name": "mii-ig-migration",
+        "description": "Migrates an existing Simplifier-published MII KDS module Implementation Guide onto the MII KDS module template — reads the module's identity from its own sushi-config.yaml and preserves it, transfers the FSH artefacts, rewrites Simplifier and FQL render directives into IG Publisher equivalents, and sets up the bilingual page set. Use this skill when moving a KDS module off Simplifier or Forge, when a rendered Simplifier IG URL and its source GitHub repository are handed over for migration, or when the user mentions Kerndatensatz, KDS-Modul, Implementierungsleitfaden, Manteldokument, sushi-config, ig.ini, gofsh or the IG Publisher in the context of moving an existing guide. Do not use for authoring new profiles, for creating a module from scratch, or for translating a guide that is already on the template; the module template ships its own recipes and an ig-translate skill for those."
+      },
+      "metadata": {
+        "fgdh.tier": "domain",
+        "fgdh.domain": "fhir-ig",
+        "fgdh.owner": "@msusky",
+        "fgdh.language": "en",
+        "fgdh.status": "experimental"
+      }
+    },
+    {
       "url": "skill://skill-authoring/SKILL.md",
       "path": "skills/skill-authoring/SKILL.md",
       "frontmatter": {
