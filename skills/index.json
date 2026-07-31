@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1",
+  "version": "0.0.0",
+  "generator": "scripts/build_index.py",
+  "skills": [
+    {
+      "url": "skill://skill-authoring/SKILL.md",
+      "path": "skills/skill-authoring/SKILL.md",
+      "frontmatter": {
+        "name": "skill-authoring",
+        "description": "Writes a new Agent Skill for the FGDH catalog, or brings an existing one up to the catalog contract. Use this skill when adding a skill, filling in a SKILL.md, choosing between the universal and domain tier, writing or sharpening a description so it triggers reliably, setting the fgdh.tier / fgdh.domain / fgdh.owner / fgdh.language / fgdh.status metadata keys, splitting an over-long body into references, or fixing a validation error such as tier/rejected, name/directory, path/absolute or one of the mirror/ rules. Do not use for deciding whether a skill should exist at all, for retiring one, or for release mechanics; those are governance questions answered by the catalog's lifecycle document."
+      },
+      "metadata": {
+        "fgdh.tier": "universal",
+        "fgdh.domain": "skill-catalog",
+        "fgdh.owner": "@msusky",
+        "fgdh.language": "en",
+        "fgdh.status": "experimental"
+      }
+    }
+  ]
+}

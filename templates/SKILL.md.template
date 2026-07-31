@@ -1,0 +1,76 @@
+---
+name: <directory-name>
+description: <What this skill does>. Use this skill when <concrete trigger situations and
+  keywords>. Do not use for <adjacent concern>; see <other-skill>.
+license: CC-BY-4.0
+metadata:
+  fgdh.tier: "<universal|domain>"
+  fgdh.domain: "<domain-slug>"
+  fgdh.owner: "@<handle>"
+  fgdh.language: "en"
+  fgdh.status: "experimental"
+---
+
+# <Human-readable title>
+
+> **Experimental.** This skill has not been verified against a real task since its last change. Verify its output before relying on it.
+
+<!--
+HOW TO USE THIS TEMPLATE
+
+1.  Copy this directory to `skills/<your-skill-name>/`. The directory name and the
+    `name:` field must be identical -- the specification requires it and CI enforces it.
+2.  Replace every `<angle-bracket>` placeholder. None may survive into a committed skill.
+3.  Delete this comment block.
+4.  Run `python scripts/build_index.py` and commit `skills/index.json` and `CATALOG.md`
+    together with the skill.
+
+STATUS BANNER. A newly authored skill is `experimental` and keeps the banner above:
+an agent never sees `fgdh.*`, so a caution recorded only in metadata changes nothing it
+does. Promotion to `stable` removes the banner in the same change that flips the field.
+If the skill is `deprecated` instead, replace the banner with:
+
+    > **Deprecated.** <reason> Use <successor> instead. Removal may occur no earlier
+    > than <release>.
+
+and append `Deprecated as of <version>; use <successor> instead.` to the description.
+That clause is the load-bearing part: an agent decides whether to activate a skill from
+the description alone, so a deprecation the description does not mention keeps
+triggering and keeps being followed.
+
+LICENSING. The `license:` field above covers `SKILL.md`, `references/` and `assets/`.
+Anything under `scripts/` is Apache-2.0, matching the repository's code licence. A skill
+that needs different terms ships its own licence file and points `license:` at it.
+
+LANGUAGE. `name`, `description` and every `fgdh.*` value are always English. The body may
+be another language when the artifacts the skill operates on are -- declare it in
+`fgdh.language`, and put the foreign-language terms a user would actually type inside the
+English description rather than translating the description.
+-->
+
+## Preconditions
+
+<How the skill detects the context it needs. What to do when detection fails -- state the
+fallback explicitly rather than assuming the context exists.
+
+A `domain` skill must have this section: it is the difference between a skill that works
+in a repository nobody anticipated and one that silently does the wrong thing. A skill
+that hard-codes a path or requires a specific file to exist is `project` tier and belongs
+in the consuming repository, not in this catalog.>
+
+## Procedure
+
+<If the required output language is not English, say so in the first sentence.>
+
+<Numbered steps. Prefer deterministic checks executed through a command over judgement
+calls: an exit code is reproducible, an impression is not.>
+
+## Verification
+
+<How the agent confirms the work is correct. Exit codes and diffs, not impressions.>
+
+## Scope and delimitation
+
+<What this skill deliberately does not cover, and which skill covers it instead. Precedence
+between a server-provided skill and a locally defined one of the same name is unspecified
+upstream, so state it here rather than relying on the host to resolve it.>
