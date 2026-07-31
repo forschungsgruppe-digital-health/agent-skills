@@ -1,5 +1,5 @@
 ---
-name: fhir-ig-analyze
+name: fhir-ig-analysis
 description: Measures one or more FHIR Implementation Guides read-only and reports the numbers as
   JSON and Markdown — scope, complexity, content hygiene, duplication, linguistics, maturity and
   risk — and compares several IGs side by side using normalised metrics. It builds, changes and
@@ -7,7 +7,7 @@ description: Measures one or more FHIR Implementation Guides read-only and repor
   when comparing a module against kerndatensatz-basis or another Implementierungsleitfaden, when
   tracking how a module grows between releases, or when someone asks how large, how clean or how
   mature a guide actually is. Do not use for migrating a guide onto the module template or for
-  translating one; see mii-ig-migration and fhir-ig-translate.
+  translating one; see mii-ig-migration and fhir-ig-translation.
 license: CC-BY-4.0
 allowed-tools: Read Grep Glob Bash(python3:*) Bash(git clone:*)
 metadata:
@@ -113,7 +113,7 @@ Deliberately not covered:
   scoping was narrowed on purpose. Do not reintroduce it: a measurement dressed as a forecast is
   the least trustworthy thing this skill could produce.
 - **Migration** onto the MII KDS module template — see `mii-ig-migration`.
-- **Translation** — see `fhir-ig-translate`.
+- **Translation** — see `fhir-ig-translation`.
 - **Convention and naming checks** against the MII meta wiki or the metadata contract. Those are a
   different check, and the module template ships its own skill for them.
 - **Building or publishing anything.** Read-only is a guardrail, not a default.

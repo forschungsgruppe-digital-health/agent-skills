@@ -18,7 +18,7 @@
 # Per-skill ownership. Add one line per skill directory, matching the value of
 # `fgdh.owner` in that skill's SKILL.md frontmatter, in the same pull request
 # that adds the skill.
-/skills/fhir-ig-analyze/        @msusky
-/skills/fhir-ig-translate/      @msusky
+/skills/fhir-ig-analysis/      @msusky
+/skills/fhir-ig-translation/    @msusky
 /skills/mii-ig-migration/       @msusky
 /skills/skill-authoring/        @msusky

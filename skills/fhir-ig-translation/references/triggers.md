@@ -1,4 +1,4 @@
-# Trigger prompts for `fhir-ig-translate`
+# Trigger prompts for `fhir-ig-translation`
 
 The Gate 3 prompt set — the empirical check required before this skill may be promoted from
 `experimental` to `stable`, reused by each annual re-validation rather than reinvented.
@@ -34,7 +34,7 @@ trigger, the description is missing vocabulary a real user types.
 
 ## Should not trigger
 
-1. "How does our module compare to kerndatensatz-basis in size and maturity?" — `fhir-ig-analyze`.
+1. "How does our module compare to kerndatensatz-basis in size and maturity?" — `fhir-ig-analysis`.
 2. "Migrate this Simplifier guide onto the module template." — `mii-ig-migration`, which sets
    translation up as one step and then hands over here.
 3. "Keep the IG template's header and footer overrides language-neutral." — the IG template

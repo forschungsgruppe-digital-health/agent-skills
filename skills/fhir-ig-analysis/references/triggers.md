@@ -1,4 +1,4 @@
-# Trigger prompts for `fhir-ig-analyze`
+# Trigger prompts for `fhir-ig-analysis`
 
 The Gate 3 prompt set — the empirical check required before this skill may be promoted from
 `experimental` to `stable`, reused by each annual re-validation rather than reinvented.
@@ -32,7 +32,7 @@ it.
 
 ## Should not trigger
 
-1. "Translate the German pages of this module." — `fhir-ig-translate`. Included because both skills
+1. "Translate the German pages of this module." — `fhir-ig-translation`. Included because both skills
    share IG vocabulary and this is the likeliest false positive.
 2. "Move this Simplifier guide onto the module template." — `mii-ig-migration`. An earlier version of
    this skill framed itself as migration *scoping*, so this prompt tests that the narrowing held.

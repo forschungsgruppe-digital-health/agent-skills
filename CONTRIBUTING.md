@@ -198,6 +198,27 @@ Two rules follow:
 2. **A renamed skill is a new skill.** Add the new name, deprecate the old one, remove it later.
    Renaming in place is a MAJOR even if the content is identical.
 
+### The one exception: before the first external consumer
+
+The two-release rule exists to protect consumers who pinned a name. Before the first external
+consumer exists there is nobody to protect, and serving a deprecation period costs a release and
+adds a redirect nobody will read.
+
+So a name **may** be changed in place, without a deprecation release, when **all** of these hold:
+
+- the catalog is still below `1.0.0`;
+- the name has never appeared in a release that anyone installed — verify it, do not assume it
+  (`gh api repos/<org>/<repo> --jq '.forks_count'`, the clone traffic endpoint, and a code search
+  across the organization);
+- the old name is **tombstoned in `RETIRED.md`** anyway, because a name means one thing forever
+  regardless of how briefly it existed;
+- the change is committed as `feat!:` so the changelog records it as breaking, and the pull request
+  states the verification above.
+
+Outside those conditions, follow the two-release rule. And note what the exception does *not* buy:
+it removes the waiting period, not the tombstone and not the breaking-change marker. If you cannot
+demonstrate that nobody installed the name, you do not have this exception.
+
 While the catalog is below `1.0.0`, breaking changes bump MINOR rather than MAJOR by SemVer
 convention. Cut `1.0.0` deliberately: it should follow the first external consumer, not a feeling
 of completeness. Record that decision in an ADR.
