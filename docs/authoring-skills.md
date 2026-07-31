@@ -169,6 +169,16 @@ Exact required wording is in `CONTRIBUTING.md`; CI matches it as a substring.
 after installation, and it fails silently — the agent follows a pointer to nothing and improvises.
 Everything the skill needs lives inside the skill directory, referenced one level deep.
 
+**A bare Markdown link that does not resolve.** Every relative link in `SKILL.md` *and* in bundled
+`references/` must point at a file that exists — the validator checks both, because a broken
+reference inside `references/` fails just as silently and only surfaces after installation.
+
+Illustrative link *syntax* is different from a link, and must be written as such: put it in
+backticks or a fenced block. `` `[Text](StructureDefinition-mii-pr-x.html)` `` is documentation
+about links; `[Text](StructureDefinition-mii-pr-x.html)` is a promise that the file is there. The
+validator strips code spans and fenced blocks before extracting links, precisely so that a skill
+can document link syntax without being punished for it.
+
 **Assuming a file exists.** See the tier model. "Open `config/settings.yaml`" is a `project`-tier
 instruction wearing a `domain`-tier hat.
 

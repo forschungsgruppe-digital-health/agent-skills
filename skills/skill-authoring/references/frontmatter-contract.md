@@ -30,6 +30,9 @@ accept in silence.
 - Move detail into `references/`.
 - Reference files by **relative paths from the skill root**, kept one level deep.
 - Never use an absolute path and never traverse upward with `..`.
+- Every relative link must resolve — in `SKILL.md` and in bundled `references/` alike. To show
+  link *syntax* without making a promise about a file, put it in backticks or a fenced block; the
+  validator strips both before extracting links.
 
 These follow from how agents load skills: `name` and `description` at startup for every
 skill (~100 tokens each), the full body only once the skill is activated, and files under
