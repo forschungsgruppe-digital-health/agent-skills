@@ -8,3 +8,15 @@
 # rather than requests so that the only third-party dependency in this
 # repository is the YAML parser.
 PyYAML==6.0.3
+
+# The reference validator from the Agent Skills project, used by CI for
+# specification conformance. Pinned here rather than installed ad hoc in the
+# workflow so that Dependabot's `pip` ecosystem keeps it current -- a
+# specification cannot be watched as a dependency, but its validator can.
+#
+# NOTE: the console script this package installs is `agentskills`, NOT
+# `skills-ref`. Both the specification page and the project's own
+# pyproject.toml document `skills-ref validate`; the published 0.1.1 artifact
+# installs `agentskills validate`. Verified by installing it. If a future
+# release renames the entry point back, the workflow step is what changes.
+skills-ref==0.1.1

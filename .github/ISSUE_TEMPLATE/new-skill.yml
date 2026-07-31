@@ -1,0 +1,90 @@
+name: Propose a new skill
+description: Design review before anyone writes a SKILL.md.
+title: "skill: <what it does>"
+labels: ["skill-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This proposal is a **design review, not a formality**. Rejecting here costs one
+        issue comment; rejecting after authoring costs a person-day.
+
+        A proposal enters the pipeline only if all four entry criteria hold — see
+        `docs/lifecycle.md` section 1.1. The fields below are how a reviewer checks them.
+
+  - type: textarea
+    id: procedure
+    attributes:
+      label: The procedure to capture
+      description: >-
+        What repeatable procedure should this skill package? The test for admission is
+        whether the body can be written as steps with a verification criterion. A glossary,
+        a link collection or a specification excerpt is reference material and belongs in a
+        wiki instead.
+      placeholder: |
+        Steps a person currently performs by hand, in order, and how they know it worked.
+    validations:
+      required: true
+
+  - type: textarea
+    id: triggers
+    attributes:
+      label: Trigger situations, in the requester's own words
+      description: >-
+        Three to five things a user would actually type when they need this. Not how you
+        would categorize the need — how it arrives. These become the skill's description and
+        later its Gate 3 trigger prompts, so write them as requests, not as topics.
+      placeholder: |
+        - "CI fails after the template bump and I don't know which file to fix"
+        - "move this IG onto the new KDS module template"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Proposed tier
+      description: >-
+        `universal` assumes nothing. `domain` may assume a toolchain exists but must
+        DISCOVER the project layout rather than assume it. A skill that requires specific
+        files at specific paths is `project` tier and belongs in the consuming repository —
+        it cannot be admitted here, and that is a design outcome rather than a rejection.
+      options:
+        - universal — conventions, checklists, review procedures; assumes nothing
+        - domain — a toolchain exists; layout is discovered, with an explicit failure branch
+        - "not sure — please help me classify it"
+    validations:
+      required: true
+
+  - type: input
+    id: owner
+    attributes:
+      label: Intended owner
+      description: >-
+        A GitHub handle or team willing to be listed in `fgdh.owner` and `CODEOWNERS`. No
+        owner, no intake: an ownerless skill cannot be re-validated, and a skill nobody
+        knows still works is retired rather than left to be trusted at the moment it loads.
+      placeholder: "@handle"
+    validations:
+      required: true
+
+  - type: textarea
+    id: neighbours
+    attributes:
+      label: Neighbouring skills it might collide with
+      description: >-
+        Which existing entries in `CATALOG.md` compete for the same requests, and how will
+        the two descriptions be delimited? If two skills would compete for the same request,
+        either merge them or sharpen both.
+      placeholder: |
+        Closest neighbour: <skill>. Delimitation: this one covers X, that one covers Y.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Source material, prior art, constraints, or an argument for why this is urgent.
+    validations:
+      required: false
