@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.1.0...v0.2.0) (2026-07-31)
+
+
+### Skills and capabilities
+
+* **skills:** import and rework mii-ig-migration for the new target template ([#13](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/13)) ([5a4801c](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/5a4801ce3ff814d49c73dc45952163205915e978))
+* **skills:** resolve the Manteldokument section mapping for mii-ig-migration ([#15](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/15)) ([e621a15](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/e621a1533d7df6cf0a3319b7ef9cfe8b8c913cb2))
+
+
+### Fixes
+
+* **skills:** remove an ambiguous placeholder from the migration spec ([#14](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/14)) ([992ee43](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/992ee43d2001384324888db76011c78669fa83a3))
+
+
+### Documentation
+
+* record the release approval gate and the skills-lock file ([#11](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/11)) ([fcb9f12](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/fcb9f12eadb433ea8b52eb825d5245c9bbff8f36))
+
 ## 0.1.0 (2026-07-31)
 
 
