@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.3.0...v0.4.0) (2026-07-31)
+
+
+### Skills and capabilities
+
+* **skills:** import and rework fhir-ig-analyze and fhir-ig-translate ([#19](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/19)) ([c333db0](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/c333db003eaaeb0328adbf9eee4ad92e8ed3e3b9))
+
 ## [0.3.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.2.0...v0.3.0) (2026-07-31)
 
 
