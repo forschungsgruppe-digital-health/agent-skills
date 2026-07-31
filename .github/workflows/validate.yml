@@ -104,3 +104,28 @@ jobs:
             exit 1
           fi
           echo "OK: $TITLE"
+
+      - name: Body must not contain a line that parses as a commit header
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        # The pull request BODY becomes the squash commit's body, and Release
+        # Please runs the Conventional Commits parser over the whole message. A
+        # line there that looks like `feat!: something` is read as a SECOND commit
+        # and lands in the changelog as a bogus section.
+        #
+        # This is not hypothetical: it happened in v0.5.0. A line reading
+        # "Contract classification: breaking - `feat!:` -> MINOR pre-1.0." wrapped
+        # so that the token started a line, and the release notes gained a
+        # "### `feat" heading and a breaking-change entry reading "` -> MINOR".
+        #
+        # Mention a commit type in prose ("a breaking change", "a feat commit"),
+        # or indent the line so it cannot start a header. Never let
+        # `<type>:` or `<type>!:` begin a line in the body.
+        run: |
+          if [ -z "${BODY:-}" ]; then echo "empty body; nothing to check"; exit 0; fi
+          pattern='^[[:space:]]*[^[:alnum:][:space:]]?(feat|fix|docs|refactor|test|chore|perf|build|ci|style|revert)(\([^)]*\))?!?:'
+          if printf '%s' "$BODY" | grep -nEi "$pattern"; then
+            echo "::error::The pull request body has a line that the Conventional Commits parser will read as a commit header (shown above). It would corrupt the generated changelog. Rephrase it in prose or indent it."
+            exit 1
+          fi
+          echo "OK: no commit-header-shaped lines in the body"

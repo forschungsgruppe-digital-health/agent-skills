@@ -5,12 +5,7 @@
 
 ### ⚠ BREAKING CHANGES
 
-* ` → MINOR pre-1.0.
-* adopt a scope-accurate naming scheme and generalise the translation skill ([#21](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/21))
-
-### `feat
-
-* ` → MINOR pre-1.0. ([6665682](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/666568264b375f37baa33734aeca9a84ef23cfb9))
+* adopt a scope-accurate naming scheme and generalise the translation skill ([#21](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/21)). The skills `fhir-ig-analyze` and `fhir-ig-translate` were renamed to `fhir-ig-analysis` and `fhir-ig-translation`; both old names are tombstoned in [RETIRED.md](RETIRED.md).
 
 
 ### Skills and capabilities
