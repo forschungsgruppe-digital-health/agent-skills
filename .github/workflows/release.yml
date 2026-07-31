@@ -1,0 +1,36 @@
+# Release Please. Reads the Conventional Commits on the trunk, keeps a release
+# pull request up to date, and on merge tags the release and publishes the
+# GitHub Release.
+#
+# Two things worth knowing before the first release, both documented in
+# CONTRIBUTING.md so nobody rediscovers them at the wrong moment:
+#
+#   1. A release created with the default GITHUB_TOKEN does NOT trigger other
+#      workflows. If a tag push is ever expected to set off publishing or Pages,
+#      that needs a separate token or a workflow_dispatch.
+#   2. The release pull request is subject to the same ruleset as any other, so
+#      it waits for the validation status checks. That is intended. A release
+#      that looks stuck is usually a pending check, not a broken workflow.
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a commit SHA rather than a floating major tag. v5.0.0 is v4.4.1
+      # plus a Node 20 -> 24 runtime bump; the `config-file` and `manifest-file`
+      # inputs are unchanged, verified against v5.0.0's action.yml.
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
