@@ -202,15 +202,41 @@ While the catalog is below `1.0.0`, breaking changes bump MINOR rather than MAJO
 convention. Cut `1.0.0` deliberately: it should follow the first external consumer, not a feeling
 of completeness. Record that decision in an ADR.
 
-### Two traps worth knowing before the first release
+### Cutting a release
+
+Release Please keeps a pull request titled `chore: release <version>` up to date between releases.
+Merging it tags the release, publishes the GitHub Release, and updates `CHANGELOG.md`,
+`version.txt`, `$.version` in `skills/index.json`, and the pinned tag in `README.md`.
+
+**The release pull request needs its workflow run approved before it can merge.** This is the one
+manual step in the process, and it is not a defect:
+
+1. Open the release pull request. Its `validate` and `pr-title` runs sit at **`action_required`** —
+   GitHub holds workflow runs on pull requests from the `github-actions` bot until someone approves
+   them.
+2. Approve the run — the **"Approve and run"** button on the pull request's checks, or:
+
+   ```bash
+   gh api -X POST repos/forschungsgruppe-digital-health/agent-skills/actions/runs/<run-id>/approve
+   ```
+
+3. The checks then run normally, and the pull request merges like any other.
+
+Observed rather than assumed: this was hit on the first release, `v0.1.0`. Do not respond to it by
+granting the ruleset a bypass actor — a human approving each release is a feature at this scale,
+and it costs one click a release.
+
+### Two further traps
 
 - **The default `GITHUB_TOKEN` does not trigger other workflows.** A release created with it will
   not set off a publishing or Pages workflow listening for a tag push. If that is ever needed, use
   a separate token or `workflow_dispatch`. Do not rely on the default and discover this after the
   first release.
-- **Release Please opens a pull request against `main`,** and it is subject to the same ruleset as
-  any other. That is intended, not a defect: if the first release seems stuck, check whether its
-  pull request is waiting for a status check rather than assuming the workflow is broken.
+- **`bump-minor-pre-major` does not govern the *first* release.** It controls how commits bump an
+  existing pre-1.0 version. With no prior release tag, Release Please uses its own default initial
+  version — which is `1.0.0`, not `0.1.0`, and the manifest entry alone does not override it. That
+  is what `"initial-version": "0.1.0"` in `.github/release-please-config.json` is for. It has
+  already done its job; the note is here so nobody removes it as redundant.
 
 ## Commits and branching
 
