@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.2](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.5.1...v0.5.2) (2026-07-31)
+
+
+### Fixes
+
+* close five gaps found by a repo-wide consistency audit ([#25](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/25)) ([5513fe2](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/5513fe2545f026bf0cfb4a0a2b0453a95e6f5e57))
+* **skills:** invoke bundled scripts through a resolved skill directory ([#27](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/27)) ([4962501](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/49625011170911744c237dec0533c5ae4bc9b710))
+
 ## [0.5.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.5.0...v0.5.1) (2026-07-31)
 
 
