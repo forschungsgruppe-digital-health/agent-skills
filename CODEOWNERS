@@ -1,0 +1,20 @@
+# Code owners for the Agent Skills catalog.
+#
+# Ownership is deliberately per-skill: the catalog maintainer owns the catalog
+# contract (tooling, CI, the fgdh.* metadata registry, releases) and each skill
+# owner owns the correctness of one skill's content. Without the per-skill lines
+# below the core team becomes a review bottleneck on every domain change.
+#
+# Every handle listed here must resolve to an existing GitHub user or team.
+# `scripts/check_owners.py` verifies this weekly against the owners recorded in
+# skills/index.json; an unresolved owner is a retirement trigger, see
+# docs/lifecycle.md.
+#
+# The last matching pattern wins, so the global fallback comes first.
+
+# Global fallback: the catalog maintainer.
+*                               @msusky
+
+# Per-skill ownership. Add one line per skill directory, matching the value of
+# `fgdh.owner` in that skill's SKILL.md frontmatter, in the same pull request
+# that adds the skill.
