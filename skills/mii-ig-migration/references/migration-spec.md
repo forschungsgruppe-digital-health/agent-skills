@@ -234,7 +234,12 @@ directives.
   silently ignored.
 
 → **Acceptance:** the IG builds both language variants; translated element texts appear on the
-translated artefact pages; no ignored `.po` files were created.
+translated artefact pages; no ignored `.po` files were created;
+`input/includes/breadcrumb-titles-de.txt` exists and is generated from the two menus (pairs by
+`href`, `English Title => Deutscher Titel` per line) — the module template (> v0.4.0) applies it
+so `/de/` breadcrumbs render German titles. Background: the publisher itself does not localize
+`pages:`-tree titles (see the translation skill's rendering table); on templates ≤ v0.4.0 the
+English breadcrumbs are therefore an `environment` finding in QA triage, not a migration defect.
 
 ### 5.6 Build and QA
 
@@ -303,9 +308,18 @@ expect the same of any module whose page set predates them.
 
 | Manteldokument section | Where it lives | Evidence |
 | --- | --- | --- |
-| **Bezüge zu anderen Modulen** | `index.md` § *Related guides* — the template ships a `TODO:` there instructing the author to name the module's formal dependencies. The machine-readable form is `dependencies` in `sushi-config.yaml`. Cross-references are additionally described in `implementer-guidance.md`. | template `index.md`; basis `implementer-guidance.md` lists "Module dependencies and cross-references" |
-| **Referenzen** | `index.md` § *Related guides* for external guides and the FHIR IG Registry; `downloads.md` for package and artefact references; inline artefact links throughout the narrative | template `index.md`; basis `downloads.md` |
-| **Anwendungsfälle / Szenarien** | `guidance.md`, which routes to `implementer-guidance.md` and `researcher-guidance.md`; `general-requirements.md`, which frames the requirements in terms of MII use cases; `examples.md` for the concrete scenarios | basis `general-requirements.md` (German) refers to "die Anwendungsfälle der Medizininformatik-Initiative"; basis `researcher-guidance.md` covers identifying data elements for a research question |
+| **Bezüge zu anderen Modulen** | **`implementer-guidance.md` is the primary home** for the substance: module dependencies, cross-module references, and any compared/derived-profile discussion. `index.md` § *Related guides* carries only a **short link list** (the template's `TODO:` there asks for names, not prose). The machine-readable form is `dependencies` in `sushi-config.yaml`. Learned on the first full migration's review: routing the context *prose* onto `index.md` makes the landing page read as misplaced — the index stays lean. | basis `implementer-guidance.md` lists "Module dependencies and cross-references"; template `index.md` |
+| **Referenzen** | **`implementer-guidance.md`** for reference *discussion* (compared specifications, alignment notes); `index.md` § *Related guides* only as a short link list of external guides and the FHIR IG Registry; `downloads.md` for package and artefact references; inline artefact links throughout the narrative | basis `implementer-guidance.md`; template `index.md`; basis `downloads.md` |
+| **Anwendungsfälle / Szenarien** | `guidance.md`, which routes to `implementer-guidance.md` and `researcher-guidance.md`; `general-requirements.md`, which frames the requirements in terms of MII use cases; `examples.md` for the concrete scenarios. Scenario *narratives* (use-case descriptions with diagrams) default to `general-requirements.md` per the basis evidence; `implementer-guidance.md` is the better home when the scenarios are written as implementation instructions. Either way, record the choice as `TODO:REVIEW` for Gate B — reviewers reasonably disagree on this one. | basis `general-requirements.md` (German) refers to "die Anwendungsfälle der Medizininformatik-Initiative"; basis `researcher-guidance.md` covers identifying data elements for a research question |
+
+Further recurring source-section homes, learned on the Dokument migration (same rule: sections
+within existing pages, never new pages):
+
+| Source section | Where it lives | Why |
+| --- | --- | --- |
+| **Datensatz / Informationsmodell page** (dataset narrative + logical-model rendering) | split: the narrative on `datasets-and-descriptions.md`, the logical-model rendering (`-snapshot` include) on `logical-models.md`, cross-linked | the template ships **both** pages; putting everything on one leaves the other an empty stub that reads as missing content |
+| **Per-profile Suchparameter section** | `search-parameters-and-operations.md`, with a link back from the profile's section on `profiles-and-extensions.md` | the template has a dedicated page for it; a stub next to a filled profile page confuses readers |
+| **Per-profile example serializations** (inline XML/JSON, tabs) | links to the example artefact pages (whose tabs render the serializations); `examples.md` lists all examples | inlined dumps duplicate the artefact pages and bloat the narrative — see the crosswalk's tabs rule |
 
 ### Two consequences for step 5.4
 

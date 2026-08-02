@@ -169,13 +169,24 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    fields actually render before investing in a supplement. When the source narrative is
    German-only, the German pages come first and the English defaults are produced from them —
    see *Language* below for the one sanctioned exception to the no-fabrication guardrail.
+   **Breadcrumb titles:** generate `input/includes/breadcrumb-titles-de.txt` mechanically from
+   the two menus (pair the labels of `input/includes/menu.xml` and
+   `input/translations/de/includes/menu.xml` by `href`; one `English Title => Deutscher Titel`
+   line per differing pair, marked as generated). The module template (> v0.4.0) applies it so
+   the `/de/` breadcrumbs show German page titles — without it they stay English, because the
+   publisher does not localize `pages:`-tree titles.
 
 7. **Build and QA.** `sushi .`, then the IG Publisher. The target pins its toolchain in the build
    workflow's `env:` block — read the pins from there rather than from this file. Acceptance:
    `qa.txt` reports `Errors: 0` and every example validates.
 
-8. **Report.** Write `.ai-log/migration-report.md`: the mapping table, the assumptions, every
-   `TODO:REVIEW`, and the QA summary. Every open point is either addressed or explicitly marked.
+8. **Report.** Write `.ai-log/migration-report.md` **from
+   [the report template](references/migration-report-template.md)** — it is built around three
+   reviewer queues (① decide, ② review, ③ triage) so the report is a work instrument, not a
+   protocol: every open decision, every `TODO:REVIEW`, and every QA finding lands in exactly one
+   queue with a concrete next action and an owner, QA provenance requires proof (build the
+   unmigrated source to claim "pre-existing"), and the L0 box + mini-glossary keep it readable
+   for people new to FHIR IGs. Every open point is either addressed or explicitly queued.
 
 9. **Open a pull request** with the report as its description. **Do not publish.** Determine the
    target branch from the module repository's own branching convention — **discover it, do not
@@ -323,6 +334,15 @@ skeleton creation became an explicit in-place procedure step; the German-only-so
 inversion, the branch-convention discovery recipe, and the scoped placeholder check were added;
 `fql-scan.sh` became recursive with an empty-target failure. The dry-run findings live in the
 `mii-kds-dokument-ig-inoffiziell` sandbox under `docs/reports/dry-run-2026-07-31/`.
+
+Revised on 2026-08-02 after the first full migration (Dokument, steps 1–7 incl. build): step 8
+now prescribes the bundled report template (three reviewer queues, proof-backed QA provenance);
+the crosswalk fixed the nonexistent `-xml` fragment (it is `-xml-html`; one bad include fails the
+whole Jekyll run), prefers artefact-page links over inline serializations/tabs, prescribes
+float-safe width-capped image markup, warns that kramdown IAL heading ids are not applied, and
+sanctions mechanically *extracted* (never invented) tables for FQL projections no publisher view
+renders; spec §9 gained the Datensatz/logical-models split, the Suchparameter page, and the
+example-serialization homes.
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill.
 `scripts/` is Apache-2.0, matching this repository's code licence.

@@ -160,6 +160,7 @@ behaviour and applies to any language pair.
 | Resource texts of **StructureDefinition, CodeSystem, Questionnaire** (`description`, designations, element `definition`) | **Yes, renders** | Supplement `input/translations/<lang>/<Type>-<id>.{po\|xliff\|json}` |
 | **Menu** (`input/includes/menu.xml`) | **Yes** | `input/translations/<lang>/includes/menu.xml` |
 | **ValueSet**, some **ImplementationGuide** title fields, `concept.display` / `concept.definition` | **Partial / No** | Not applied from a plain `.po` supplement on this toolchain |
+| **Breadcrumbs & titles of `pages:`-tree pages** | **No (publisher) / Yes (MII template > v0.4.0)** | The publisher renders `pages:`-tree titles — and the "Table of Contents" breadcrumb label — in the default language on every variant (`titlelang` carries the same string per language; it localizes only the pages it generates itself, e.g. the artifacts list). The MII module template > v0.4.0 remaps breadcrumbs from a module-supplied `input/includes/breadcrumb-titles-de.txt` (generated from the two menus — see the migration skill); without that template+file the English breadcrumbs are a toolchain limitation, not a defect. Never work around it with sibling pages or menu tricks |
 
 Treat this table as ground truth, and **re-verify it whenever the pinned IG Publisher or base
 template version changes.** Read the pins from the guide's own build workflow, not from this file.
