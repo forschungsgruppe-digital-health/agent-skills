@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.5.2...v0.6.0) (2026-08-02)
+
+
+### Skills and capabilities
+
+* **skills:** close the 20 findings from the kerndatensatz-dokument dry run ([#28](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/28)) ([848a470](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/848a4708938d6699e3a208a5186f405b1a5e6804))
+
 ## [0.5.2](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.5.1...v0.5.2) (2026-07-31)
 
 
