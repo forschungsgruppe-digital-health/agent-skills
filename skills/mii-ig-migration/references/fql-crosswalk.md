@@ -27,22 +27,30 @@ a specific rule already matched, keyed on `file:line`.
 | `{{index:root}}` | remove — the table of contents and navigation are generated |
 | `{{pagelink: …, hint: MII_PR_X}}` | `[Text](StructureDefinition-mii-pr-x.html)` (hint = artefact `name` → `id`) |
 | `{{link:<id>}}` | artefact link `[Text](<Type>-<id>.html)` |
-| `{{render:<image>}}` (png/jpg/svg…) | copy the image into `input/images/` and use `<img src="file">` |
+| `{{render:<image>}}` (png/jpg/svg…) | copy the image into `input/images/` and wrap it in raw HTML: `<div style="text-align: center;"><img src="file" alt="…" style="max-width: 100%;"/></div>`. A bare Markdown image lands inside a `<p>`, and the template **floats `p > img`** (text wraps beside it) and sets **no width cap** — the div sidesteps both, and raw HTML is also the only way to keep an image inside a centering block (kramdown does not parse Markdown images inside block-level HTML) |
 | `{{render:<canonical>}}` (resource) | usually remove — the artefact page is generated — **or** include the matching fragment |
 | `{{tree}}` / `{{tree, expand}}` | the `-snapshot` fragment (or `-dict` / `-diff`) |
-| `{{xml}}` | the `-xml` fragment |
-| `{{json}}` | the `-json-html` fragment |
+| `{{xml}}` | **prefer a link to the artefact page**; when an inline rendering is genuinely needed: the `-xml-html` fragment |
+| `{{json}}` | **prefer a link to the artefact page**; inline: the `-json-html` fragment |
 | `<fql … for differential.element select id, short>` | element table: the `-dict` fragment |
 | `<fql>` metadata (url/status/version) | drop it — the publisher generates the header |
 | FQL code block (`@` plus a fenced block) | treat as `<fql>` |
-| `<tabs>` / `<tab>` (rendering/XML/JSON) | the matching fragment per tab |
+| `<tabs>` / `<tab>` (rendering/XML/JSON) | **prefer a link to the artefact page**, which already renders these as tabs (differential/snapshot tables, XML/JSON/TTL, mappings, examples) exactly like the official FHIR specification pages; sequential inline fragments only when the page truly needs them |
 
 `<Type>` is one of `StructureDefinition`, `CodeSystem`, `ValueSet`, `CapabilityStatement`, …;
 `<id>` is the artefact `id`. Fragment views available per StructureDefinition include `snapshot`,
 `diff`, `dict`, `snapshot-by-mustsupport`, `bindings`, `obligations`, `inv`, `search-params`,
-`maps`, `xml` and `json-html`. The publisher generates them under `_includes/`, and the HL7 base
-template uses the same fragments in its own layouts — which is why relying on them is safe rather
-than clever.
+`maps`, `xml-html` and `json-html`. (**Not** `-xml`: an earlier version of this table named a
+`-xml` fragment that publisher 2.2.11 does not generate, and one include of it fails the whole
+Jekyll run — verify a fragment exists under `temp/pages/_includes/` before relying on it.) The
+publisher generates them under `_includes/`, and the HL7 base template uses the same fragments in
+its own layouts — which is why relying on them is safe rather than clever.
+
+Two rendering gotchas, both learned on a real migration: kramdown **IAL attributes on headings**
+(`{: #anchor }`) are not applied by the publisher's Jekyll setup — hand-built tables of contents
+pointing at such anchors produce broken-link QA errors; rely on the generated heading ids or drop
+the mini-TOC. And serialization dumps inlined into narrative pages duplicate what the artefact
+page's tabs already show — link instead (see the table above).
 
 The exact `{% include %}` syntax is deliberately **not** written out in this file. See the build
 guard below.
@@ -66,7 +74,7 @@ are full of `{{PLACEHOLDER}}` values that must be replaced before the guide buil
 
 ## Replacing FQL query tables
 
-FQL's main use in KDS guides is generating tables over resource contents. There are two
+FQL's main use in KDS guides is generating tables over resource contents. There are three
 replacements, and choosing between them is a judgement call:
 
 - **Element or dataset table** (FQL `for differential.element select id, short`) → the `-dict`
@@ -76,6 +84,17 @@ replacements, and choosing between them is a judgement call:
   (`structuredefinitions.json`, `resources.json`, `artifacts.json`), iterating and emitting table
   rows. The publisher populates those data files, so this is the supported route rather than a
   workaround.
+- **Mechanical extraction into a generated static table.** When the FQL query is a pure
+  projection of a single resource's own content **and no publisher view renders that content**,
+  generate the Markdown table mechanically from the built resource JSON
+  (`fsh-generated/resources/…`) at migration time. This is *extraction, not invention* — it does
+  not violate the no-fabrication guardrail — but it must be marked: open the table with a
+  `GENERATED TABLE` comment naming the source file and fields and saying it must be regenerated
+  after resource changes. The canonical case: a logical model's `differential.element.mapping`
+  (dataset → FHIR mapping) — the publisher renders LM element mappings **nowhere** (the LM's
+  Mappings tab stays empty), so a pointer to the artefact page silently loses the table readers
+  relied on. A pointer is only an acceptable replacement when the target page actually shows the
+  data — verify that before pointing.
 
 ## Procedure
 

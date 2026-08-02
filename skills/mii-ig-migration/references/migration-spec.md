@@ -305,7 +305,16 @@ expect the same of any module whose page set predates them.
 | --- | --- | --- |
 | **Bezüge zu anderen Modulen** | `index.md` § *Related guides* — the template ships a `TODO:` there instructing the author to name the module's formal dependencies. The machine-readable form is `dependencies` in `sushi-config.yaml`. Cross-references are additionally described in `implementer-guidance.md`. | template `index.md`; basis `implementer-guidance.md` lists "Module dependencies and cross-references" |
 | **Referenzen** | `index.md` § *Related guides* for external guides and the FHIR IG Registry; `downloads.md` for package and artefact references; inline artefact links throughout the narrative | template `index.md`; basis `downloads.md` |
-| **Anwendungsfälle / Szenarien** | `guidance.md`, which routes to `implementer-guidance.md` and `researcher-guidance.md`; `general-requirements.md`, which frames the requirements in terms of MII use cases; `examples.md` for the concrete scenarios | basis `general-requirements.md` (German) refers to "die Anwendungsfälle der Medizininformatik-Initiative"; basis `researcher-guidance.md` covers identifying data elements for a research question |
+| **Anwendungsfälle / Szenarien** | `guidance.md`, which routes to `implementer-guidance.md` and `researcher-guidance.md`; `general-requirements.md`, which frames the requirements in terms of MII use cases; `examples.md` for the concrete scenarios. Scenario *narratives* (use-case descriptions with diagrams) default to `general-requirements.md` per the basis evidence; `implementer-guidance.md` is the better home when the scenarios are written as implementation instructions. Either way, record the choice as `TODO:REVIEW` for Gate B — reviewers reasonably disagree on this one. | basis `general-requirements.md` (German) refers to "die Anwendungsfälle der Medizininformatik-Initiative"; basis `researcher-guidance.md` covers identifying data elements for a research question |
+
+Further recurring source-section homes, learned on the Dokument migration (same rule: sections
+within existing pages, never new pages):
+
+| Source section | Where it lives | Why |
+| --- | --- | --- |
+| **Datensatz / Informationsmodell page** (dataset narrative + logical-model rendering) | split: the narrative on `datasets-and-descriptions.md`, the logical-model rendering (`-snapshot` include) on `logical-models.md`, cross-linked | the template ships **both** pages; putting everything on one leaves the other an empty stub that reads as missing content |
+| **Per-profile Suchparameter section** | `search-parameters-and-operations.md`, with a link back from the profile's section on `profiles-and-extensions.md` | the template has a dedicated page for it; a stub next to a filled profile page confuses readers |
+| **Per-profile example serializations** (inline XML/JSON, tabs) | links to the example artefact pages (whose tabs render the serializations); `examples.md` lists all examples | inlined dumps duplicate the artefact pages and bloat the narrative — see the crosswalk's tabs rule |
 
 ### Two consequences for step 5.4
 
