@@ -121,11 +121,11 @@ Provenienz-Arrays in der `ig-stats.json`:
 > **Entscheidungs-Gruppen K–N** (Nutzen zusätzlich: **S**=Strategie ·
 > **R**=Risiko). Heuristiken sind klar als solche markiert.
 
-## K. Reife & Freigabe
+## K. Reife-Komponenten
 
 | metric_id | Misst | Quelle | Modus | Nutzen |
 |---|---|---|---|---|
-| `maturity.score`,`.band`,`.components` | verdichteter Reifegrad (Status, Doku, Beispiele, Governance) als Freigabe-Indikator | abgeleitet | static | S·R |
+| `maturity.components` | Reife-Komponenten (Status, Doku, Beispiele, Governance) **nebeneinander — bewusst kein verdichteter Score**: das frühere `score`/`band` war ein Freigabe-Indikator, den der Skill-Scope ausschließt (seit Schema 1.4 entfernt) | gezählt/abgeleitet | static | S·R |
 | `maturity.doc_health_pct` | Anteil substanzieller Inhalts-Seiten (ohne Stubs) | Narrative | static | S |
 | `maturity.example_coverage` (`coverage_pct`,`uncovered`) | Profile mit ≥ 1 Beispiel; Profile ohne Beispiel | `artifacts_detail` (InstanceOf) | static | S·R |
 | `maturity.governance` (`ci_workflows`,`publication_request`,`ig_ini`,`devcontainer`,`governance_score`) | Governance-/Freigabe-Reife | Repo-Dateien | static | S·R |
@@ -139,7 +139,7 @@ Provenienz-Arrays in der `ig-stats.json`:
 | `portfolio.canonical_reuse_ratio_pct`,`external_parents` | Wiederverwendung externer Basis-Profile | FSH `Parent:` | static | S |
 | `portfolio.fhir_version_label`,`_note` | FHIR-Versions-Aktualität (R4/R4B/R5) | sushi-config | static | S |
 | `portfolio.dependency_stale_count`,`dependency_stale` | veraltete Dependencies (CalVer-Heuristik; exakt extern) | deps-Versionen | static* | S·R |
-| `portfolio.release_cadence_per_year`,`days_since_last_commit`,`tags` · `git.*` | Pflege-/Aktivitäts-Kadenz, Contributor-Verteilung | Git-Historie | static | S·R |
+| `portfolio.release_cadence_per_year`,`days_since_last_commit`,`tags` · `git.*` | Pflege-/Aktivitäts-Kadenz, Contributor-Verteilung. **Erfordert vollständige Git-Historie**: bei einem shallow clone (`.git/shallow`; jeder URL-Input wird shallow geklont) `null` + `git.history_complete=false` — null ist nicht 0 | Git-Historie | static | S·R |
 | `compare`: Cross-IG-Overlap, Konsolidierungs-/Skaleneffekt | Schnittmengen-Reuse & Programm-Skaleneffekt über mehrere IGs | `artifacts_detail` über IGs | static | S |
 
 ## N. Risiko & Compliance
@@ -149,5 +149,5 @@ Provenienz-Arrays in der `ig-stats.json`:
 | `risk.terminology_license_flags`,`terminology_license_risk` | Lizenz-/IP-Risiko gebundener Terminologien (SNOMED etc.) | FSH/Bindings | static | R |
 | `risk.suppressed_total`,`suppressed_broad`,`suppressed_warning_risk` | Risiko-Klassifikation unterdrückter Warnungen (breit vs. eng) | ignoreWarnings.txt | static | R |
 | `risk.privacy_page_substantial`,`examples_contain_pii_like` | Datenschutz-Substanz + PII-Heuristik in Beispielen | Narrative/FSH | static | R |
-| `risk.bus_factor_top_author_pct`,`bus_factor_risk` | Wissenskonzentration (Schlüsselpersonen-Risiko) | Git-Historie | static | R |
+| `risk.bus_factor_top_author_pct`,`bus_factor_risk` | Wissenskonzentration (Schlüsselpersonen-Risiko). **Erfordert vollständige Git-Historie** — bei einem shallow clone `null` statt eines fiktiven „100 % Top-Autor" | Git-Historie | static | R |
 | `risk.breaking_change_risk` | Kompatibilitätsbruch ggü. Vorversion | Vorversions-Diff | build | R |

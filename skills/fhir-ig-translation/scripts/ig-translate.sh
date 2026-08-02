@@ -7,15 +7,24 @@
 # asked.
 #
 # Run it from the root of the module IG you are translating, or pass that root as
-# a third argument:
+# an extra argument:
 #
-#   scripts/ig-translate.sh --scan <lang>              # target path per page/resource
-#   scripts/ig-translate.sh --validate <lang>          # check existing translation files
-#   scripts/ig-translate.sh --scan <lang> path/to/ig   # operate on another directory
+#   ig-translate.sh --scan <lang>               # target path per page/resource
+#   ig-translate.sh --validate <lang>           # check existing translation files
+#   ig-translate.sh --validate <lang> --strict  # additionally fail when there is
+#                                               #   nothing to validate at all
+#   ig-translate.sh --scan <lang> path/to/ig    # operate on another directory
 #
 # <lang> is REQUIRED and is not defaulted. It used to default to 'de', which
 # meant a run could silently target a language nobody chose. Derive it from the
-# guide's own sushi-config.yaml (i18n-lang), never from habit.
+# guide's own sushi-config.yaml (i18n-lang), never from habit. The script
+# cross-checks <lang> against the guide's i18n parameters and WARNs on a
+# mismatch (best-effort; deriving the pair remains the caller's precondition).
+#
+# Exit codes: 0 = ran and found nothing to flag; 1 = validation findings
+# ([WARN]), or --strict with an empty translation set; 2 = usage error, missing
+# language, or not an IG project. "Zero translations present" and "all
+# translations valid" are therefore no longer the same green.
 #
 # Portability note: this operates on the CURRENT WORKING DIRECTORY, not on a path
 # derived from the script's own location. The original did
@@ -34,21 +43,31 @@ set -u
 
 MODE=""
 LANG_CODE=""
-case "${1:-}" in
-  --scan) MODE=scan; LANG_CODE="${2:-}";;
-  --validate) MODE=validate; LANG_CODE="${2:-}";;
-  *) echo "Usage: $0 --scan <lang> | --validate <lang> [ig-root]" >&2; exit 2;;
-esac
+IG_ROOT=""
+STRICT=0
+for a in "$@"; do
+  case "$a" in
+    --scan) MODE=scan ;;
+    --validate) MODE=validate ;;
+    --strict) STRICT=1 ;;
+    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
+    *) if [ -z "$LANG_CODE" ]; then LANG_CODE="$a"; else IG_ROOT="$a"; fi ;;
+  esac
+done
+if [ -z "$MODE" ]; then
+  echo "Usage: $0 --scan <lang> | --validate <lang> [--strict] [ig-root]" >&2
+  exit 2
+fi
 
 if [ -z "$LANG_CODE" ]; then
-  echo "ERROR: a target language is required, e.g. '$0 $1 de'." >&2
+  echo "ERROR: a target language is required, e.g. '$0 --$MODE de'." >&2
   echo "       Take it from the guide's sushi-config.yaml (parameters.i18n-lang)." >&2
   echo "       It is deliberately not defaulted: a default would silently target a" >&2
   echo "       language nobody chose." >&2
   exit 2
 fi
 
-IG_ROOT="${3:-.}"
+IG_ROOT="${IG_ROOT:-.}"
 cd "$IG_ROOT" || { echo "ERROR: cannot enter '$IG_ROOT'" >&2; exit 2; }
 
 # Detect that this really is a FHIR IG project before reporting anything. Without
@@ -57,8 +76,28 @@ cd "$IG_ROOT" || { echo "ERROR: cannot enter '$IG_ROOT'" >&2; exit 2; }
 if [ ! -d input/pagecontent ] && [ ! -f sushi-config.yaml ] && [ ! -f ig.ini ]; then
   echo "ERROR: '$(pwd)' does not look like a FHIR IG project." >&2
   echo "       Expected input/pagecontent/, sushi-config.yaml or ig.ini." >&2
-  echo "       Run this from the module IG's root, or pass the root as a third argument." >&2
+  echo "       Run this from the module IG's root, or pass the root as an argument." >&2
   exit 2
+fi
+
+# Best-effort cross-check of <lang> against the guide's own i18n configuration —
+# the language pair is the skill's Preconditions 2, "the step that must not be
+# skipped". Warnings only: parsing YAML with grep is deliberately rough, and the
+# decision stays with the caller.
+if [ -f sushi-config.yaml ]; then
+  if ! grep -qE '^[[:space:]]*i18n-default-lang[[:space:]]*:' sushi-config.yaml; then
+    echo "WARN: sushi-config.yaml declares no i18n-default-lang — the source language is undeclared." >&2
+    echo "      Deriving the language pair is the skill's Preconditions 2: report and ask, do not guess." >&2
+  fi
+  if grep -qE '^[[:space:]]*i18n-lang[[:space:]]*:' sushi-config.yaml; then
+    if ! grep -A8 -E '^[[:space:]]*i18n-lang[[:space:]]*:' sushi-config.yaml \
+       | grep -qE "^[[:space:]]*-[[:space:]]*[\"']?${LANG_CODE}[\"']?[[:space:]]*(#.*)?\$|i18n-lang[[:space:]]*:[[:space:]]*[\"']?${LANG_CODE}[\"']?[[:space:]]*(#.*)?\$"; then
+      echo "WARN: '$LANG_CODE' does not appear under parameters.i18n-lang in sushi-config.yaml." >&2
+    fi
+  else
+    echo "WARN: no i18n-lang is configured — '$LANG_CODE' is not (yet) a target language of this" >&2
+    echo "      guide. Adding one changes the guide's configuration and is its maintainer's decision." >&2
+  fi
 fi
 
 SUPPORTED="StructureDefinition CodeSystem Questionnaire"   # Publisher supplement types
@@ -110,10 +149,13 @@ fi
 
 # --- validate ---
 fail=0
+nsupp=0
+npages=0
 echo "-- checking existing supplements ($TSRC) --"
 if [ -d "$TSRC" ]; then
   for f in "$TSRC"/*.po "$TSRC"/*.xliff "$TSRC"/*.json; do
     [ -e "$f" ] || continue
+    nsupp=$((nsupp + 1))
     bn="$(basename "$f")"; stem="${bn%.*}"
     rt="${stem%%-*}"; rid="${stem#*-}"
     case "$bn" in menu.*) echo "   [WARN] $bn — ignored by the Publisher (not {Type}-{id})"; fail=1; continue;; esac
@@ -130,6 +172,7 @@ echo "-- checking existing page translations ($TSRC/pagecontent) --"
 if [ -d "$TSRC/pagecontent" ]; then
   for f in "$TSRC"/pagecontent/*.md; do
     [ -e "$f" ] || continue
+    npages=$((npages + 1))
     bn="$(basename "$f")"; src="input/pagecontent/$bn"
     if [ -f "$src" ]; then echo "   [OK]   $bn"; else echo "   [WARN] $bn — no default-language source page $src"; fail=1; fi
   done
@@ -137,5 +180,18 @@ else
   echo "   (no directory $TSRC/pagecontent)"
 fi
 echo
-[ "$fail" = 0 ] && echo "Validation: no findings." || echo "Validation: findings present (see [WARN])."
+echo "Checked: $nsupp supplement(s), $npages page translation(s)."
+if [ "$fail" != 0 ]; then
+  echo "Validation: findings present (see [WARN])."
+  exit 1
+fi
+if [ $((nsupp + npages)) -eq 0 ]; then
+  echo "Validation: NOTHING TO VALIDATE — no supplements and no page translations exist for '$LANG_CODE'."
+  echo "That is not the same as 'all translations valid'."
+  if [ "$STRICT" = 1 ]; then
+    exit 1
+  fi
+  exit 0
+fi
+echo "Validation: no findings."
 exit 0

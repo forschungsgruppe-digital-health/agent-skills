@@ -7,14 +7,21 @@
 # no-fabrication guardrail. See references/fql-crosswalk.md.
 #
 # Mapping rules come from references/fql-rules.tsv, which is the single source
-# of truth and is extensible by hand -- add a line
-# `LABEL<TAB>ERE-pattern<TAB>recommendation`.
+# of truth for THIS scanner and is extensible by hand -- add a line
+# `LABEL<TAB>ERE-pattern<TAB>recommendation`. (The fhir-ig-analysis skill keeps
+# a derived pattern set; the catalog's check_directive_rules.py keeps the two
+# label taxonomies in sync.)
 #
 # Run it from the root of the module repository being migrated:
 #
-#   scripts/fql-scan.sh                          # scans input/pagecontent/*.md
-#   scripts/fql-scan.sh input/pagecontent/x.md   # specific files or directories
-#   scripts/fql-scan.sh --strict                 # exit 1 if anything was found
+#   fql-scan.sh                          # input/pagecontent, plus implementation-guides
+#                                        #   when present (Simplifier layout), RECURSIVE
+#   fql-scan.sh some/dir a/file.md       # specific files or directories (dirs recursive)
+#   fql-scan.sh --strict                 # exit 1 if anything was found
+#
+# Exit codes: 0 = scanned (findings are informational without --strict);
+# 1 = --strict and findings exist; 2 = setup error: missing rules file, or an
+# EMPTY TARGET SET -- an empty scan is never a pass.
 #
 # Bash 3.2 compatible, because macOS still ships 3.2.
 #
@@ -34,11 +41,17 @@ ARGS=""
 for a in "$@"; do
   case "$a" in
     --strict) STRICT=1 ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
     *) ARGS="$ARGS $a" ;;
   esac
 done
-[ -n "$ARGS" ] || ARGS="input/pagecontent"
+if [ -z "$ARGS" ]; then
+  ARGS="input/pagecontent"
+  # A Simplifier project keeps its narrative under implementation-guides/**/*.page.md.
+  # A pre-migration scan that misses those reads "0 directives" on a module that has
+  # hundreds -- so the default includes the directory whenever it exists.
+  [ -d implementation-guides ] && ARGS="$ARGS implementation-guides"
+fi
 
 if [ ! -f "$RULES" ]; then
   echo "ERROR: rules file not found: $RULES" >&2
@@ -46,11 +59,12 @@ if [ ! -f "$RULES" ]; then
   exit 2
 fi
 
-# Collect target files (.md only).
+# Collect target files (.md only; directories are searched RECURSIVELY -- a flat
+# glob missed the nested implementation-guides/**/*.page.md layout entirely).
 TARGETS=""
 for p in $ARGS; do
   if [ -d "$p" ]; then
-    for f in "$p"/*.md; do [ -e "$f" ] && TARGETS="$TARGETS $f"; done
+    for f in $(find "$p" -type f -name '*.md' | sort); do TARGETS="$TARGETS $f"; done
   elif [ -f "$p" ]; then
     TARGETS="$TARGETS $p"
   else
@@ -58,11 +72,17 @@ for p in $ARGS; do
   fi
 done
 if [ -z "$TARGETS" ]; then
-  echo "No .md target files under: $ARGS"
-  exit 0
+  echo "ERROR: empty target set -- no .md files under: $ARGS" >&2
+  echo "       An empty scan is never a pass. Point the scanner at the narrative" >&2
+  echo "       sources (input/pagecontent, or implementation-guides for a" >&2
+  echo "       Simplifier project), or run it from the module repository's root." >&2
+  exit 2
 fi
+NFILES=0
+for f in $TARGETS; do NFILES=$((NFILES + 1)); done
 
 echo "== fql-scan (rules: $RULES) =="
+echo "Scanning $NFILES file(s)."
 total=0
 MATCHED=""   # "file:line" per specific-rule hit, so the unknown pass can skip them
 
@@ -110,9 +130,9 @@ done
 echo
 total_all=$((total + unknown))
 if [ "$total_all" -eq 0 ]; then
-  echo "No Simplifier or FQL directives found."
+  echo "No Simplifier or FQL directives found in $NFILES scanned file(s)."
 else
-  echo "$total mapped finding(s), $unknown unknown."
+  echo "$total mapped finding(s), $unknown unknown, in $NFILES scanned file(s)."
   echo "Transform per references/fql-crosswalk.md; when in doubt mark TODO:REVIEW."
   echo "Rule missing or imprecise? Add a line to $RULES (LABEL<TAB>ERE-pattern<TAB>recommendation)."
 fi

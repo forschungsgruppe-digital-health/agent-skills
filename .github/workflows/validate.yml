@@ -59,6 +59,13 @@ jobs:
       - name: Trigger collision between descriptions
         run: python scripts/check_descriptions.py
 
+      - name: Directive-rule taxonomies stay in sync across skills
+        # fql-rules.tsv (mii-ig-migration, normative) vs directive_patterns
+        # (fhir-ig-analysis, derived). They drifted once — 11 vs 12 labels,
+        # 129 vs 130 findings on the same corpus; this makes that drift a
+        # failure instead of a silent disagreement.
+        run: python scripts/check_directive_rules.py
+
       - name: Every relative link in every Markdown file resolves
         # build_index.py checks links inside skills/ only, because that is where
         # portability decides whether an installed skill still works. Nothing

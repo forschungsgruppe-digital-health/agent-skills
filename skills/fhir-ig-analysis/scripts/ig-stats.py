@@ -19,7 +19,7 @@ try:
 except Exception:
     datetime = None
 
-SCHEMA_VERSION = "1.3"
+SCHEMA_VERSION = "1.4"
 # Fallback only. The authoritative list lives in references/report-content.json
 # under "mandatory_pages" and is loaded by load_content() below, so a page set can
 # be corrected without touching this file.
@@ -347,13 +347,22 @@ def parse_qc(path):
 # ---------- Strategie/Reife/Risiko (Gruppen K–P) -------------------------------
 def git_stats(d):
     out = {"commits": None, "authors": None, "top_author_share": None, "days_since_last": None,
-           "commits_per_year": None, "tags": None, "first": None, "last": None}
+           "commits_per_year": None, "tags": None, "first": None, "last": None,
+           "history_complete": None}
+    # A shallow checkout (.git/shallow exists — including every clone resolve_input()
+    # makes itself, --depth 1) has a truncated history. Author shares, cadence and tag
+    # counts computed from it are fiction ("100 % top author" over 1 commit), not
+    # measurement — so per the skill's "a null is not a zero" rule they stay null.
+    if os.path.exists(os.path.join(d, ".git", "shallow")):
+        out["history_complete"] = False
+        return out
     try:
         r = subprocess.run(["git", "-C", d, "log", "--pretty=%an|%ae|%ad", "--date=short"],
                            capture_output=True, text=True, timeout=25)
         lines = [l for l in r.stdout.splitlines() if l.count("|") >= 2]
         if not lines:
             return out
+        out["history_complete"] = True
         authors, dates = {}, []
         for l in lines:
             a, email, dt = l.split("|", 2)
@@ -404,20 +413,16 @@ def compute_governance(igdir):
     return flags
 
 
-def compute_maturity(identity, doc_health_pct, cov_pct, gov_score):
-    status_score = {"active": 85, "release": 90, "draft": 45, "retired": 20}.get((identity.get("status") or "").lower(), 50)
-    parts = [("Status", status_score), ("Doku-Vollständigkeit", doc_health_pct),
-             ("Beispiel-Abdeckung", cov_pct), ("Governance", gov_score)]
-    avail = [v for _, v in parts if v is not None]
-    score = round(sum(avail) / len(avail)) if avail else None
-    st = (identity.get("status") or "").lower()
-    if (score or 0) >= 75:
-        band = "reif" if st in ("active", "release") else "technisch reif, Status Entwurf"
-    elif (score or 0) >= 55:
-        band = "fortgeschritten"
-    else:
-        band = "in Entwicklung"
-    return {"score": score, "band": band, "components": {k: v for k, v in parts}}
+def maturity_components(identity, doc_health_pct, cov_pct, gov_score):
+    # Counted/derived components only — deliberately NOT aggregated into a 0-100
+    # score. The earlier "Reifegrad"/"Freigabe-Indikator" averaged these with
+    # invented status weights (draft=45, active=85, ...), i.e. a readiness
+    # estimate, which the skill's scope explicitly excludes. The components are
+    # reported side by side; the judgement stays human.
+    return {"components": {"Status": identity.get("status"),
+                           "Doku-Vollständigkeit": doc_health_pct,
+                           "Beispiel-Abdeckung": cov_pct,
+                           "Governance": gov_score}}
 
 
 def compute_portfolio(fsh_text, decl_names, artifacts, directives, pages, identity, deps_items, gs):
@@ -579,7 +584,7 @@ def analyze(igdir, label, content):
     example_cov = compute_example_coverage(artifact_list)
     gov = compute_governance(igdir)
     doc_health_pct = round(narrative["pages"] / narrative["pages_all"] * 100) if narrative["pages_all"] else None
-    maturity = compute_maturity(identity, doc_health_pct, example_cov["coverage_pct"], gov["governance_score"])
+    maturity = maturity_components(identity, doc_health_pct, example_cov["coverage_pct"], gov["governance_score"])
     maturity.update({"example_coverage": example_cov, "governance": gov, "doc_health_pct": doc_health_pct})
     portfolio = compute_portfolio(fsh_text, decl_names, artifacts, directives, narrative["pages"], identity,
                                   dependencies["items"], gs)
@@ -740,15 +745,14 @@ def report(stats, content, out):
     ]))
     B.append("_%s_" % hy["note"])
 
-    # Reife & Freigabe
+    # Reife-Komponenten (gezählt, bewusst NICHT zu einem Score verdichtet)
     nz = lambda x: "—" if x is None else x
     mt = stats["maturity"]
     cov = mt["example_coverage"]
-    B.append("## Reife & Freigabe")
+    B.append("## Reife-Komponenten (gezählt)")
     if _intro(content, "reife"):
         B.append("_%s_" % _intro(content, "reife"))
     B.append(_table(["Komponente", "Wert"], [
-        ("**Reifegrad-Score**", "**%s/100 (%s)**" % (nz(mt["score"]), mt["band"])),
         ("Status", i.get("status")),
         ("Doku-Vollständigkeit (Inhalt vs. Stubs)", "%s %%" % nz(mt["doc_health_pct"])),
         ("Beispiel-Abdeckung Profile", "%s %% (%d/%d)" % (nz(cov["coverage_pct"]), cov["covered"], cov["profiles_total"])),
@@ -768,7 +772,9 @@ def report(stats, content, out):
         ("Wiederverwendung externer Profile (Parents)", "%s %% (%d von %d Profil-Parents extern; abstrakte LM-Basistypen ausgeschlossen)" % (nz(pf["canonical_reuse_ratio_pct"]), pf["external_parents"], pf["external_parents"] + pf["local_parents"])),
         ("FHIR-Version", "%s — %s" % (pf["fhir_version_label"], pf["fhir_version_note"])),
         ("Dependency-Veraltung", "%d veraltet (Heuristik)" % pf["dependency_stale_count"]),
-        ("Pflege-Kadenz", "%s Commits/Jahr · letzter Commit vor %s Tagen" % (nz(pf["release_cadence_per_year"]), nz(pf["days_since_last_commit"]))),
+        ("Pflege-Kadenz", ("nicht ermittelbar (shallow clone — unvollständige Git-Historie)"
+                           if (stats.get("git") or {}).get("history_complete") is False else
+                           "%s Commits/Jahr · letzter Commit vor %s Tagen" % (nz(pf["release_cadence_per_year"]), nz(pf["days_since_last_commit"])))),
     ]))
     B.append("_Lock-in und Standard-Terminologie-Anteil sind grobe Heuristiken aus Textvorkommen. %s_" % pf["dependency_staleness_note"])
 
@@ -783,12 +789,16 @@ def report(stats, content, out):
         ("Unterdrückte QA-Warnungen", "%d (davon %d breit) → %s" % (rk["suppressed_total"], rk["suppressed_broad"], rk["suppressed_warning_risk"])),
         ("Datenschutz-Seite (Substanz)", "%s (%d Wörter)" % ("vorhanden/substanziell" if rk["privacy_page_substantial"] else "fehlt/nur Stub", rk["privacy_page_words"])),
         ("PII-artige Beispieldaten", "ja – prüfen" if rk["examples_contain_pii_like"] else "keine erkannt"),
-        ("Bus-Faktor (Wissenskonzentration)", ("%s %% Top-Autor → %s" % (rk["bus_factor_top_author_pct"], rk["bus_factor_risk"])) if rk["bus_factor_top_author_pct"] is not None else "—"),
+        ("Bus-Faktor (Wissenskonzentration)", ("%s %% Top-Autor → %s" % (rk["bus_factor_top_author_pct"], rk["bus_factor_risk"])) if rk["bus_factor_top_author_pct"] is not None else
+         ("nicht ermittelbar (shallow clone — unvollständige Git-Historie)"
+          if (stats.get("git") or {}).get("history_complete") is False else "—")),
         ("Breaking-Change-Risiko ggü. Vorversion", "— (nur per Build/Vorversions-Diff)"),
     ]))
 
-    # Empfehlungen (neutral, generisch)
-    B.append("## Empfehlungen")
+    # Befunde & Einordnung (Messwerte + neutrale Erklärung; KEINE Handlungs-/
+    # Migrationsanweisungen — die frühere "Empfehlungen"-Fassung war Migrations-
+    # Scoping, das der Skill-Scope ausdrücklich ausschließt)
+    B.append("## Befunde & Einordnung")
     if _intro(content, "empfehlungen"):
         B.append("_%s_" % _intro(content, "empfehlungen"))
     fsh_present = str(a.get("_source") or "").startswith("input/fsh")
@@ -800,16 +810,17 @@ def report(stats, content, out):
         "Mehrsprachigkeit": "FSH-Übersetzung %s, Supplements %d" % ("ja" if ii["fsh_translation_ext"] else "nein", ii["translation_supplements"]),
         "Pflichtseiten": "%d/%d im Zielformat" % (len(n["mandatory_present"]), len(MANDATORY_PAGES)),
         "QC-Regeln": "%s definiert" % (q.get("qc_rules_defined") if q.get("qc_rules_defined") is not None else "—"),
-        "Metadaten/Config": "id %s, v%s" % (i.get("id"), i.get("version")),
-        "Arbeitsweise": "—"}
+        "Metadaten/Config": "id %s, v%s" % (i.get("id"), i.get("version"))}
     mrows = []
     for row in (content.get("mapping_rows") or []):
         b = row.get("bereich")
-        mrows.append((b, befund.get(b, "—"), row.get("empfehlung")))
+        if b not in befund:      # a row without a measured Befund has no place here
+            continue
+        mrows.append((b, befund[b], row.get("einordnung") or row.get("empfehlung")))
     if mrows:
-        B.append(_table(["Bereich", "Befund", "Empfehlung"], mrows))
+        B.append(_table(["Bereich", "Befund", "Einordnung"], mrows))
 
-    # Extra-Abschnitt: Direktiven-Mapping (unterhalb der Empfehlungen)
+    # Extra-Abschnitt: Direktiven-Mapping (Faktenreferenz, kein Arbeitsauftrag)
     if t["by_label"]:
         B.append("## Direktiven-Mapping (Detail)")
         if _intro(content, "direktiven_mapping"):
@@ -818,7 +829,7 @@ def report(stats, content, out):
         for lbl, cnt in sorted(t["by_label"].items(), key=lambda x: -x[1]):
             info = di.get(lbl, {})
             rows.append((lbl, cnt, info.get("what", ""), info.get("reco", "")))
-        B.append(_table(["Direktive", "Anzahl", "Was es tut", "Empfehlung (→ IG Publisher)"], rows))
+        B.append(_table(["Direktive", "Anzahl", "Was es tut", "Standard-Gegenstück (IG Publisher)"], rows))
         if t["unknown"]:
             B.append("> **%d unbekannte Treffer** ohne bekanntes Standard-Gegenstück – einzeln manuell prüfen "
                      "(Fundorte im Anhang)." % t["unknown"])
@@ -966,7 +977,6 @@ def compare(statslist, content, out):
     for name, fn in [("Dependencies (floating)", lambda s: "%d (%d)" % (s["dependencies"]["count"], s["dependencies"]["floating"])),
                      ("Ø Wörter / Seite", lambda s: _de(s["linguistics"]["words_avg"])),
                      ("Median Wörter / Seite", lambda s: s["linguistics"]["words_median"]),
-                     ("Reifegrad /100", lambda s: _nz(s["maturity"]["score"])),
                      ("Hersteller-Lock-in /100", lambda s: s["portfolio"]["vendor_lockin_score"]),
                      ("Standard-Terminologie %", lambda s: _nz(s["portfolio"]["terminology_standard_share_pct"])),
                      ("Bus-Faktor % (Top-Autor)", lambda s: _nz(s["risk"]["bus_factor_top_author_pct"]))]:
@@ -1096,8 +1106,10 @@ def run(inputs, outdir, labels, content):
 def main():
     ap = argparse.ArgumentParser(prog="ig-stats.py", description="FHIR-IG vermessen + Reporting")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    pr_ = sub.add_parser("run"); pr_.add_argument("inputs", nargs="+"); pr_.add_argument("-o", default="ig-analyze-out"); pr_.add_argument("--label")
-    pa = sub.add_parser("analyze"); pa.add_argument("igdir"); pa.add_argument("-o"); pa.add_argument("--label")
+    LABEL_HELP = ("Anzeige-Label (bei run: Kommaliste je Eingabe) für Report-Überschrift und "
+                  "Vergleichs-Spalten; die DATEINAMEN folgen immer der IG-id")
+    pr_ = sub.add_parser("run"); pr_.add_argument("inputs", nargs="+"); pr_.add_argument("-o", default="ig-analyze-out"); pr_.add_argument("--label", help=LABEL_HELP)
+    pa = sub.add_parser("analyze"); pa.add_argument("igdir"); pa.add_argument("-o"); pa.add_argument("--label", help=LABEL_HELP)
     pr = sub.add_parser("report"); pr.add_argument("stats"); pr.add_argument("-o")
     pc = sub.add_parser("compare"); pc.add_argument("stats", nargs="+"); pc.add_argument("-o")
     args = ap.parse_args()

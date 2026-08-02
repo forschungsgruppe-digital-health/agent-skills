@@ -38,7 +38,10 @@ and carries them over unchanged. It does not invent them and does not ask.
 ### 2.1 Module identity — where each value comes from
 
 Read from the `sushi-config.yaml` and `package.json` at the root of `SOURCE_REPO_URL` (§2). Absent a `sushi-config.yaml`, read
-`package.json` plus the `ImplementationGuide` resource.
+`package.json` plus the `ImplementationGuide` resource. **When both files exist and disagree on a
+field, `sushi-config.yaml` wins** — it is what the build reads; record the disagreement in the
+migration report. (Real case: a `package.json` whose `canonical` carries the IG-resource URL
+`…/ImplementationGuide/<id>` instead of the canonical base.)
 
 | Field | Read from | Human input? | Written to |
 | --- | --- | --- | --- |
@@ -48,8 +51,14 @@ Read from the `sushi-config.yaml` and `package.json` at the root of `SOURCE_REPO
 | `canonical` | `sushi-config: canonical` / `package.json: canonical` | derived — **never change** | `sushi-config: canonical` |
 | `version` | `sushi-config` / `package.json: version` | **yes — confirm or bump** | `sushi-config: version`, release tag |
 | `status` / `releaseLabel` | `sushi-config` | derived (confirm) | `sushi-config` |
+| `license` | `sushi-config: license` / `package.json: license` | derived — **never change silently** (§2.2) | `sushi-config: license` |
+| `copyrightYear` | `sushi-config: copyrightYear` | derived — fills the template's `{{COPYRIGHT_START_YEAR}}` | `sushi-config: copyrightYear` |
 | `dependencies` | `sushi-config: dependencies` (+ `package.json`) | derived — resolve `.x` pins | `sushi-config: dependencies` |
 | `publisher` / `contact` | `sushi-config: publisher` | derived | `sushi-config: publisher` |
+
+A top-level `language:` value in the source is **not** identity: it belongs to the source's old
+single-language setup. The target's language configuration is the template's i18n mechanism
+(§4.2, §5.5) — do not carry `language:` over into it.
 
 ### 2.2 When the source and the template disagree
 
@@ -67,6 +76,13 @@ the one mistake in a migration that cannot be quietly fixed later.
 So: report the divergence explicitly, in the migration report and at Gate A, and let a human
 decide. Never normalize silently, and never treat the template's placeholder pattern as an
 instruction to rewrite existing identity.
+
+**The same rule covers every identity value the template pre-fills as a literal rather than a
+`{{...}}` placeholder — `license` above all.** The template ships `license: CC-BY-4.0` as a
+literal, so the placeholder gate in §2.3 never touches it, and MII modules commonly declare
+`CC0-1.0`. A migration that leaves the template's licence in place has silently relicensed
+published content. Read the source's `license`, carry it over, and treat any divergence exactly
+like the canonical: report it, raise it at Gate A, let a human decide.
 
 ### 2.3 Placeholders
 
@@ -102,7 +118,11 @@ varies between agents, so **this list is the normative statement** of what the s
 1. **Canonical URLs and IDs** of existing conformance resources are **not** changed.
 2. **Language.** English is the target's default (`i18n-default-lang: en`); German is the
    translation. FHIR artefact identifiers stay English regardless. Verify the parameter in the
-   checked-out template on every run.
+   checked-out template on every run. For a German-only source this **inverts the direction**:
+   the German text becomes the translation, and the English default pages are produced as
+   machine translations of it, each marked `TODO:REVIEW` and reviewed at Gate C — the one
+   sanctioned exception to guardrail 4, because every translated page traces to the source page
+   it renders.
 3. **FHIR version:** R4 (4.0.1).
 4. **No fabrication.** Every migrated artefact and narrative section traces to a source URL or
    repository path. Uncertainty is marked `TODO:REVIEW`, never guessed.
@@ -136,14 +156,24 @@ difference between working and not:
 Extract from `SOURCE_RENDERED_IG_URL` and `SOURCE_REPO_URL` the artefact list (profiles,
 extensions, value sets, code systems, capability statements, examples) and the narrative structure.
 
+**If the rendered IG cannot be mechanically extracted** — Simplifier project pages and their
+guide listings render client-side, so a non-browser agent may find no guide content even at a
+URL that returns 200 — derive the narrative structure from the repository instead
+(`implementation-guides/**/toc.yaml` and `*.page.md`), mark the rendered-IG cross-check
+`TODO:REVIEW` in the inventory, and have Gate B verify against the rendering by hand.
+
 → Output: `.ai-log/source-inventory.json`.
 → **Acceptance:** the inventory is complete and every entry carries its source path.
 
 ### 5.2 Create the skeleton
 
-Create the module repository from the template, run its first-run bootstrap, and replace the
-placeholders (§2.3) using the identity read in §2.1. **Delete the template's example artefacts**
-— at the time of writing `input/fsh/profiles/example-patient.fsh` and
+Create the skeleton **in place**: on a working branch of the module's existing repository, vendor
+the template and run its first-run bootstrap — do not mint a new repository; the module's history,
+issues and consumers stay where they are. (A new repository is a human decision, recorded in the
+migration report, never a default.) Replace the placeholders (§2.3) using the identity read in
+§2.1 — the licence per §2.2 is carried from the source, not left at the template's literal.
+**Delete the template's example artefacts** — at the time of writing
+`input/fsh/profiles/example-patient.fsh` and
 `input/fsh/instances/example-patient-instance.fsh`; confirm the paths in the template you actually
 checked out.
 
@@ -160,13 +190,20 @@ source is empty.**
 
 ### 5.4 Migrate the narrative
 
-Move the Manteldokument content into `input/pagecontent/*.md`. Translate Simplifier and FQL
-directives into IG Publisher equivalents:
+Move the Manteldokument content into the page set — **which language goes where is decided by
+§4.2**: when the source narrative is not in the target's default language (the normal KDS case:
+German source, English default), the source text goes to
+`input/translations/<source-lang>/pagecontent/` and the default-language `input/pagecontent/*.md`
+are produced as machine translations of it, every page marked `TODO:REVIEW` for Gate C.
+Translate Simplifier and FQL directives into IG Publisher equivalents:
 
 ```bash
-scripts/fql-scan.sh
-scripts/fql-scan.sh --strict
+bash "$SKILL_DIR/scripts/fql-scan.sh"            # recursive; pre-migration includes implementation-guides/**
+bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
 ```
+
+The scanner prints its scanned-file count and exits 2 on an empty target set — "nothing scanned"
+is never "nothing found".
 
 Apply the recommendation per finding; the mapping is in `references/fql-crosswalk.md` and the rules
 in `references/fql-rules.tsv`. Ambiguous cases take professional judgement; when in doubt mark
@@ -218,11 +255,14 @@ summary, and any source-versus-template identity divergence from §2.2.
 
 Open a pull request with the report as its description. **Do not publish.**
 
-Determine the target branch from the module repository's own convention — do not assume one. The
-template previews every non-`main` branch to `gh-pages` under `branches/<branch>/` and reserves
-`main` and tags for formal publication, so a working branch gets a rendered preview without
-touching the default branch. If the module repository uses a different convention, follow it and
-record which you followed.
+Determine the target branch from the module repository's own convention — **discover it, do not
+assume it**: the default branch, the bases of previously merged pull requests, and
+CONTRIBUTING/README are the evidence. The template previews every non-`main` branch to `gh-pages`
+under `branches/<branch>/` and reserves `main` and tags for formal publication, so a working
+branch gets a rendered preview without touching the default branch. If the module repository uses
+a different convention, follow it and record which you followed — and when the discovered PR base
+is itself the publication branch (for example GitHub Pages served from it), say so in the pull
+request description and at Gate D: there, merging publishes.
 
 ## 6. Mandatory human review gates
 
@@ -254,8 +294,12 @@ map onto sections *within* pages, not onto pages of their own.** That is why the
 like it is missing them and is not.
 
 The mapping below is derived from `medizininformatik-initiative/kerndatensatz-basis` — the MII's own
-reference module, whose `input/pagecontent/` set is identical to the template's. It is evidence
-about what the MII actually does, not an interpretation of the Manteldokument's wording.
+reference module, whose `input/pagecontent/` set matches the template's except for two
+template-only pages (`security-and-privacy.md`, `rendering-artifacts.md`, which basis lacks) and
+one basis-only file (`ImplementationGuide-mii-ig-base.md`). It is evidence about what the MII
+actually does, not an interpretation of the Manteldokument's wording. The two template-only pages
+also mean the reference module itself scores 10/11 on the analysis skill's mandatory-page list —
+expect the same of any module whose page set predates them.
 
 | Manteldokument section | Where it lives | Evidence |
 | --- | --- | --- |
