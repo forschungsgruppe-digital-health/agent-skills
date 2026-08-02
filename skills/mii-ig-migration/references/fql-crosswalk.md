@@ -35,7 +35,7 @@ a specific rule already matched, keyed on `file:line`.
 | `<fql … for differential.element select id, short>` | element table: the `-dict` fragment |
 | `<fql>` metadata (url/status/version) | drop it — the publisher generates the header |
 | FQL code block (`@` plus a fenced block) | treat as `<fql>` |
-| `<tabs>` / `<tab>` (rendering/XML/JSON) | **prefer a link to the artefact page**, which already renders these as tabs (differential/snapshot tables, XML/JSON/TTL, mappings, examples) exactly like the official FHIR specification pages; sequential inline fragments only when the page truly needs them |
+| `<tabs>` / `<tab>` (rendering/XML/JSON) | when the vendored template ships `includes/structure-tabs.html` (module template > v0.4.0): the parameterized include — one line, renders Structure/Differential/XML/JSON as real tabs on the narrative page, `lang="de"` in the German mirror. Otherwise **prefer a link to the artefact page**, which renders the same views as tabs like the official FHIR specification pages; sequential inline fragments are the last resort |
 
 `<Type>` is one of `StructureDefinition`, `CodeSystem`, `ValueSet`, `CapabilityStatement`, …;
 `<id>` is the artefact `id`. Fragment views available per StructureDefinition include `snapshot`,

@@ -234,7 +234,10 @@ directives.
   silently ignored.
 
 → **Acceptance:** the IG builds both language variants; translated element texts appear on the
-translated artefact pages; no ignored `.po` files were created.
+translated artefact pages; no ignored `.po` files were created. Note: **breadcrumbs and the
+titles of `pages:`-tree pages stay in the default language on translated variants** — a
+known IG-Publisher limitation (see the translation skill's rendering table), not a migration
+defect; classify it as `environment` in QA triage, do not chase it.
 
 ### 5.6 Build and QA
 
@@ -303,8 +306,8 @@ expect the same of any module whose page set predates them.
 
 | Manteldokument section | Where it lives | Evidence |
 | --- | --- | --- |
-| **Bezüge zu anderen Modulen** | `index.md` § *Related guides* — the template ships a `TODO:` there instructing the author to name the module's formal dependencies. The machine-readable form is `dependencies` in `sushi-config.yaml`. Cross-references are additionally described in `implementer-guidance.md`. | template `index.md`; basis `implementer-guidance.md` lists "Module dependencies and cross-references" |
-| **Referenzen** | `index.md` § *Related guides* for external guides and the FHIR IG Registry; `downloads.md` for package and artefact references; inline artefact links throughout the narrative | template `index.md`; basis `downloads.md` |
+| **Bezüge zu anderen Modulen** | **`implementer-guidance.md` is the primary home** for the substance: module dependencies, cross-module references, and any compared/derived-profile discussion. `index.md` § *Related guides* carries only a **short link list** (the template's `TODO:` there asks for names, not prose). The machine-readable form is `dependencies` in `sushi-config.yaml`. Learned on the first full migration's review: routing the context *prose* onto `index.md` makes the landing page read as misplaced — the index stays lean. | basis `implementer-guidance.md` lists "Module dependencies and cross-references"; template `index.md` |
+| **Referenzen** | **`implementer-guidance.md`** for reference *discussion* (compared specifications, alignment notes); `index.md` § *Related guides* only as a short link list of external guides and the FHIR IG Registry; `downloads.md` for package and artefact references; inline artefact links throughout the narrative | basis `implementer-guidance.md`; template `index.md`; basis `downloads.md` |
 | **Anwendungsfälle / Szenarien** | `guidance.md`, which routes to `implementer-guidance.md` and `researcher-guidance.md`; `general-requirements.md`, which frames the requirements in terms of MII use cases; `examples.md` for the concrete scenarios. Scenario *narratives* (use-case descriptions with diagrams) default to `general-requirements.md` per the basis evidence; `implementer-guidance.md` is the better home when the scenarios are written as implementation instructions. Either way, record the choice as `TODO:REVIEW` for Gate B — reviewers reasonably disagree on this one. | basis `general-requirements.md` (German) refers to "die Anwendungsfälle der Medizininformatik-Initiative"; basis `researcher-guidance.md` covers identifying data elements for a research question |
 
 Further recurring source-section homes, learned on the Dokument migration (same rule: sections
