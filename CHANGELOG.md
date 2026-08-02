@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.6.0...v0.7.0) (2026-08-02)
+
+
+### Skills and capabilities
+
+* **mii-ig-migration:** migration-report template + rendering guidance from the first full run ([#30](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/30)) ([393a7a5](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/393a7a5f20bcb00adb3b3415cdc37277b2a9cd30))
+
 ## [0.6.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.5.2...v0.6.0) (2026-08-02)
 
 
