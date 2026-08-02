@@ -169,6 +169,12 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    fields actually render before investing in a supplement. When the source narrative is
    German-only, the German pages come first and the English defaults are produced from them —
    see *Language* below for the one sanctioned exception to the no-fabrication guardrail.
+   **Breadcrumb titles:** generate `input/includes/breadcrumb-titles-de.txt` mechanically from
+   the two menus (pair the labels of `input/includes/menu.xml` and
+   `input/translations/de/includes/menu.xml` by `href`; one `English Title => Deutscher Titel`
+   line per differing pair, marked as generated). The module template (> v0.4.0) applies it so
+   the `/de/` breadcrumbs show German page titles — without it they stay English, because the
+   publisher does not localize `pages:`-tree titles.
 
 7. **Build and QA.** `sushi .`, then the IG Publisher. The target pins its toolchain in the build
    workflow's `env:` block — read the pins from there rather than from this file. Acceptance:

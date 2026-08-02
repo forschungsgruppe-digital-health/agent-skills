@@ -234,10 +234,12 @@ directives.
   silently ignored.
 
 → **Acceptance:** the IG builds both language variants; translated element texts appear on the
-translated artefact pages; no ignored `.po` files were created. Note: **breadcrumbs and the
-titles of `pages:`-tree pages stay in the default language on translated variants** — a
-known IG-Publisher limitation (see the translation skill's rendering table), not a migration
-defect; classify it as `environment` in QA triage, do not chase it.
+translated artefact pages; no ignored `.po` files were created;
+`input/includes/breadcrumb-titles-de.txt` exists and is generated from the two menus (pairs by
+`href`, `English Title => Deutscher Titel` per line) — the module template (> v0.4.0) applies it
+so `/de/` breadcrumbs render German titles. Background: the publisher itself does not localize
+`pages:`-tree titles (see the translation skill's rendering table); on templates ≤ v0.4.0 the
+English breadcrumbs are therefore an `environment` finding in QA triage, not a migration defect.
 
 ### 5.6 Build and QA
 

@@ -27,7 +27,7 @@ a specific rule already matched, keyed on `file:line`.
 | `{{index:root}}` | remove — the table of contents and navigation are generated |
 | `{{pagelink: …, hint: MII_PR_X}}` | `[Text](StructureDefinition-mii-pr-x.html)` (hint = artefact `name` → `id`) |
 | `{{link:<id>}}` | artefact link `[Text](<Type>-<id>.html)` |
-| `{{render:<image>}}` (png/jpg/svg…) | copy the image into `input/images/` and wrap it in raw HTML: `<div style="text-align: center;"><img src="file" alt="…" style="max-width: 100%;"/></div>`. A bare Markdown image lands inside a `<p>`, and the template **floats `p > img`** (text wraps beside it) and sets **no width cap** — the div sidesteps both, and raw HTML is also the only way to keep an image inside a centering block (kramdown does not parse Markdown images inside block-level HTML) |
+| `{{render:<image>}}` (png/jpg/svg…) | copy the image into `input/images/`. With the module template **> v0.4.0** a plain Markdown image `![Alt](file.png)` is safe: the template's CSS block-centers and width-caps content images (opt back into a float with `class="float"` raw HTML). On **older** templates wrap it in raw HTML — `<div style="text-align: center;"><img src="file" alt="…" style="max-width: 100%;"/></div>` — because their base CSS floats `p > img` (text wraps beside it) and caps no width |
 | `{{render:<canonical>}}` (resource) | usually remove — the artefact page is generated — **or** include the matching fragment |
 | `{{tree}}` / `{{tree, expand}}` | the `-snapshot` fragment (or `-dict` / `-diff`) |
 | `{{xml}}` | **prefer a link to the artefact page**; when an inline rendering is genuinely needed: the `-xml-html` fragment |
