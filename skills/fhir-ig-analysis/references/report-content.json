@@ -27,13 +27,13 @@
     "#86BCB6",
     "#D37295"
   ],
-  "directive_patterns_note": "Label-Taxonomie abgeleitet aus der normativen fql-rules.tsv des Katalog-Skills mii-ig-migration; einzige gewollte Abweichung: dessen 'render' ist hier in 'render-image' + 'render-resource' aufgeteilt. Nach Änderungen an einer der beiden Dateien im Katalog scripts/check_directive_rules.py laufen lassen (CI prüft das).",
+  "directive_patterns_note": "Label-Taxonomie abgeleitet aus der normativen fql-rules.tsv des Katalog-Skills mii-ig-migration; einzige gewollte Abweichung: dessen 'render' ist hier in 'render-image' + 'render-resource' aufgeteilt. Nach Änderungen an einer der beiden Dateien im Katalog scripts/check_directive_rules.py laufen lassen (CI prüft das). render-image ist bewusst auf echte {{render:…}}-Syntax beschränkt: frühere Alternativen (<img…, raw.githubusercontent) zählten übernommenes HTML und die von der Migrations-Skill vorgeschriebenen Provenienz-Kommentare als Direktiven (False Positives).",
   "directive_patterns": {
     "page-title": "\\{\\{page-title\\}\\}",
     "index-root": "\\{\\{index:root\\}\\}",
     "pagelink": "\\{\\{pagelink",
     "link": "\\{\\{link[:}]",
-    "render-image": "\\{\\{render:[^}]*\\.(?:png|jpe?g|gif|svg)|<img\\s|raw\\.githubusercontent",
+    "render-image": "\\{\\{render:[^}]*\\.(?:png|jpe?g|gif|svg)",
     "render-resource": "\\{\\{render:(?![^}]*\\.(?:png|jpe?g|gif|svg))",
     "tree": "\\{\\{tree",
     "xml": "\\{\\{xml[:}]",
