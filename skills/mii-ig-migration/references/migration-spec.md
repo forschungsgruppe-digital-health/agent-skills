@@ -247,7 +247,10 @@ Run `sushi .`, then the IG Publisher. The target pins the publisher, SUSHI and J
 its build workflow's `env:` block, the publisher jar additionally by SHA-256 — read the pins from
 there. A missing Jekyll on the runner surfaces as `Cannot run program "jekyll"`.
 
-→ **Acceptance:** `qa.txt` reports `Errors: 0`; every example validates.
+→ **Acceptance:** `qa.txt` reports `Errors: 0`; every example validates; the same-module
+comparison of the catalog's `fhir-ig-analysis` skill (source first, migrated tree second — equal
+`packageId` triggers it) reads **IDENTISCH** for identity fields, published artifact set and
+canonical URLs, and its narrative per-language table is carried into the report's QA triage.
 
 ### 5.7 Report
 
@@ -283,7 +286,8 @@ Gate D is organizational. Nothing publishes before it.
 ## 7. Definition of done
 
 `sushi .` and the IG Publisher build cleanly (`Errors: 0`); the Manteldokument crosswalk is
-complete; the canonical URL diff is empty; the language configuration is English-default with a
+complete; the `fhir-ig-analysis` same-module verification reads IDENTISCH (identity, published
+artifact set, canonical URLs); the language configuration is English-default with a
 German translation; every placeholder is replaced; template examples are removed; the default
 branch is unchanged; a pull request carries `migration-report.md`; all review gates are signed off.
 
