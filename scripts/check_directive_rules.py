@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -82,8 +83,56 @@ def main() -> int:
               f"but has no counterpart in fql-rules.tsv — mirror it there, or add a "
               f"deliberate entry to SPLITS in {pathlib.Path(__file__).name}")
         ok = False
+    # Behavior-level assertion (issue #34): both detectors score the shared
+    # fixture corpus identically — label sets can agree while patterns drift
+    # (the render-image <img>/raw-URL false positives were invisible to the
+    # set comparison above). The corpus carries one hit per label plus traps
+    # (carried HTML, provenance URLs) that must score zero.
+    corpus = pathlib.Path(__file__).resolve().parent / "fixtures" / "directive-corpus.md"
+    if not corpus.exists():
+        print(f"::error::fixture corpus missing: {corpus}")
+        return 2
+    lines = corpus.read_text(encoding="utf-8").splitlines()
+    trap_start = next(i for i, l in enumerate(lines) if l.startswith("## Traps"))
+
+    import subprocess, tempfile, collections
+    # analysis-side: apply directive_patterns per line (mirrors scan_directives)
+    pats = {k: re.compile(v) for k, v in patterns.items()}
+    ana = collections.Counter()
+    ana_trap_hits = []
+    for i, ln in enumerate(lines):
+        for label, rx in pats.items():
+            if rx.search(ln):
+                ana[label] += 1
+                if i > trap_start:
+                    ana_trap_hits.append((label, ln.strip()[:60]))
+    # scanner-side: run fql-scan.sh on the corpus
+    r = subprocess.run(["bash", str(ROOT / "skills" / "mii-ig-migration" / "scripts" / "fql-scan.sh"),
+                        str(corpus)], capture_output=True, text=True)
+    scan = collections.Counter(re.findall(r"\[([a-z-]+)\]", r.stdout))
+    scan_trap_hits = [l for l in r.stdout.splitlines()
+                      if ":" in l and "[" in l and any(
+                          int(m) > trap_start + 1 for m in re.findall(r":(\d+)\s+\[", l))]
+    # fold the sanctioned split for comparison
+    ana_folded = collections.Counter()
+    for label, n in ana.items():
+        folded = next((k for k, v in SPLITS.items() if label in v), label)
+        ana_folded[folded] += n
+    if ana_trap_hits:
+        for label, ln in ana_trap_hits:
+            print(f"::error::directive_patterns scores a TRAP line as '{label}': {ln}")
+        ok = False
+    if scan_trap_hits:
+        for l in scan_trap_hits:
+            print(f"::error::fql-scan scores a TRAP line: {l.strip()[:100]}")
+        ok = False
+    if dict(ana_folded) != dict(scan):
+        print(f"::error::corpus counts diverge — analysis (folded): {dict(ana_folded)} vs fql-scan: {dict(scan)}")
+        ok = False
+    else:
+        print(f"corpus counts agree: {dict(scan)}")
     if ok:
-        print("directive-rule taxonomies are in sync")
+        print("directive-rule taxonomies are in sync (labels + corpus behavior)")
     return 0 if ok else 1
 
 

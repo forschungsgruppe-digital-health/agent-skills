@@ -106,7 +106,9 @@ def sushi_scalar(text, key):
 def sushi_dependencies(text):
     deps, in_block = {}, False
     for ln in text.splitlines():
-        if re.match(r'^dependencies:\s*$', ln):
+        # A trailing comment after the key ('dependencies: # note') is valid YAML
+        # and SUSHI-accepted; tolerating it keeps hand-annotated configs measurable.
+        if re.match(r'^dependencies:\s*(?:#.*)?$', ln):
             in_block = True
             continue
         if in_block:
@@ -119,7 +121,7 @@ def sushi_dependencies(text):
 
 
 def sushi_langs(text):
-    langs, m = [], re.search(r'^\s*i18n-lang:\s*$', text, re.M)
+    langs, m = [], re.search(r'^\s*i18n-lang:\s*(?:#.*)?$', text, re.M)
     if m:
         for ln in text[m.end():].splitlines():
             mm = re.match(r'\s+-\s*([A-Za-z-]+)\s*$', ln)
@@ -493,7 +495,7 @@ def analyze(igdir, label, content):
         pkg = {}
 
     version = sushi_scalar(sushi, "version") or pkg.get("version")
-    mp = re.search(r'^publisher:\s*\n\s+name:\s*"?([^"#\n]+)', sushi, re.M)
+    mp = re.search(r'^publisher:\s*(?:#.*)?\n\s+name:\s*"?([^"#\n]+)', sushi, re.M)
     identity = {
         "id": sushi_scalar(sushi, "id"), "canonical": sushi_scalar(sushi, "canonical") or pkg.get("canonical"),
         "packageId": sushi_scalar(sushi, "packageId") or pkg.get("name"),
@@ -1075,6 +1077,7 @@ def run(inputs, outdir, labels, content):
     os.makedirs(outdir, exist_ok=True)
     srcroot = os.path.join(outdir, "_sources")
     results = []
+    used_slugs = set()
     for idx, inp in enumerate(inputs):
         try:
             d, herkunft = resolve_input(inp, srcroot)
@@ -1086,6 +1089,17 @@ def run(inputs, outdir, labels, content):
         st["analyzed"]["input"] = inp
         st["analyzed"]["resolved_from"] = herkunft
         slug = _slug(st["identity"]["id"] or os.path.basename(d) or ("ig%d" % (idx + 1)))
+        # Same-id inputs (e.g. a module compared against its own migrated copy)
+        # must not overwrite each other's reports: disambiguate the slug with
+        # the label when given, else a counter — and say so on the console line.
+        if slug in used_slugs:
+            suffix = _slug(label) if label else None
+            cand = "%s-%s" % (slug, suffix) if suffix and suffix != slug else None
+            n = 2
+            while not cand or cand in used_slugs:
+                cand = "%s-%d" % (slug, n); n += 1
+            slug = cand
+        used_slugs.add(slug)
         sp, rp = os.path.join(outdir, slug + "-stats.json"), os.path.join(outdir, slug + "-report.md")
         open(sp, "w", encoding="utf-8").write(json.dumps(st, ensure_ascii=False, indent=2) + "\n")
         report(st, content, rp)
