@@ -141,6 +141,7 @@ Provenienz-Arrays in der `ig-stats.json`:
 | `portfolio.dependency_stale_count`,`dependency_stale` | veraltete Dependencies (CalVer-Heuristik; exakt extern) | deps-Versionen | static* | S·R |
 | `portfolio.release_cadence_per_year`,`days_since_last_commit`,`tags` · `git.*` | Pflege-/Aktivitäts-Kadenz, Contributor-Verteilung. **Erfordert vollständige Git-Historie**: bei einem shallow clone (`.git/shallow`; jeder URL-Input wird shallow geklont) `null` + `git.history_complete=false` — null ist nicht 0 | Git-Historie | static | S·R |
 | `compare`: Cross-IG-Overlap, Konsolidierungs-/Skaleneffekt | Schnittmengen-Reuse & Programm-Skaleneffekt über mehrere IGs | `artifacts_detail` über IGs | static | S |
+| `compare` Same-Module-Verifikation (gleiche packageId) | Migrations-/Zustandstreue: Identitätsfelder, publizierter Artefakt-Satz, Canonical-URLs, Narrative je Sprach-Ebene inkl. Wort-Abdeckung | identity/artifacts_detail/narrative + fsh-generated (URLs, opportunistisch) | static | S·R |
 
 ## N. Risiko & Compliance
 

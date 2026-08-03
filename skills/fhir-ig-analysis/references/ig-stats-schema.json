@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.org/fhir/kds-sample/ig-stats-schema.json",
   "title": "ig-stats",
-  "description": "Maschinenlesbare Statistik eines FHIR-IG (Ausgabe von scripts/ig-stats.py analyze). Build-only-Felder sind im statischen Modus null. Ab 1.4: aus der realen Ausgabe regeneriert — alle Gruppen (portfolio, risk, git, quality, linguistics, duplication, hygiene) deklariert; maturity ohne score/band (nur Komponenten); git.history_complete; narrative.mandatory_missing_in_target (das in <=1.2 deklarierte mandatory_missing wurde nie emittiert); additionalProperties auf Top- und Gruppenebene false, damit Drift die Validierung bricht statt sie zu passieren.",
+  "description": "Maschinenlesbare Statistik eines FHIR-IG (Ausgabe von scripts/ig-stats.py analyze). Build-only-Felder sind im statischen Modus null. Ab 1.4: aus der realen Ausgabe regeneriert — alle Gruppen (portfolio, risk, git, quality, linguistics, duplication, hygiene) deklariert; maturity ohne score/band (nur Komponenten); git.history_complete; narrative.mandatory_missing_in_target (das in <=1.2 deklarierte mandatory_missing wurde nie emittiert); additionalProperties auf Top- und Gruppenebene false, damit Drift die Validierung bricht statt sie zu passieren. 1.4+: narrative.translation_pages/translation_words zählen input/translations-Seiten separat (die Kernzahlen bleiben übersetzungsfrei; files[].kind kennt 'translation').",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -209,6 +209,12 @@
           "type": "integer"
         },
         "pages_all": {
+          "type": "integer"
+        },
+        "translation_pages": {
+          "type": "integer"
+        },
+        "translation_words": {
           "type": "integer"
         },
         "words": {

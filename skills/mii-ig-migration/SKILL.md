@@ -178,7 +178,12 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
 
 7. **Build and QA.** `sushi .`, then the IG Publisher. The target pins its toolchain in the build
    workflow's `env:` block — read the pins from there rather than from this file. Acceptance:
-   `qa.txt` reports `Errors: 0` and every example validates.
+   `qa.txt` reports `Errors: 0` and every example validates. Then run the **same-module
+   verification** with the catalog's `fhir-ig-analysis` skill (measure the unmigrated source and
+   the migrated tree, then compare — same `packageId` triggers the verification report
+   automatically; the SOURCE is the first input): identity fields, the published artifact set and
+   the canonical URLs must all read **IDENTISCH**, and the narrative per-language table goes into
+   the migration report's QA triage. A DIVERGIERT there is a stop, not a warning.
 
 8. **Report.** Write `.ai-log/migration-report.md` **from
    [the report template](references/migration-report-template.md)** — it is built around three
@@ -258,7 +263,9 @@ bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
 - `sushi .` completes without error.
 - IG Publisher `qa.txt` reports `Errors: 0`; every example validates.
 - **Canonical URL diff against the source is empty.** This is the guardrail-1 check and the one
-  that matters most; a non-empty diff is a stop, not a warning.
+  that matters most; a non-empty diff is a stop, not a warning. The mechanical form of this and
+  the two checks below is `fhir-ig-analysis`' same-module comparison (step 7) — its Befund block
+  must read IDENTISCH for identity, published artifact set, and canonical URLs.
 - **The `license` (and every other identity value) diff against the source is empty**, or the
   divergence is reported and human-decided — never silently normalized to a template value.
 - `fql-scan.sh --strict` exits 0 **and reports a non-zero scanned-file count**, or every

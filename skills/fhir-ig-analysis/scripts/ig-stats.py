@@ -237,6 +237,14 @@ def narrative_detail(igdir):
         base = os.path.basename(f).lower()
         stub = w < STUB_MIN_WORDS or any(s in base for s in STUB_NAMES)
         out.append({"path": rel(igdir, f), "words": w, "kind": "source", "stub": stub})
+    # Translated narrative pages (input/translations/<lang>/pagecontent) are
+    # narrative too — carried as kind "translation". The pre-existing counts
+    # (pages, words, linguistics, mandatory pages) deliberately keep excluding
+    # them so metric series stay comparable; the same-module verification and
+    # the new translation_* fields read them.
+    for f in sorted(glob.glob(os.path.join(igdir, "input", "translations", "*", "pagecontent", "*.md"))):
+        w = len(read(f).split())
+        out.append({"path": rel(igdir, f), "words": w, "kind": "translation", "stub": w < STUB_MIN_WORDS})
     return out
 
 
@@ -534,11 +542,14 @@ def analyze(igdir, label, content):
                     "items": deps, "floating_items": floating, "_source": "sushi-config.yaml: dependencies"}
 
     ndetail = narrative_detail(igdir)
-    content_pages = [x for x in ndetail if not x["stub"]]
-    has_target = any(x["kind"] == "target" and not x["stub"] for x in ndetail)
-    fmt = "target" if has_target else "source" if ndetail else "leer"
-    pc_base = {os.path.basename(x["path"])[:-3] for x in ndetail if x["kind"] == "target"}
-    narrative = {"format": fmt, "pages": len(content_pages), "pages_all": len(ndetail),
+    ntrans = [x for x in ndetail if x["kind"] == "translation"]
+    ndetail_core = [x for x in ndetail if x["kind"] != "translation"]
+    content_pages = [x for x in ndetail_core if not x["stub"]]
+    has_target = any(x["kind"] == "target" and not x["stub"] for x in ndetail_core)
+    fmt = "target" if has_target else "source" if ndetail_core else "leer"
+    pc_base = {os.path.basename(x["path"])[:-3] for x in ndetail_core if x["kind"] == "target"}
+    narrative = {"format": fmt, "pages": len(content_pages), "pages_all": len(ndetail_core),
+                 "translation_pages": len(ntrans), "translation_words": sum(x["words"] for x in ntrans),
                  "words": sum(x["words"] for x in content_pages),
                  "words_all_incl_stubs": sum(x["words"] for x in ndetail),
                  "images": len(glob.glob(os.path.join(igdir, "input", "images", "*")))
@@ -577,7 +588,7 @@ def analyze(igdir, label, content):
                "qc_violations": None, "suppressed_messages": suppressed, "qa_errors": None,
                "qa_warnings": None, "qa_hints": None, "broken_links": None, "qa_categories": None}
 
-    linguistics, duplication, hygiene = linguistics_hygiene(igdir, ndetail, artifact_list)
+    linguistics, duplication, hygiene = linguistics_hygiene(igdir, ndetail_core, artifact_list)
 
     # ---- Strategie / Reife / Risiko (Gruppen K–P) ----
     fsh_text = " ".join(read(f) for f in fsh_files)
@@ -953,13 +964,111 @@ def compare(statslist, content, out):
 
     def lab(s):
         return s["analyzed"]["label"]
+    # Same-module detection (migration verification): every input carries the
+    # same non-empty packageId -> the inputs are versions/states of ONE module
+    # (typically: the Simplifier source vs its migrated copy). Aggregating a
+    # "Σ Gesamt" over the same module is meaningless, and the questions change:
+    # identity equality, artifact-set equality, canonical-URL equality and
+    # narrative coverage. All of it is counted, none of it forecast.
+    pkg_ids = {(s["identity"].get("packageId") or "") for s in statslist}
+    same_module = len(statslist) > 1 and len(pkg_ids) == 1 and "" not in pkg_ids
     B = []
     B.append("# IG-Vergleich (%d IGs)" % len(statslist))
-    B.append("_Objektiver Kennzahlen-Vergleich der analysierten IGs inkl. Linguistik. "
-             "Die Spalte „Σ Gesamt“ zeigt den aggregierten Gesamtumfang; "
-             "faire Einordnung über normalisierte Werte._")
+    if same_module:
+        B.append("_Same-Module-Vergleich: alle Eingaben tragen dieselbe packageId "
+                 "(`%s`) — der Report prüft **Migrations-/Zustandstreue** statt Portfolio-Umfang. "
+                 "Referenz ist die ERSTE Eingabe._" % next(iter(pkg_ids)))
+    else:
+        B.append("_Objektiver Kennzahlen-Vergleich der analysierten IGs inkl. Linguistik. "
+                 "Die Spalte „Σ Gesamt“ zeigt den aggregierten Gesamtumfang; "
+                 "faire Einordnung über normalisierte Werte._")
 
-    B.append("## Kennzahlen (je IG + Gesamt)")
+    if same_module:
+        B.append("## Same-Module-Verifikation")
+        if _intro(content, "same_module"):
+            B.append("_%s_" % _intro(content, "same_module"))
+        # -- identity equality --
+        ID_FIELDS = ("id", "canonical", "packageId", "name", "title", "version",
+                     "status", "fhirVersion", "license", "publisher")
+        id_rows, id_diff = [], 0
+        for f_ in ID_FIELDS:
+            vals = [s["identity"].get(f_) for s in statslist]
+            same = len({json.dumps(v, ensure_ascii=False) for v in vals}) == 1
+            if not same:
+                id_diff += 1
+            id_rows.append([f_] + [_nz(v) for v in vals] + ["✓ identisch" if same else "⚠ DIVERGIERT"])
+        B.append(_table(["Identitätsfeld"] + [lab(s) for s in statslist] + ["Befund"], id_rows))
+        # -- artifact-set equality (category+name from the FSH declarations) --
+        # Verdict on PUBLISHED artifacts only; internal FSH constructs (rulesets,
+        # invariants, mappings) are reported separately — a template adoption
+        # legitimately adds scaffold rulesets without changing the module.
+        sets = [{(x["category"], x["name"]) for x in s.get("artifacts_detail", [])
+                 if x["category"] in PUBLISHED_ARTIFACTS} for s in statslist]
+        isets = [{(x["category"], x["name"]) for x in s.get("artifacts_detail", [])
+                  if x["category"] in INTERNAL_ARTIFACTS} for s in statslist]
+        art_lines, art_diff, int_lines = [], 0, []
+        for i in range(1, len(statslist)):
+            missing, extra = sorted(sets[0] - sets[i]), sorted(sets[i] - sets[0])
+            art_diff += len(missing) + len(extra)
+            if missing:
+                art_lines.append("**Publizierte Artefakte, fehlend in %s:** %s" % (lab(statslist[i]), ", ".join("`%s/%s`" % m for m in missing)))
+            if extra:
+                art_lines.append("**Publizierte Artefakte, zusätzlich in %s:** %s" % (lab(statslist[i]), ", ".join("`%s/%s`" % e for e in extra)))
+            imiss, iextra = sorted(isets[0] - isets[i]), sorted(isets[i] - isets[0])
+            if imiss or iextra:
+                int_lines.append("_Interne FSH-Konstrukte (informativ, kein Befund): %s: %d fehlend, %d zusätzlich (z.B. Template-Rulesets)._"
+                                 % (lab(statslist[i]), len(imiss), len(iextra)))
+        # -- canonical-URL equality (opportunistic: read fsh-generated when present) --
+        def _urlset(s):
+            d_ = os.path.join(s["analyzed"].get("path") or "", "fsh-generated", "resources")
+            if not os.path.isdir(d_):
+                return None
+            out = set()
+            for f_ in glob.glob(os.path.join(d_, "*.json")):
+                try:
+                    j = json.load(open(f_, encoding="utf-8"))
+                except Exception:
+                    continue
+                if j.get("resourceType") != "ImplementationGuide" and j.get("url"):
+                    out.add(j["url"])
+            return out
+        urlsets = [_urlset(s) for s in statslist]
+        url_verdict, url_diff = "nicht ermittelbar (fsh-generated fehlt bei mindestens einer Eingabe)", 0
+        if all(u is not None for u in urlsets):
+            url_diff = sum(len(urlsets[0] ^ u) for u in urlsets[1:])
+            url_verdict = "✓ identisch (%d URLs)" % len(urlsets[0]) if url_diff == 0 else                 "⚠ %d abweichende URL(s): %s" % (url_diff, ", ".join(sorted(set().union(*[urlsets[0] ^ u for u in urlsets[1:]]))[:6]))
+        # -- narrative per language bucket + coverage --
+        def _buckets(s):
+            b = {"Default-Sprache (input/pagecontent)": [0, 0], "Übersetzungen (input/translations)": [0, 0],
+                 "Plattform-Quellseiten (verbleibend)": [0, 0], "sonstige": [0, 0]}
+            for f_ in s["narrative"]["files"]:
+                p_, w_ = f_["path"], f_["words"]
+                k = ("Übersetzungen (input/translations)" if p_.startswith("input/translations/") else
+                     "Default-Sprache (input/pagecontent)" if p_.startswith("input/pagecontent/") else
+                     "Plattform-Quellseiten (verbleibend)" if p_.startswith("implementation-guides/") else "sonstige")
+                b[k][0] += 1; b[k][1] += w_
+            return b
+        bks = [_buckets(s) for s in statslist]
+        B.append("### Narrative je Sprach-Ebene (Seiten / Wörter)")
+        B.append(_table(["Ebene"] + [lab(s) for s in statslist],
+                        [[k] + ["%d / %d" % tuple(b[k]) for b in bks] for k in bks[0]]))
+        ref_words = sum(v[1] for v in bks[0].values()) or 1
+        cov = ["_Wort-Abdeckung relativ zur Referenz (Heuristik; ein bilingualer Stand überschreitet 100 %):_ "]
+        for i in range(1, len(statslist)):
+            d_w = bks[i]["Default-Sprache (input/pagecontent)"][1]
+            t_w = bks[i]["Übersetzungen (input/translations)"][1]
+            cov.append("**%s: Default %d %% · Übersetzungen %d %%**"
+                       % (lab(statslist[i]), round(d_w / ref_words * 100), round(t_w / ref_words * 100)))
+        B.append(" ".join(cov))
+        # -- verdicts (counted, not forecast) --
+        B.append("### Befund")
+        B.append("\n".join([
+            "- Identität: %s" % ("**IDENTISCH**" if id_diff == 0 else "**⚠ %d Feld(er) DIVERGIEREN**" % id_diff),
+            "- Publizierter Artefakt-Satz (Kategorie+Name): %s" % ("**IDENTISCH** (%d Artefakte)" % len(sets[0]) if art_diff == 0 else "**⚠ %d Abweichung(en)**" % art_diff),
+            "- Canonical-URLs der Artefakte: %s" % url_verdict,
+        ] + art_lines + int_lines))
+
+    B.append("## Kennzahlen (je IG%s)" % ("" if same_module else " + Gesamt"))
     add_rows = [
         ("Artefakte gesamt", lambda s: s["artifacts"]["total"]),
         ("Profile", lambda s: s["artifacts"].get("profiles", 0)),
@@ -975,15 +1084,15 @@ def compare(statslist, content, out):
     krows = []
     for name, fn in add_rows:
         vals = [fn(s) for s in statslist]
-        krows.append([name] + vals + [sum(vals)])
+        krows.append([name] + vals + ([] if same_module else [sum(vals)]))
     for name, fn in [("Dependencies (floating)", lambda s: "%d (%d)" % (s["dependencies"]["count"], s["dependencies"]["floating"])),
                      ("Ø Wörter / Seite", lambda s: _de(s["linguistics"]["words_avg"])),
                      ("Median Wörter / Seite", lambda s: s["linguistics"]["words_median"]),
                      ("Hersteller-Lock-in /100", lambda s: s["portfolio"]["vendor_lockin_score"]),
                      ("Standard-Terminologie %", lambda s: _nz(s["portfolio"]["terminology_standard_share_pct"])),
                      ("Bus-Faktor % (Top-Autor)", lambda s: _nz(s["risk"]["bus_factor_top_author_pct"]))]:
-        krows.append([name] + [fn(s) for s in statslist] + ["—"])
-    B.append(_table(["Metrik"] + [lab(s) for s in statslist] + ["Σ Gesamt"], krows))
+        krows.append([name] + [fn(s) for s in statslist] + ([] if same_module else ["—"]))
+    B.append(_table(["Metrik"] + [lab(s) for s in statslist] + ([] if same_module else ["Σ Gesamt"]), krows))
 
     # Portfolio: Wiederverwendung & Konsolidierung (Cross-IG-Overlap, Skaleneffekt)
     name_to_igs = {}
@@ -991,13 +1100,14 @@ def compare(statslist, content, out):
         for x in s.get("artifacts_detail", []):
             if x["category"] in ("profiles", "extensions", "valuesets", "codesystems"):
                 name_to_igs.setdefault("%s|%s" % (x["category"], x["name"]), set()).add(lab(s))
-    shared = {k: v for k, v in name_to_igs.items() if len(v) > 1}
-    B.append("## Portfolio: Wiederverwendung & Konsolidierung")
+    shared = {} if same_module else {k: v for k, v in name_to_igs.items() if len(v) > 1}
+    if not same_module:
+        B.append("## Portfolio: Wiederverwendung & Konsolidierung")
     B.append("_Artefakte mit identischem Namen in mehreren IGs deuten auf Konsolidierungspotenzial (gemeinsames Basis-Modul) hin; senkt den Gesamt-Wartungsaufwand._")
     if shared:
         B.append(_table(["Geteiltes Artefakt (Typ)", "vorkommend in"],
                         [("%s (%s)" % (k.split("|", 1)[1], k.split("|", 1)[0]), " · ".join(sorted(v))) for k, v in sorted(shared.items())]))
-    else:
+    elif not same_module:
         B.append("_Keine namensgleichen Artefakte über die IGs gefunden — geringe direkte Überlappung._")
 
     B.append("## Normalisierte Kennzahlen (fairer Vergleich)")

@@ -107,6 +107,16 @@ not been translated. Do not "fix" it silently, and do not translate the numbers.
    nothing; the comparison report aggregates a Σ total for scope but the fair columns are the
    normalised ones.
 
+6. **Same-module verification is automatic.** When every compared input carries the same
+   `packageId`, the inputs are states of ONE module (typically: the platform source vs its
+   migrated copy) and the report switches to **Same-Module-Verifikation**: identity-field
+   equality, published-artifact-set equality (internal FSH constructs reported separately —
+   template adoption adds scaffold rulesets legitimately), canonical-URL equality (read from
+   `fsh-generated` when both inputs have it), and narrative per language level
+   (default / translations / retained platform pages) with word-coverage indicators. The Σ
+   column is dropped (meaningless for one module). Every verdict is counted, none forecast.
+   Order matters: the FIRST input is the reference.
+
 ## Verification
 
 ```bash
@@ -121,6 +131,9 @@ python3 -c "import json;d=json.load(open('/tmp/igstats/<name>-stats.json'));prin
   `null`, report it as not derivable statically rather than as zero.
 - The mandatory-page result is plausible against the IG you measured. All-missing usually means the
   wrong page set, not a broken IG.
+- On a same-module comparison, the Befund block states IDENTISCH/DIVERGIERT per aspect — a
+  migration is only faithful when identity, published artifact set and canonical URLs are all
+  IDENTISCH; the migration skill's Definition of Done requires exactly that.
 
 ## Scope and delimitation
 
