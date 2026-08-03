@@ -59,7 +59,9 @@ Discover the context. Do not assume any of it, and do not create what is missing
      record in the migration report which of them the module template replaces (`ig.ini`, the
      `_gen*`/`_update*` scripts), which carry content to transfer (`input/`, `fsh-generated/`),
      and which are retired only after Gate D (the Simplifier project files, a committed
-     rendered output). Deleting any of them is not this skill's work — list, do not remove.
+     rendered output). List **any unrecognized top-level entry** too (real modules carry e.g. a
+     `validator/` directory) with a retain/retire proposal. Deleting any of them is not this
+     skill's work — list, do not remove.
 
    In every state, read `forschungsgruppe-digital-health/mii-kds-module-template` at the ref
    you intend to use; do not rely on this skill's description of it.
@@ -101,15 +103,19 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
 1. **Inventory the source.** From the rendered IG and the source repository, extract every
    artefact (profiles, extensions, value sets, code systems, capability statements, examples) and
    the narrative structure. Record each entry with its source path. Write
-   `.ai-log/source-inventory.json`.
+   `.ai-log/source-inventory.json`. When `implementation-guides/` holds **several guide trees**
+   (versions × languages + shared assets — a real module ships six), apply spec §5.1a: choose the
+   authoritative tree, mark parallel-language trees as harvest seeds, retain the rest.
 
 2. **Read the module's identity — do not ask for it, and do not invent it.** From the source
    repository's `sushi-config.yaml` and `package.json` (or, absent a `sushi-config.yaml`, from
    `package.json` plus the `ImplementationGuide` resource), read `title`, `packageId`, `canonical`,
    `status`, `releaseLabel`, `license`, `dependencies` and `publisher`, and carry them over
    **unchanged**. When the two files disagree on a field, `sushi-config.yaml` wins — it is what
-   the build reads; record the disagreement. Resolve floating pins (`1.5.x`) to concrete
-   versions.
+   the build reads; record the disagreement. When a field exists in neither file, read it from
+   the generated `ImplementationGuide` resource; a value absent everywhere takes the template's
+   default and is recorded at Gate A (spec §2.1). Resolve floating pins (`1.5.x`) to concrete
+   versions per the registry procedure in spec §2.1 and record the pick and its evidence.
 
    The **target version** is the only identity value that is a human decision. It is MII CalVer
    `YYYY.n.n`, not SemVer; the default is the source's version.
@@ -133,7 +139,14 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    `input/fsh/profiles/example-patient.fsh` and
    `input/fsh/instances/example-patient-instance.fsh` — so they cannot collide with the module's
    real examples. Verify the paths against the template you actually checked out; example
-   filenames are template-version-specific.
+   filenames are template-version-specific. **Before copying the template's FSH scaffold**
+   (`input/fsh/aliases.fsh`, `input/fsh/rulesets/*`), diff its `RuleSet:` and `Alias:` names
+   against the module's own FSH: **module definitions win** — the module's FSH is never changed —
+   so skip every colliding template file and record the skip list in the migration report. The
+   template mirrors MII conventions modules commonly already carry (`aliases.fsh` with `$SCT`,
+   `$v2-0203` …; `publisher`/`version`/`translation`/`meta-profile`/`test-data-label`/`license*`
+   and the CapabilityStatement support rulesets); overwriting a module's `aliases.fsh` broke a
+   real migration with 234 SUSHI errors. Acceptance: `sushi .` runs clean after the merge.
 
 4. **Transfer the artefacts.** Move the FSH sources across; convert JSON/XML with `gofsh` where
    that is all the source has. IDs and URLs unchanged.
@@ -158,7 +171,11 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    The template ships a fixed page set, and the Manteldokument's mandatory sections map onto
    *sections within* those pages rather than onto pages of their own — see
    [the section mapping](references/migration-spec.md). **Do not create a page outside the
-   template's page set** to hold one of them.
+   template's page set** to hold one of them. For modules with **more than two profiles**, route
+   the per-profile narrative to `input/intro-notes/<Type>-<id>-intro.md` (German mirror under
+   `input/translations/de/intro-notes/`, same filename — both render atop the artifact page;
+   build-verified) and keep `profiles-and-extensions.md` as a short index — see the spec's §9
+   homes table.
 
 6. **Set up the bilingual pages.** English is the default; German is the translation, living at
    `input/translations/de/pagecontent/<same-filename>.md`. These **do** render. The menu is

@@ -45,6 +45,7 @@ migration report. (Real case: a `package.json` whose `canonical` carries the IG-
 
 | Field | Read from | Human input? | Written to |
 | --- | --- | --- | --- |
+| `id` | `sushi-config: id` | derived — the template pattern `mii-ig-<slug>` applies only when the source has none | `sushi-config: id` |
 | module title | `sushi-config: title` / `package.json: title` | derived | `title`, menu, README |
 | module abbreviation | existing FSH artefact names (`MII_PR_<Module>_…`) | derived — names stay | FSH `name` / `title` |
 | `packageId` | `package.json: name` / `sushi-config: packageId` | derived | `sushi-config: packageId` |
@@ -55,6 +56,19 @@ migration report. (Real case: a `package.json` whose `canonical` carries the IG-
 | `copyrightYear` | `sushi-config: copyrightYear` | derived — fills the template's `{{COPYRIGHT_START_YEAR}}` | `sushi-config: copyrightYear` |
 | `dependencies` | `sushi-config: dependencies` (+ `package.json`) | derived — resolve `.x` pins | `sushi-config: dependencies` |
 | `publisher` / `contact` | `sushi-config: publisher` | derived | `sushi-config: publisher` |
+
+**Third-tier fallback:** when a field exists in neither `sushi-config.yaml` nor `package.json`,
+read it from the generated `ImplementationGuide` resource
+(`fsh-generated/resources/ImplementationGuide-*.json`) — real modules lack `id` there
+(kerndatensatz-labor) or `title` and `license` (kerndatensatzmodul-person, whose `package.json`
+also carries no canonical). A value absent everywhere takes the **template default** and is
+recorded as a Gate-A note — never adopted silently.
+
+**Resolving floating pins** (`1.5.x`, `2025.0.x`): query the FHIR package registry
+(`https://packages.fhir.org/<packageId>` or `packages.simplifier.net`) and pick the **highest
+release matching the floating pattern**; when the source's CI logs or package cache prove which
+concrete version the last build actually used, prefer that evidence. Record the chosen version
+AND its evidence source in the migration report (Gate A) — the pick changes validation behavior.
 
 A top-level `language:` value in the source is **not** identity: it belongs to the source's old
 single-language setup. The target's language configuration is the template's i18n mechanism
@@ -165,6 +179,28 @@ URL that returns 200 — derive the narrative structure from the repository inst
 → Output: `.ai-log/source-inventory.json`.
 → **Acceptance:** the inventory is complete and every entry carries its source path.
 
+### 5.1a Multi-guide Simplifier projects
+
+Real modules ship **several** guide trees under `implementation-guides/` — versions × languages
+plus shared assets (kerndatensatzmodul-person: `1.x-DE`, `1.x-EN`, `2024.x-DE`, `2024.x-EN`,
+`2025.x-DE`, `Common`). One migration, four dispositions:
+
+1. **Authoritative tree** — the highest-version guide in the module's narrative (source) language.
+   Confirm against the rendered IG when reachable; record the choice and the trees' versions in
+   the inventory (Gate B reviews it). Steps 5.4/5.5 operate on this tree only.
+2. **Parallel-language trees** are **harvest seeds** for the target default language — hand over
+   to the translation skill's harvest mode instead of machine-translating from scratch. **Stale-
+   version caveat:** when the parallel tree's version lags the authoritative one (person: EN =
+   2024.x vs DE = 2025.x), every harvested page gets a per-page `TODO:REVIEW` naming both
+   versions; currency is checked at Gate C.
+3. **Historical version trees** and shared-asset trees (`Common`): retained unchanged, Gate-D
+   retirement set. Assets the authoritative tree references are transferred in step 5.4.
+4. **Unrecognized top-level directories** anywhere in the repository (e.g. `validator/`): listed
+   in the report with a retain/retire proposal — never silently kept or dropped.
+
+→ **Acceptance:** the inventory records every guide tree with name, language, version, page count
+and disposition.
+
 ### 5.2 Create the skeleton
 
 Create the skeleton **in place**: on a working branch of the module's existing repository, vendor
@@ -175,7 +211,9 @@ migration report, never a default.) Replace the placeholders (§2.3) using the i
 **Delete the template's example artefacts** — at the time of writing
 `input/fsh/profiles/example-patient.fsh` and
 `input/fsh/instances/example-patient-instance.fsh`; confirm the paths in the template you actually
-checked out.
+checked out. **Collision rule for the FSH scaffold:** diff the template's `RuleSet:`/`Alias:`
+names against the module's FSH before copying; module definitions win, colliding template files
+are skipped, the skip list goes into the report (§ SKILL.md step 3 has the known collision set).
 
 → **Acceptance:** `sushi .` runs without error; no template examples remain; no `{{` left
 unaccounted for.
@@ -324,6 +362,7 @@ within existing pages, never new pages):
 | **Datensatz / Informationsmodell page** (dataset narrative + logical-model rendering) | split: the narrative on `datasets-and-descriptions.md`, the logical-model rendering (`-snapshot` include) on `logical-models.md`, cross-linked | the template ships **both** pages; putting everything on one leaves the other an empty stub that reads as missing content |
 | **Per-profile Suchparameter section** | `search-parameters-and-operations.md`, with a link back from the profile's section on `profiles-and-extensions.md` | the template has a dedicated page for it; a stub next to a filled profile page confuses readers |
 | **Per-profile example serializations** (inline XML/JSON, tabs) | links to the example artefact pages (whose tabs render the serializations); `examples.md` lists all examples | inlined dumps duplicate the artefact pages and bloat the narrative — see the crosswalk's tabs rule |
+| **Per-profile narrative pages, N > 2 profiles** | one `input/intro-notes/<Type>-<id>-intro.md` per artifact, German mirror at `input/translations/de/intro-notes/<same filename>` — **both render atop the respective artifact page** (verified on a real build: no cross-language leakage); `profiles-and-extensions.md` becomes a short per-profile index with links | the template wires `path-pages: input/intro-notes`; five per-profile pages ≈ 4,400 words (kerndatensatzmodul-person) would make one section-per-profile page unreadable |
 
 ### Two consequences for step 5.4
 
