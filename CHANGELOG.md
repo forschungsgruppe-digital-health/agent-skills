@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.8.0...v0.9.0) (2026-08-03)
+
+
+### Skills and capabilities
+
+* **mii-ig-migration:** generalize for the module spectrum (person/labor findings) ([#44](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/44)) ([73c4f45](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/73c4f45cc4082a579a13a6db0e3630644efe3963))
+
 ## [0.8.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.7.0...v0.8.0) (2026-08-03)
 
 
