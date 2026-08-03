@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.7.0...v0.8.0) (2026-08-03)
+
+
+### Skills and capabilities
+
+* **fhir-ig-analysis:** same-module verification mode, required by the migration DoD ([#43](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/43)) ([9a83d43](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/9a83d43ecfe70dd23fb3841f2dd47c3a21dc8bb5))
+
+
+### Fixes
+
+* **fhir-ig-analysis:** report collisions, comment-tolerant parsers, honest render-image ([#41](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/41)) ([c7134be](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/c7134be6ffe74305d8cba7570762ce1d4da81907))
+
 ## [0.7.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.6.0...v0.7.0) (2026-08-02)
 
 
