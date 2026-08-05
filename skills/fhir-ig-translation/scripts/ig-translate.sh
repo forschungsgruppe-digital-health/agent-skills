@@ -33,8 +33,14 @@
 # that `cd` reaches the skill directory instead of the IG — and the scan would then
 # silently report every page as missing.
 #
-# Verified: translation supplements render only for StructureDefinition,
-# CodeSystem, Questionnaire (Publisher restriction). A narrative page is
+# Verified: RESOURCE supplements render only for StructureDefinition, CodeSystem,
+# Questionnaire (Publisher restriction, TRANSLATION_SUPPLEMENT_RESOURCE_TYPES).
+# That restriction does NOT cover input/translations/<lang>/ImplementationGuide-<id>.po:
+# the IG's own catalogue is imported on a separate load-time path, carries the
+# pages:-tree page titles (breadcrumbs / TOC body / browser <title>, verified on
+# IG Publisher 2.2.11) and is a REQUIRED file, not a naming error — this script
+# treats it as legitimate in both modes. Any other unsupported resource type is
+# still a finding. A narrative page is
 # translated by mirroring input/pagecontent/<name>.md (the default language)
 # into input/translations/<lang>/pagecontent/<name>.md — the SAME file name; a
 # <name>-<lang>.md sibling is rendered as a separate page, not as a translation.
@@ -101,6 +107,7 @@ if [ -f sushi-config.yaml ]; then
 fi
 
 SUPPORTED="StructureDefinition CodeSystem Questionnaire"   # Publisher supplement types
+IG_LEVEL="ImplementationGuide"   # not a supplement: separate load-time translation import
 TSRC="input/translations/$LANG_CODE"
 GEN="fsh-generated/resources"
 
@@ -133,6 +140,7 @@ if [ "$MODE" = scan ]; then
   fi
   echo "-- Resource supplements (render: only SD/CS/Questionnaire) --"
   list_resources | while read -r rt rid; do
+    [ "$rt" = "$IG_LEVEL" ] && continue   # not a supplement — own section below
     case " $SUPPORTED " in
       *" $rt "*)
         tgt="$TSRC/${rt}-${rid}.po"
@@ -142,6 +150,24 @@ if [ "$MODE" = scan ]; then
         echo "   $rt/$rid -> (no supplement support; skipped)";;
     esac
   done
+  echo "-- IG-level catalogue (NOT a supplement: separate load-time import; REQUIRED) --"
+  # `if`, not `case`: bash 3.2 mis-parses a `case` inside a command substitution
+  # under `set -u` and aborts with "rid: unbound variable".
+  ig_ids="$(list_resources | while read -r rt rid; do
+              if [ "$rt" = "$IG_LEVEL" ]; then echo "$rt $rid"; fi
+            done)"
+  if [ -n "$ig_ids" ]; then
+    echo "$ig_ids" | while read -r rt rid; do
+      tgt="$TSRC/${rt}-${rid}.po"
+      [ -e "$tgt" ] && st="[present]" || st="[missing]"
+      echo "   $rt/$rid -> $tgt $st"
+    done
+    echo "   Carries the pages:-tree page titles (ImplementationGuide.definition.page.title ->"
+    echo "   breadcrumbs, TOC body, browser <title>), the guide's own title and the per-artifact"
+    echo "   definition.resource.name. Build the unit set from that resource's definition.page tree."
+  else
+    echo "   (no ImplementationGuide resource in $GEN — build the guide first)"
+  fi
   echo
   echo "Note: a supplement's msgid = the exact DEFAULT-LANGUAGE source text from $GEN/<Type>-<id>.json."
   exit 0
@@ -159,6 +185,18 @@ if [ -d "$TSRC" ]; then
     bn="$(basename "$f")"; stem="${bn%.*}"
     rt="${stem%%-*}"; rid="${stem#*-}"
     case "$bn" in menu.*) echo "   [WARN] $bn — ignored by the Publisher (not {Type}-{id})"; fail=1; continue;; esac
+    # The IG's own catalogue is not a resource supplement and is exempt from the
+    # supported-types check: the publisher imports it on a separate load-time path.
+    # It used to be WARNed here as "type not supported", which failed the very file
+    # the skill mandates.
+    if [ "$rt" = "$IG_LEVEL" ]; then
+      if [ -f "$GEN/${rt}-${rid}.json" ]; then
+        echo "   [OK]   $bn — IG-level catalogue (page titles, breadcrumbs, TOC; not a supplement)"
+      else
+        echo "   [WARN] $bn — no matching resource $GEN/${rt}-${rid}.json"; fail=1
+      fi
+      continue
+    fi
     case " $SUPPORTED " in
       *" $rt "*) ;;
       *) echo "   [WARN] $bn — type '$rt' is NOT supported as a supplement (ignored)"; fail=1; continue;;

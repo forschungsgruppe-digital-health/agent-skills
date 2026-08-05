@@ -12,7 +12,7 @@ description: Migrates an existing Simplifier-published MII KDS module Implementa
   new profiles, for creating a module from scratch, or for translating a guide already on the
   template; the module template ships recipes and an ig-translate skill for those.
 license: CC-BY-4.0
-allowed-tools: Read Grep Glob WebFetch Bash(sushi:*) Bash(gofsh:*) Bash(bash:*) Bash(git clone:*) Bash(git status:*) Bash(git diff:*)
+allowed-tools: Read Grep Glob WebFetch Bash(sushi:*) Bash(gofsh:*) Bash(bash:*) Bash(python3:*) Bash(git clone:*) Bash(git status:*) Bash(git diff:*)
 metadata:
   fgdh.tier: "domain"
   fgdh.domain: "fhir-ig"
@@ -187,12 +187,45 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    fields actually render before investing in a supplement. When the source narrative is
    German-only, the German pages come first and the English defaults are produced from them —
    see *Language* below for the one sanctioned exception to the no-fabrication guardrail.
-   **Breadcrumb titles:** generate `input/includes/breadcrumb-titles-de.txt` mechanically from
-   the two menus (pair the labels of `input/includes/menu.xml` and
-   `input/translations/de/includes/menu.xml` by `href`; one `English Title => Deutscher Titel`
-   line per differing pair, marked as generated). The module template (> v0.4.0) applies it so
-   the `/de/` breadcrumbs show German page titles — without it they stay English, because the
-   publisher does not localize `pages:`-tree titles.
+   **Page titles (breadcrumbs, table of contents, `<title>`):** the publisher *does* localize the
+   titles of the `pages:` tree, and the only **publisher-level** mechanism for it is an **IG-level
+   translation catalogue** `input/translations/<lang>/ImplementationGuide-<ig-id>.po` — it imports
+   that file into the IG resource at load time, which is a different mechanism from the resource
+   supplements above (their type restriction does not apply here). Without it, the default-language
+   title is copied into every language and the `/de/` breadcrumbs stay English. (The retired
+   template breadcrumb override reached the same three surfaces, but at *rendering* time by string
+   replacement — see the spec's §5.5.) Generate it after `sushi .`:
+
+   ```bash
+   python3 "$SKILL_DIR/scripts/gen-page-title-po.py" \
+     fsh-generated/resources/ImplementationGuide-<ig-id>.json \
+     .ai-log/menu-titles-de.txt \
+     de input/translations/de/ImplementationGuide-<ig-id>.po
+   ```
+
+   One `#: ImplementationGuide.definition.page.title` unit per **distinct title in the `pages:`
+   tree**, and the authoritative source of that set is the **SUSHI-generated ImplementationGuide
+   resource** — not the menus. It carries the whole tree including the root `toc.html` page and the
+   pages that are not menu entries. Use the two menus only as a **translation seed**: pair the
+   labels of `input/includes/menu.xml` and `input/translations/de/includes/menu.xml` by `href` into
+   an `English Title => Deutscher Titel` seed file (a working file under `.ai-log/`, not a committed
+   artefact — pass `-` when there is deliberately no seed; a seed *path* that does not resolve is a
+   setup error and the script stops rather than emitting an untranslated catalogue). Titles the seed
+   does not cover are emitted with an **empty `msgstr`** — gettext reads that as untranslated and
+   the publisher falls back to English for exactly those entries — and the script names every one of
+   them; carry them into the report's ② review queue and have them translated. Two pages sharing one
+   English title share **one** unit (gettext keys by `msgid`) and cannot get different translations;
+   the script reports every such collision. **Regenerating is non-destructive:** units the generator
+   does not own — the IG's own `title`/`description`/`publisher`, per-artifact units, a gettext
+   header entry — are written back verbatim, and an existing non-empty `msgstr` wins over the seed,
+   so hand translations survive. Change a translation in the `.po`, not in the seed.
+   **Precondition:** the target language must appear in a **`translation-sources`** parameter as
+   well as in `i18n-lang`; a language declared only in `i18n-lang` has its `.po` files silently
+   ignored, so verify this in `sushi-config.yaml` before concluding the catalogue does not work.
+   Modules generated from module template **v0.5.0** — the one release that shipped the template
+   breadcrumb override plus `input/includes/breadcrumb-titles-de.txt` — should add the catalogue and
+   drop the override; see the spec's §5.5. The old mapping file is a usable seed, but not a complete
+   one (it was generated from the menus and omits the non-menu pages).
 
 7. **Build and QA.** `sushi .`, then the IG Publisher. The target pins its toolchain in the build
    workflow's `env:` block — read the pins from there rather than from this file. Acceptance:
@@ -290,6 +323,11 @@ bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
   remaining finding is a deliberate `TODO:REVIEW`. An empty target set exits 2 and is not a pass.
 - No `[UNKNOWN]` findings; an unknown directive means a rule is missing from `fql-rules.tsv`.
 - The IG builds both language variants and the German pages render.
+- `input/translations/de/ImplementationGuide-<ig-id>.po` exists, has a
+  `#: ImplementationGuide.definition.page.title` unit for **every** distinct title in the `pages:`
+  tree, and any empty `msgstr` is in the report's ② review queue. `de` appears in a
+  `translation-sources` parameter — not only in `i18n-lang`. Confirm on the built output, not on
+  the source: a `/de/` page's breadcrumb renders German.
 - Template example artefacts are gone.
 - The default branch is unchanged, and `.ai-log/migration-report.md` exists.
 
@@ -368,6 +406,24 @@ float-safe width-capped image markup, warns that kramdown IAL heading ids are no
 sanctions mechanically *extracted* (never invented) tables for FQL projections no publisher view
 renders; spec §9 gained the Datensatz/logical-models split, the Suchparameter page, and the
 example-serialization homes.
+
+Revised on 2026-08-05 to retire a false claim: earlier revisions stated that the IG Publisher cannot
+localize the titles of the `pages:` tree and that an `ImplementationGuide-<id>.po` is ignored. It is
+not — a catalogue in a `translation-sources` folder is imported into the IG resource at load time,
+and its `#: ImplementationGuide.definition.page.title` units localize breadcrumbs, the
+table-of-contents page body and the page `<title>`. Evidence, in the order it carries weight: our
+own build on IG Publisher **2.2.11** (the migrated Dokument guide, breadcrumb override deleted, 23
+units supplied — German `/de/` breadcrumbs incl. the root *Inhaltsverzeichnis*, German TOC body,
+German `<title>`, differing `titlelang` per language in `temp/pages/_data/pages.json`, build health
+unchanged); the HL7 reference guide `FHIR/multi-lang-test-ig` (live build by publisher 2.0.13) with
+`/fr/` as a controlled negative because it is missing from `translation-sources`; and prior art in
+our own organisation — both MII template repos already carry such a catalogue on `dev`, citing the
+MII's `kerndatensatz-basis` module, verified 2026-07-30. Step 6 and spec §5.5 now prescribe the
+catalogue, `scripts/gen-page-title-po.py` generates it non-destructively (hand-added and
+hand-translated units survive regeneration), and the record of the breadcrumb override was corrected:
+it shipped in **one** template release, v0.5.0, and is being retired. Deliberately **not** claimed,
+because it was not tested on 2.2.11: the navigation menu, and the IG's own
+description/publisher/name and artifact names.
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill.
 `scripts/` is Apache-2.0, matching this repository's code licence.
