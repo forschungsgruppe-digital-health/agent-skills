@@ -18,12 +18,10 @@ metadata:
   fgdh.domain: "fhir-ig"
   fgdh.owner: "@msusky"
   fgdh.language: "en"
-  fgdh.status: "experimental"
+  fgdh.status: "stable"
 ---
 
 # Migrating an MII KDS module IG onto the module template
-
-> **Experimental.** This skill has not been verified against a real task since its last change. Verify its output before relying on it.
 
 This skill **supports and partly automates** the migration. It never publishes, and four human
 review gates are mandatory. The full procedure, with acceptance criteria per step, is in
@@ -135,7 +133,10 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    run its first-run bootstrap — do not mint a new repository; the module's history, issues and
    consumers stay where they are (a new repository is a human decision, recorded in the
    migration report, never a default). Replace every `{{...}}` placeholder from the identity
-   read in step 2, and **delete the template's example artefacts** —
+   read in step 2. The template's CRMI `meta.profile` claims **require the
+   `hl7.fhir.uv.crmi` dependency** — add it to the carried source dependencies and record the
+   addition at Gate A (it is template machinery, not source identity). Then **delete the
+   template's example artefacts** —
    `input/fsh/profiles/example-patient.fsh` and
    `input/fsh/instances/example-patient-instance.fsh` — so they cannot collide with the module's
    real examples. Verify the paths against the template you actually checked out; example
@@ -370,3 +371,6 @@ example-serialization homes.
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill.
 `scripts/` is Apache-2.0, matching this repository's code licence.
+
+Promoted to `stable` on 2026-08-05: two full real-task migrations (Dokument, Person), both passing the same-module verification (identity, published artifact set, canonical URLs all IDENTISCH) with baseline-proven QA. The trigger set in
+[references/triggers.md](references/triggers.md) was exercised by those runs.

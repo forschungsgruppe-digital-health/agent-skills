@@ -15,12 +15,10 @@ metadata:
   fgdh.domain: "fhir-ig"
   fgdh.owner: "@msusky"
   fgdh.language: "en"
-  fgdh.status: "experimental"
+  fgdh.status: "stable"
 ---
 
 # Measuring a FHIR Implementation Guide
-
-> **Experimental.** This skill has not been verified against a real task since its last change. Verify its output before relying on it.
 
 Measures a FHIR IG objectively and reports what it counted. **Strictly read-only:** it never
 builds, changes, or publishes anything, and it does not forecast.
@@ -211,3 +209,6 @@ metrics on shallow clones (including every clone the tool makes itself) now repo
 
 Original licence: CC-BY-4.0, as declared by both source repositories. `scripts/` is Apache-2.0,
 matching this repository's code licence.
+
+Promoted to `stable` on 2026-08-05: repeated real-task use: module measurement/comparison across four KDS modules, and the same-module verification gate of two completed migrations. The trigger set in
+[references/triggers.md](references/triggers.md) was exercised by those runs.
