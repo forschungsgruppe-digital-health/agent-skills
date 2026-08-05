@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.9.0...v0.10.0) (2026-08-05)
+
+
+### Skills and capabilities
+
+* **skills:** promote mii-ig-migration and fhir-ig-analysis to stable ([#46](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/46)) ([c6630f1](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/c6630f1299a795ea77d820740b332e2dad65247c))
+
 ## [0.9.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.8.0...v0.9.0) (2026-08-03)
 
 
