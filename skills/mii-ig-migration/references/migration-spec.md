@@ -268,16 +268,90 @@ directives.
 - **Resources.** `.po` supplements under `input/translations/de/`. The publisher generates
   templates for every resource on each build; copy the ones you need and translate the `msgstr`
   lines. **Check the template's own translation recipe for which resource types and fields actually
-  render before investing in a supplement** — several do not, and a supplement for one of those is
-  silently ignored.
+  render before investing in a supplement** — several do not (ValueSet supplements among them), and
+  a supplement for one of those is silently ignored.
+- **Page titles.** `input/translations/<lang>/ImplementationGuide-<ig-id>.po`, one
+  `#: ImplementationGuide.definition.page.title` unit per distinct title of the `pages:` tree.
+  Generate it after `sushi .`, seeded from the two menus:
+
+  ```bash
+  python3 "$SKILL_DIR/scripts/gen-page-title-po.py" \
+    fsh-generated/resources/ImplementationGuide-<ig-id>.json \
+    .ai-log/menu-titles-de.txt \
+    de input/translations/de/ImplementationGuide-<ig-id>.po
+  ```
+
+  Resolve `SKILL_DIR` to the directory holding the skill's `SKILL.md` first; a bare
+  `scripts/gen-page-title-po.py` silently runs the *project's* same-named file if it has one.
+  See *Mechanism* below — this is **not** a resource supplement and is not subject to the
+  supplement type restriction.
+
+  **Regenerating is non-destructive.** The same catalogue is also where the IG's own
+  `title`/`description`/`publisher` units, per-artifact units and a gettext header entry live; the
+  generator parses an existing file, writes those back verbatim, and lets an existing non-empty
+  `msgstr` win over the seed, so a hand translation survives. It reports what it carried over, what
+  it dropped (a unit whose title left the `pages:` tree), and every collision where two pages share
+  one English title — gettext keys by `msgid`, so those share one unit and cannot be translated
+  apart. A seed path that cannot be read is a setup error (exit 2, nothing written); pass `-` to say
+  deliberately that there is no seed.
+
+**Mechanism.** Each bullet below carries its own basis; do not lend one bullet's basis to another.
+
+- **Observed on our own build** (IG Publisher 2.2.11, our pin, on the migrated MII KDS *Dokument*
+  guide with the breadcrumb override deleted and 23 `page.title` units supplied): the `/de/`
+  breadcrumbs render German down to the root label *Inhaltsverzeichnis*, the table-of-contents page
+  body renders German, the browser `<title>` renders German, and `temp/pages/_data/pages.json`
+  carries a differing `titlelang` per language for all 23 pages (none before). Build health was
+  unchanged (SUSHI 0 errors, `qa.txt` at the established `err=7` baseline).
+- **Not observed, not tested** on 2.2.11: the left-hand **navigation menu**, and the IG's own
+  `description`, `publisher`, `name` and artifact names/descriptions. Do not claim them. Menus have
+  their own per-language file (`input/translations/<lang>/includes/menu.xml`) in any case.
+- **Read from the publisher source, not proven by our build:** an `ImplementationGuide-<id>.po`
+  found under a folder listed in a **`translation-sources`** parameter is imported into the IG
+  resource at load time (`PublisherIGLoader` → `importFromTranslations`), and the renderer reads the
+  resulting translation extensions into its per-language `titlelang`/`breadcrumblang` maps; this is
+  a different code path from resource supplements, whose `TRANSLATION_SUPPLEMENT_RESOURCE_TYPES`
+  list (StructureDefinition, CodeSystem, Questionnaire) does not constrain it. This explains the
+  observation; it is not the evidence for it. (Over-trusting exactly that constant is what produced
+  the earlier false claim that page titles cannot be translated at all — a source constant is a
+  hypothesis until a build confirms the outcome.)
+- **Corroboration outside our build:** the HL7 reference guide `FHIR/multi-lang-test-ig` (live build
+  produced by publisher **2.0.13**, not our pin) renders localized breadcrumbs under `/es/` and
+  `/nl/` while `/fr/` — declared in `i18n-lang` but absent from `translation-sources` — is *not*
+  localized, a controlled negative for the footgun below. Inside our own organisation, both MII
+  template repos already ship such a catalogue on their `dev` branch, and `ig-template-mii-kds`
+  records the same mechanism in use by the MII's own `kerndatensatz-basis` module
+  (`ImplementationGuide-mii-ig-base.po`), verified 2026-07-30.
+
+Two consequences worth knowing: the authoritative title set is the **SUSHI-generated
+ImplementationGuide resource** (it holds the whole tree including the root `toc.html` page and the
+pages that are not menu entries — in the Dokument guide the menus covered only 19 of 23 titles), and
+an empty `msgstr` is treated by gettext as untranslated, so the publisher falls back to the default
+language for that entry alone. **Footgun:** a language declared in `i18n-lang` but absent from every
+`translation-sources` parameter has its `.po` files silently ignored — that, and not a publisher
+limitation, is the usual cause of English breadcrumbs on a `/de/` page.
+
+**Migration path for existing modules.** Exactly one module-template release — **v0.5.0** — shipped
+a template override of `includes/fragment-pagebegin.html` plus
+`input/includes/breadcrumb-titles-de.txt`, which rewrite the *rendered* breadcrumb HTML by string
+replacement. That override was a misdiagnosis of the publisher's behaviour (it was introduced on the
+template's `main` branch, bypassing `dev`, which never carried it) and is being retired; v0.4.0 and
+earlier never had it, and the template's `dev` branch carries the correct `.po` instead. So the
+catalogue is the only *publisher-level* mechanism for page titles — the override was a second,
+*rendering-time* one, and it is going away. A module generated from v0.5.0 should therefore **add an
+`ImplementationGuide-<id>.po` and drop the override** in the same change; leaving the override in
+place while re-vendoring a newer template reverts its German breadcrumbs to English. The old mapping
+file's content is a valid seed for the `.po`; it is not a complete one, because it was generated
+from the menus and therefore omits the non-menu pages.
 
 → **Acceptance:** the IG builds both language variants; translated element texts appear on the
 translated artefact pages; no ignored `.po` files were created;
-`input/includes/breadcrumb-titles-de.txt` exists and is generated from the two menus (pairs by
-`href`, `English Title => Deutscher Titel` per line) — the module template (> v0.4.0) applies it
-so `/de/` breadcrumbs render German titles. Background: the publisher itself does not localize
-`pages:`-tree titles (see the translation skill's rendering table); on templates ≤ v0.4.0 the
-English breadcrumbs are therefore an `environment` finding in QA triage, not a migration defect.
+`input/translations/<lang>/ImplementationGuide-<ig-id>.po` exists and carries a page-title unit for
+**every** distinct title in the `pages:` tree (the generated ImplementationGuide resource is the
+reference set — a unit count below it is a defect), with every empty `msgstr` listed in the report's
+② review queue rather than left silent; the target language is present in a `translation-sources`
+parameter as well as in `i18n-lang`; and the German breadcrumb is confirmed **on the built output**
+(a `/de/` page renders e.g. `Inhaltsverzeichnis / …`), not inferred from the source.
 
 ### 5.6 Build and QA
 
