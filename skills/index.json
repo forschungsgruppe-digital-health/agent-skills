@@ -15,7 +15,7 @@
         "fgdh.domain": "fhir-ig",
         "fgdh.owner": "@msusky",
         "fgdh.language": "en",
-        "fgdh.status": "experimental"
+        "fgdh.status": "stable"
       }
     },
     {
@@ -45,7 +45,7 @@
         "fgdh.domain": "fhir-ig",
         "fgdh.owner": "@msusky",
         "fgdh.language": "en",
-        "fgdh.status": "experimental"
+        "fgdh.status": "stable"
       }
     },
     {
