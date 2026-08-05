@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.10.0...v0.10.1) (2026-08-05)
+
+
+### Fixes
+
+* **skills:** IG page titles DO localize via an ImplementationGuide-level .po ([#48](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/48)) ([dedbdb3](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/dedbdb3efcce3cf48e361c7050e615101b1aac52))
+
 ## [0.10.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.9.0...v0.10.0) (2026-08-05)
 
 
