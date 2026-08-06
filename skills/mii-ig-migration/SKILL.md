@@ -344,6 +344,36 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    `npx skills add` command, and **never installs it**: a tool grant is permission, not a dependency,
    and an unrelated run must not write into the operator's skills directory (spec §5.6a).
 
+7b. **Verify — mechanically, and it exits non-zero.** Spec §11 is normative. It replaces the prose
+   checklist a human used to perform: four real migrations passed that checklist on a green build
+   while shipping unreachable artefacts, a stale rendered provenance, a broken page header, a
+   silently truncated file and a wrong dependency pin.
+
+   ```bash
+   bash "$ML" run 11 verify-migration --emits-runlog \
+     --expected-nonzero 'findings are this step OUTPUT (1 = DIVERGIERT, 3 = NICHT PRÜFBAR)' -- \
+     python3 "$SKILL_DIR/scripts/verify-migration.py" --target . --source <unmigrated-source> \
+       --rendered output --source-lang de --template-latest <latest module-template release>
+   ```
+
+   Four layers plus the log. **Conservation:** every source artefact present **and reachable from
+   `artifacts.html`** — present is a different property, and step 7's set comparison proves only the
+   first; every source page migrated/retired/MISSING per `migration-log/page-map.tsv`, a **required
+   artefact of step 5**; every source text run present somewhere. **Fidelity:** identity, **dependency
+   pins identical to the source's**, `license` asserted from a tier and never defaulted.
+   **Provenance:** the template package+version **read out of the rendered `qa.html`**, the publisher
+   version, the pinned guide version — comparing like with like, because the ig-template PACKAGE
+   version and the module-template REPO release are different numbers (measured: repo `v0.6.0`
+   vendors package `0.5.1`). **Rendering integrity:** empty tables/tabs, missing images, header
+   markers like `Unknown region code`, and **language parity** — a translated page byte-identical to
+   the default is a fallback, not a translation. **The run log is the SECOND ORACLE** (§11.6): it
+   records what each step *intended and measured* where the tree records the *outcome*, so it alone
+   catches an unactioned `silent-partial-success:` WARN, **a step that emitted no line at all**
+   (`references/expected-steps.tsv` is the manifest), an open `identity-contradiction:`, and
+   log-versus-artefact count mismatches. **Three verdicts, not two:** `IDENTISCH`, `DIVERGIERT`
+   (named, with evidence) and **`NICHT PRÜFBAR`**, so an unmechanisable check is never silently
+   written as a pass. Exit 0 clean · 1 divergence · **3 incomplete, which is not a pass**.
+
 8. **Report.** Write `migration-log/migration-report.md` **from
    [the report template](references/migration-report-template.md)** — built around three reviewer
    queues (① decide, ② review, ③ triage) so the report is a work instrument: every open decision,
@@ -363,23 +393,11 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
 
 ## Run log
 
-**What it is for, once: so a human reader can reconstruct which steps ran and what each produced — the command actually executed, the counts it returned, the status it exited with — without re-running anything and without trusting recollection.** `migration-log/run.log`: plain text, append-only, committed with the branch. The report's protocol section is generated **from** it (step 8), so it cannot claim what the run did not do. Spec §10 is normative. **Emit every line through the bundled helper**, `ML="$SKILL_DIR/scripts/migration-log.sh"` — including from the many steps that run no bundled script.
+**What it is for, once: so a human reader can reconstruct which steps ran and what each produced — the command actually executed, the counts it returned, the status it exited with — without re-running anything and without trusting recollection.** `migration-log/run.log`: plain text, append-only, committed with the branch. The report's protocol section is generated **from** it (step 8) and step 7b reads it back as a second oracle (§11.6), so it cannot claim what the run did not do. **Spec §10 is normative — its §10.5 table is the full API.** **Emit every line through the bundled helper**, `ML="$SKILL_DIR/scripts/migration-log.sh"`, including from the many steps that run no bundled script: `begin LABEL` (one numbered `run-boundary`, first in every block) · `info|warn|error STEP ACTION DETAIL [CONT …]` · `ratio [--exit N] STEP ACTION VERB NOUN EXPECTED ACTUAL` (an INFO naming both counts **plus the mandatory WARN when ACTUAL < EXPECTED**) · `run STEP ACTION [--emits-runlog] [--raw-log F] [--expected-nonzero WHY] -- CMD …` (the command actually executed, its output at `migration-log/<ACTION>.log` **truncated per invocation**, and its **real exit status**, returned rather than swallowed).
 
-| Call | Emits |
-| --- | --- |
-| `bash "$ML" begin LABEL` | one numbered `run-boundary` line — call it first in every block, so a second invocation does not concatenate into the first |
-| `bash "$ML" info\|warn\|error STEP ACTION DETAIL [CONT …]` | one line plus indented continuations |
-| `bash "$ML" ratio [--exit N] STEP ACTION VERB NOUN EXPECTED ACTUAL [CONT …]` | an INFO naming both counts — plus the mandatory WARN when ACTUAL < EXPECTED |
-| `bash "$ML" run STEP ACTION [--emits-runlog] [--raw-log F] [--expected-nonzero WHY] -- CMD …` | the command actually executed, its output at `migration-log/<ACTION>.log` (**truncated per invocation**), and its **real exit status**, returned rather than swallowed |
+**Never `… 2>&1 | tee -a migration-log/run.log`.** A pipeline's status is `tee`'s, and this skill's acceptance criteria *are* exit statuses: measured, that pipeline reported **0** where `fsh-sushi` exited **41** and `postprocess-gofsh.py` exited **1**, so failed steps read as passed. `run` takes the status from `PIPESTATUS[0]`. **An exit status is eight bits** — 256 SUSHI errors report as `exit=0` — so `run` cross-checks it against the raw log's error count (`exit-status-truncated:`). `--expected-nonzero WHY` marks a step whose non-zero exit is the documented outcome (shape-B `sushi-after`; the step-7b verification), logging a WARN naming the escalation rather than an ERROR calling the expected result a failure.
 
-**Never `… 2>&1 | tee -a migration-log/run.log`.** A pipeline's status is `tee`'s, and this skill's acceptance criteria *are* exit statuses: measured, that pipeline reported **0** where `fsh-sushi` exited **41** and `postprocess-gofsh.py` exited **1**, so failed steps read as passed. `run` takes the status from `PIPESTATUS[0]`; `--emits-runlog` folds in the bundled scripts' own lines (wrapped, they log `params`/`result` rather than a second `start`/`done`). **An exit status is eight bits** — 256 SUSHI errors report as `exit=0` — so `run` cross-checks it against the raw log's error count and WARNs (`exit-status-truncated:`) on disagreement. `--expected-nonzero WHY` marks the one step whose non-zero exit is the documented outcome (shape-B `sushi-after`), logging a WARN naming the escalation rather than an ERROR calling the expected result a failure.
-
-```text
-2026-08-05T22:29:04Z  INFO   5.1b.2  gofsh-convert  converted 1 of 20 inputs  expected=20 actual=1 exit=0
-2026-08-05T22:29:04Z  WARN   5.1b.2  gofsh-convert  silent-partial-success: converted 1 of 20 inputs at exit 0
-```
-
-`<UTC ISO-8601>  <LEVEL>  <STEP>  <ACTION>  <DETAIL>`, two spaces between fields; `LEVEL` is `INFO `/`WARN `/`ERROR` padded to five, `STEP` the spec section (`5.1b.3`, `5.4`, `pre.5`), `ACTION` a stable slug, `DETAIL` the command **actually executed** as ``cmd=`…` `` plus measured `key=value` outcomes. Continuations are indented four spaces; every step emits at least one INFO line. **WARN is mandatory for silent partial success**: when a tool reports success while producing less than its input implies, name **both** numbers in a WARN beginning `silent-partial-success:`. Use `ratio`, never do it by hand — on that run every other signal is green (postprocess "nothing to repair", SUSHI 0 errors) while 19 of 20 resources are missing. Read the log back with `grep -E '  (WARN |ERROR)  '`.
+Format: `<UTC ISO-8601>  <LEVEL>  <STEP>  <ACTION>  <DETAIL>`, two spaces between fields, `LEVEL` padded to five, `DETAIL` carrying the command **actually executed** as ``cmd=`…` `` plus measured `key=value` outcomes; continuations indented four spaces — e.g. `… WARN   5.1b.2  gofsh-convert  silent-partial-success: converted 1 of 20 inputs at exit 0`. **Every step emits at least one INFO line, and step 7b's L2 check reports the ones that did not** (`references/expected-steps.tsv`) — a step that did not run is invisible in the tree. **WARN is mandatory for silent partial success**: name **both** numbers, via `ratio`, never by hand — on that run every other signal was green (postprocess "nothing to repair", SUSHI 0 errors) while 19 of 20 resources were missing. Read it back with `grep -E '  (WARN |ERROR)  '`.
 
 ## Guardrails
 
@@ -403,9 +421,10 @@ Binding — a migration that violates one is wrong even if it builds.
    "cannot be read / not available / not possible" **with the exact URL, endpoint or command, the date
    and the numbers**; **never generalise one to a sibling** URL, endpoint or mechanism; re-measure
    before acting on one. Nothing downstream re-checks such a claim, so it silently turns a missing
-   capability into a missing deliverable — twice already: page-title localization (step 6 now does it)
-   and the Simplifier guide (step 2c now harvests it, after the false claim shipped a migration with
-   the template's starter pages). Spec §2.1.3 and §4 guardrail 10.
+   capability into a missing deliverable — twice already (page-title localization; the Simplifier
+   guide, whose false claim shipped a migration with the template's starter pages). Spec §2.1.3, §4
+   guardrail 10, §5.1c.2a — which states it in **both** directions: a positive shape measured on one
+   instance is a hypothesis too.
 
 ## Language
 
@@ -420,46 +439,27 @@ Three facts, easy to conflate.
 - **A German-only source inverts the direction — and that is this skill's to handle.** The normal KDS
   case: the source's narrative is German while the target's default is English, so the German text
   becomes the *translation* of English pages that do not yet exist. Transfer it to
-  `input/translations/de/pagecontent/` and produce `input/pagecontent/*.md` as **machine translations of
-  it, every page marked `TODO:REVIEW`**, reviewed at Gate C — the one sanctioned exception to guardrail
-  3, since each traces to the page it renders. A top-level `language:` in the source is old
-  single-language setup, not identity.
+  `input/translations/de/pagecontent/` and produce `input/pagecontent/*.md` as **machine translations
+  of it, every page marked `TODO:REVIEW`**, reviewed at Gate C — the one sanctioned exception to
+  guardrail 3, since each traces to the page it renders. A top-level `language:` in the source is old
+  single-language setup, not identity. Step 7b's R3 check is what proves the result: a translated page
+  byte-identical to the default is a fallback, not a translation.
 
 ## Verification
+
+**Mechanical, and it exits non-zero — step 7b, spec §11.** The list of sentences that used to stand here is now `scripts/verify-migration.py`: four layers plus the run log as a second oracle, three verdicts, one row per checked subject in `migration-log/verification-findings.tsv`. What a human still owes is each **NICHT PRÜFBAR** row — named, with its action and its gate; exit 3 says the phase is *incomplete*, not passed. It compares the migrated guide against **the Simplifier-rendered source**, not against itself, on six aspects — a qa error count catches none of them. **Toolchain provenance** (`P1`–`P3`): the template package the rendered site *reports*, the one the tree carries, and the latest release are **three different numbers** (§11.3 — repo tag `v0.6.0` vendors package `0.5.1`; comparing the first against the third manufactures a confident, wrong finding), plus the publisher version against the workflow pin. **Page set and menu** (`C3`, `C5`): every source page migrated / retired-with-a-reason / MISSING; every menu entry leading somewhere; every narrative page *in* a menu; every target page traceable to a source page or to `references/template-pages.tsv`; a translated menu wherever there are translated pages. **Artefact completeness and reachability** (`C1`, `C2`): present is not the same property as listed, in both directions — artefacts SUSHI generated, and artefacts rendered from `input/resources` that the forward pass cannot see. **Rendering integrity** (`R1`, `R2`): tables, tabs and images non-empty where the source's were, and the header/footer regions, where a jurisdiction the publisher cannot resolve renders as `Unknown region code` at `Errors: 0`. **Content placement** (`C6`): not *whether* a text run survived — that is `C4` — but *which page it landed on*, against the map. **Language parity** (`R3`, `R5`): a translated page byte-identical to the default is a fallback, not a translation. Two inputs decide how much of that is mechanisable, and **earlier steps write them, not the verifier**: `migration-log/page-map.tsv` (`source_page⇥target_page|RETIRED⇥reason`, step 5) — without it `C3` cannot run at all and `C6` degrades to a landing distribution a human reads — and the step-5.1c harvest. Absent, they yield NICHT PRÜFBAR, never a pass.
 
 ```bash
 grep -rn '{{' . --include='*.yaml' --include='*.yml' --include='*.md' --include='*.json' | grep -v '\${{'
 bash "$ML" run 7 sushi-verify -- npx --yes fsh-sushi@3.20.0 .
 bash "$ML" run 5.4 fql-scan --emits-runlog -- bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
+bash "$ML" run 11 verify-migration --emits-runlog --expected-nonzero 'findings are the output' -- \
+  python3 "$SKILL_DIR/scripts/verify-migration.py" --target . --source <src> --rendered output
 ```
 
-- Every `{{...}}` placeholder accounted for — an unreplaced one ships a bogus artefact silently.
-  SUSHI completes without error, and `qa.txt` reports `Errors: 0` with every example validating —
-  both shape B: as qualified in step 2b. The IDENTISCH checks below are **not** qualified by shape.
-  **Shape B also:** goFSH ran with `-t json-and-xml`, its counts reconcile against the step-1
-  inventory, every foreign parent IG was declared with `-d`, `postprocess-gofsh.py` exits 0.
-- **Canonical URL diff against the source is empty** — a non-empty diff is a stop, not a warning. Its
-  mechanical form is `fhir-ig-analysis`' same-module comparison (step 7): IDENTISCH for identity,
-  artifact set and canonical URLs. **The `license` and every other identity value** likewise, or the
-  divergence is reported and human-decided.
-- `fql-scan.sh --strict` exits 0 **and reports a non-zero scanned-file count**, or every finding is a
-  deliberate `TODO:REVIEW`. An empty target set exits 2 and is not a pass. No `[UNKNOWN]` findings.
-- **Narrative source (step 2c):** the run log names which of ①/②/③ supplied it; `migration-log/guide-harvest.tsv` accounts for **every** discovered page — harvested or skipped **with a reason** — harvested equals discovered or the `silent-partial-success:` WARN is in a report queue, every `missing_runs=` hit is Gate-B reviewed, and the harvested set is reconciled against the published package's artefact list. **No page of the target's set is a template starter page**: each traces to a harvested page, the project download, or a recorded gap.
-- **Identity:** every field in `migration-log/identity-claims.tsv` names the source it was read from;
-  `bash "$ML" claims` lists each contradiction as a ① decision (it exits 1 while one is open); the
-  fields no tier yielded are named at Gate A; **no existing metadata was rewritten** from a recovered
-  value. **Parent snapshots (§5.1b.5):** `parent-snapshots.sh detect` exits 0 for every parent, or the
-  rebuild is installed as `<id>#<version>-snapshots` with upstream re-verified untouched, every
-  generated snapshot larger than its own differential, each generator refusal named — and the SUSHI
-  error counts **before and after** the re-pin are both in the log.
-- The IG builds both language variants and the German pages render.
-  `input/translations/de/ImplementationGuide-<ig-id>.po` has a page-title unit for **every** distinct
-  title in the `pages:` tree, every empty `msgstr` is in the ② queue, and `de` appears in a
-  `translation-sources` parameter — not only in `i18n-lang`. Confirm on the **built output** (a `/de/`
-  breadcrumb renders German). Template example artefacts are gone.
-- `migration-log/run.log` exists, every step appears in it with the command it ran and what that
-  measurably produced, and every WARN/ERROR is in a report queue. `grep -F 'silent-partial-success:'`
-  returns nothing, or each hit is resolved; the protocol section was generated from it, not recalled.
+Those three keep their own acceptance: every `{{...}}` accounted for (an unreplaced one ships a bogus artefact **silently**); SUSHI clean and `qa.txt` `Errors: 0` — both shape B **as qualified in step 2b**, while the IDENTISCH criteria are not qualified by shape; `fql-scan.sh --strict` exits 0 **with a non-zero scanned-file count** (an empty target set exits 2 and is not a pass) and no `[UNKNOWN]` findings. Everything else — the six aspects above, identity/licence/pins, parent snapshots, and the run log's own completeness — is a numbered check in spec §11, measured rather than recalled.
+
+**Auto-fix is optional and bounded** (spec §12): `bash "$SKILL_DIR/scripts/autofix-loop.sh" --skill-dir "$SKILL_DIR"` repairs only the four **allowlisted** mechanical classes, at most **3** iterations, snapshotting each fix, **reverting any whose finding did not clear**, and stopping the moment the finding set stops shrinking. Identity, narrative, anything the SOURCE declares and every judgement call are excluded by construction — they go to the ① queue.
 
 ## Mandatory human review gates
 
@@ -488,7 +488,7 @@ Derived from `skills/mii-ig-migration` in
 measurement that forced it — is [references/provenance.md](references/provenance.md)**; it is
 history, and nothing in it changes what to do on a run.
 
-**2026-08-06 — the false "Simplifier is not a scrape target" claim, corrected.** This skill said the guide was client-rendered and therefore a human reference only. That was **measured on the PROJECT page and wrongly generalised to the GUIDE pages**, which are a different URL space and **are server-rendered** — and because of it the KDS Consent migration shipped the **template's starter pages** instead of the module's narrative. Re-measured 2026-08-06: guide root **24509 bytes / 18 page links**, leaf page **20481 bytes** with `<h1 id="page-title">` and the real German narrative; the gated project download (`$actions/downloading`, login required) is the more trustworthy alternative. Step 2c, spec §2.1.3 and §5.1d, and `scripts/guide-harvest.sh` + `guide-page-to-md.py` replace the claim with a verified procedure — measured 18 of 18 pages harvested. Guardrail 9 generalises the lesson: a negative capability finding is only valid for the artefact it was measured on. **The same day, step 1 gained the discovery chain that finds the guide in the first place** (spec §5.1c; the harvest moved to §5.1d), and §5.1c.2a states the rule in both directions — a *shape* measured on one instance is a hypothesis too.
+**2026-08-07 — the verification phase, because a checklist is not a check.** *Verification* was prose a human performed; four real migrations passed it on a green build while shipping unreachable artefacts, a stale rendered provenance, `Unknown region code '276'` in a page header, a silently truncated file and a dependency taken from `dist-tags.latest` over the source's pin. Step 7b, spec §11–§12 and `scripts/verify-migration.py` + `autofix-loop.sh` + `autofix-fix.py` replace it with four mechanical layers, the run log read back as a **second oracle**, three verdicts (so an unmechanisable check is never written as a pass) and a bounded, allowlisted auto-fix loop. Measurements in [references/provenance.md](references/provenance.md).
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill; `scripts/` is
 Apache-2.0, matching this repository's code licence. Promoted to `stable` on 2026-08-05 after two full

@@ -1,0 +1,45 @@
+# Narrative pages the MII KDS module template OWNS.
+#
+# Read by verify-migration.py check C5 to answer the reverse page question: a
+# target page with no source counterpart is a FINDING unless the template put it
+# there. Without this list every one of the template's 23 pages would be reported
+# as content that appeared from nowhere, and the check would be unusable.
+#
+# Measured, not assumed: `input/pagecontent/` of
+# forschungsgruppe-digital-health/mii-kds-module-template at tag v0.6.0, read via
+# the contents API on 2026-08-07.
+#
+# `role` is what a reviewer needs to know when the page turns up empty in a
+# migrated module:
+#   scaffold  the template ships it and every module is expected to keep it
+#   demo      the template ships it to be DELETED during migration (spec step 3);
+#             its presence in a migrated module is itself the finding
+#
+# Update this file when the template's page set changes, and record the tag you
+# read it from. A stale list produces confident, wrong findings in both
+# directions.
+#
+# page	role	template_tag
+capability-statements	scaffold	v0.6.0
+changes	scaffold	v0.6.0
+conformance	scaffold	v0.6.0
+datasets-and-descriptions	scaffold	v0.6.0
+downloads	scaffold	v0.6.0
+examples	scaffold	v0.6.0
+general-requirements	scaffold	v0.6.0
+guidance	scaffold	v0.6.0
+implementer-guidance	scaffold	v0.6.0
+index	scaffold	v0.6.0
+logical-models	scaffold	v0.6.0
+metadata	scaffold	v0.6.0
+missing-data	scaffold	v0.6.0
+must-support	scaffold	v0.6.0
+profiles-and-extensions	scaffold	v0.6.0
+rendering-artifacts	demo	v0.6.0
+researcher-guidance	scaffold	v0.6.0
+search-parameters-and-operations	scaffold	v0.6.0
+security-and-privacy	scaffold	v0.6.0
+terminology	scaffold	v0.6.0
+translationinfo	scaffold	v0.6.0
+uml-diagrams	scaffold	v0.6.0
+version-history	scaffold	v0.6.0
