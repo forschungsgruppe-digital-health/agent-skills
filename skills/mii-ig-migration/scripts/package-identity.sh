@@ -258,6 +258,14 @@ def rec(level, detail, *cont):
     print(TAB.join(s.replace(TAB, " ") for s in ([level, detail] + list(cont))))
 
 
+def claim(field, value, source):
+    # One row in the per-field identity ledger (spec §2.1.4): FIELD, VALUE and
+    # the SOURCE it was read from. The shell turns this into
+    # `migration-log.sh claim`, which is what raises `identity-contradiction:`
+    # when another tier already recorded a different value for the same field.
+    rec("CLAIM", field, str(value), source)
+
+
 man = json.load(open(os.path.join(root, "package.json"), encoding="utf-8"))
 
 # --- what the manifest yields -----------------------------------------------
@@ -288,6 +296,10 @@ for field, note in (
         v = v[:157] + "..."
     present.append(field)
     rec("INFO", "manifest field  %s=%s%s" % (field, v, ("  -- " + note) if note else ""))
+    # `author` is deliberately NOT claimed: it is a registry account, and a
+    # ledger row for it would read as a `publisher` to the next person.
+    if field != "author":
+        claim("packageId" if field == "name" else field, v, "package/package.json")
 
 rec("INFO", "manifest read  package/package.json  recovered=%d absent=%d fields=%s"
     % (len(present), len(absent), ",".join(present)))
@@ -389,6 +401,7 @@ if not bases:
         "The canonical becomes a Gate-A item (spec §2.1).")
 elif len(bases) == 1:
     base, files = next(iter(bases.items()))
+    claim("canonical", base, "packaged resource urls (%d of %d agree)" % (len(files), total))
     rec("INFO", "canonical derived by common prefix  canonical=%s agree=%d of %d"
         % (base, len(files), total),
         "Unanimous: every packaged resource with an absolute canonical url shares",
@@ -427,6 +440,9 @@ while IFS="$(printf '\t')" read -r level detail c1 c2 c3 c4 c5 c6 c7 c8 c9 c10; 
     ERROR) log_error "$STEP" "$ACTION" "$detail" ${CONTS[@]+"${CONTS[@]}"}; RC=1 ;;
     WARN)  log_warn  "$STEP" "$ACTION" "$detail" ${CONTS[@]+"${CONTS[@]}"}
            case "$detail" in canonical-not-unanimous:*) RC=1 ;; esac ;;
+    # CLAIM: detail=FIELD, c1=VALUE, c2=SOURCE -- tier P by construction, since
+    # everything this script reads comes out of the published package.
+    CLAIM) log_claim "$STEP" "$ACTION" "$detail" "$c1" P "$c2" ;;
     *)     log_info  "$STEP" "$ACTION" "$detail" ${CONTS[@]+"${CONTS[@]}"} ;;
   esac
 done <"$RECORDS"
