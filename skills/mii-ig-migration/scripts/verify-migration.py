@@ -710,8 +710,26 @@ def layer_conservation(f, a, ctx):
         for page, page_runs in sorted(runs.items()):
             missing = [r for r in page_runs if reduce_text(r) not in hay]
             rows = ctx["source_tabular"].get(page, 0)
+            marks = ctx["source_element_trees"].get(page, 0)
             note = ("; %d generated table row(s) excluded -- migration replaces that "
                     "view with the artefact page (R1 checks THAT)" % rows) if rows else ""
+            if marks:
+                # A page that embeds a profile view: its "text" is mostly the
+                # rendered element tree, which migration replaces with the
+                # publisher's own artefact page BY DESIGN. Reported as a lost
+                # text run it produced ~11 000 phantom losses across Consent and
+                # Labor and buried the real prose findings on the same pages.
+                # NOT downgraded to a pass -- the prose on such a page is
+                # genuinely unchecked, which is what NICHT PRUEFBAR means.
+                f.unmechanisable("conservation", "C4", page,
+                                 "the source page embeds an element-tree rendering (%d "
+                                 "occurrences of the renderer's marker); %d of %d runs are "
+                                 "in no target page, but prose and rendered view cannot be "
+                                 "told apart in it" % (marks, len(missing), len(page_runs)),
+                                 "read the page against its target: migration replaces the "
+                                 "VIEW with the artefact page (R1), so only its prose has to "
+                                 "be conserved -- and only a human can say which is which here")
+                continue
             if missing:
                 f.diverges("conservation", "C4", page,
                            "%d of %d PROSE runs of the source page are in no target page "
@@ -1040,6 +1058,14 @@ def _snip(s, n=60):
 
 
 GENERATED_ROW = re.compile(r"^\s*\|")
+
+# The signature of an INLINE StructureDefinition element-tree rendering. This
+# exact sentence is emitted by the element-table renderer per unconstrained
+# element and by nothing else. Measured over the Consent and Labor harvests: 0
+# occurrences on every one of the 21 prose pages, 20-174 on every one of the 7
+# pages that embed a profile view. That separation is why a single occurrence is
+# enough -- it is a marker, not a threshold.
+ELEMENT_TREE_MARK = "There are no (further) constraints on this element"
 
 
 def strip_generated_rows(text):
@@ -1976,12 +2002,14 @@ def build_context(a):
             or sorted(glob.glob(os.path.join(a.source, "implementation-guides", "**", "*.md"),
                                 recursive=True))
     if src_md:
-        runs, tabular = {}, {}
+        runs, tabular, etrees = {}, {}, {}
         for p in src_md:
-            prose, rows = split_runs(read_text(p) or "")
+            raw = read_text(p) or ""
+            prose, rows = split_runs(raw)
             runs[os.path.basename(p)] = prose
             tabular[os.path.basename(p)] = rows
-        ctx_tabular = tabular
+            etrees[os.path.basename(p)] = raw.count(ELEMENT_TREE_MARK)
+        ctx_tabular, ctx_etrees = tabular, etrees
         if not pages:
             pages = [{"key": os.path.basename(p),
                       "aliases": [os.path.basename(p), os.path.basename(p)[:-3]],
@@ -1990,6 +2018,7 @@ def build_context(a):
     ctx["source_pages"] = (pages, pages_src)
     ctx["source_runs"] = runs
     ctx["source_tabular"] = locals().get("ctx_tabular") or {}
+    ctx["source_element_trees"] = locals().get("ctx_etrees") or {}
 
     ctx["page_map"] = _page_map(a.page_map)
 
