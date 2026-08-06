@@ -1,18 +1,18 @@
 ---
 name: mii-ig-migration
-description: Migrates an existing Simplifier-published MII KDS module Implementation Guide onto
-  the MII KDS module template — preserves the module's identity from its own sushi-config.yaml,
-  transfers the FSH artefacts, rewrites Simplifier and FQL render directives into IG Publisher
-  equivalents, and sets up the bilingual page set. Use this skill when moving a KDS module off
-  Simplifier or Forge, when a rendered Simplifier IG URL and its source GitHub repository are
-  handed over for migration, when narrative pages full of FQL blocks or {{tree}} and {{render}}
-  directives stop rendering after such a move and need converting, or when the user mentions
-  Kerndatensatz, KDS-Modul, Implementierungsleitfaden, Manteldokument, sushi-config, ig.ini,
-  gofsh or the IG Publisher in the context of moving an existing guide. Do not use for authoring
-  new profiles, for creating a module from scratch, or for translating a guide already on the
-  template; the module template ships recipes and an ig-translate skill for those.
+description: Migrates a Simplifier-published MII KDS module Implementation Guide onto the MII KDS
+  module template — preserves the module's identity, transfers the FSH artefacts, rewrites
+  Simplifier/FQL directives into IG Publisher equivalents, and sets up the bilingual page set.
+  Covers both source shapes — a SUSHI/IG-Publisher project, and a Forge-authored repo of raw FHIR
+  XML/JSON resources with no sushi-config.yaml or input/fsh, converted with gofsh first. Use when
+  moving a KDS module off Simplifier or Forge, when a rendered IG URL and its repo are handed over,
+  when FQL blocks or {{tree}} and {{render}} directives stop rendering after such a move, or when
+  the user mentions Kerndatensatz, KDS-Modul, Implementierungsleitfaden, Manteldokument,
+  sushi-config, ig.ini, gofsh, StructureDefinition XML or the IG Publisher in the context of moving
+  a guide. Not for authoring new profiles, creating a module from scratch, or translating a guide
+  already on the template — the template ships recipes and an ig-translate skill for those.
 license: CC-BY-4.0
-allowed-tools: Read Grep Glob WebFetch Bash(sushi:*) Bash(gofsh:*) Bash(bash:*) Bash(python3:*) Bash(git clone:*) Bash(git status:*) Bash(git diff:*)
+allowed-tools: Read Grep Glob WebFetch Bash(npx:*) Bash(bash:*) Bash(python3:*) Bash(curl:*) Bash(find:*) Bash(grep:*) Bash(sed:*) Bash(awk:*) Bash(paste:*) Bash(wc:*) Bash(git clone:*) Bash(git status:*) Bash(git diff:*)
 metadata:
   fgdh.tier: "domain"
   fgdh.domain: "fhir-ig"
@@ -23,60 +23,72 @@ metadata:
 
 # Migrating an MII KDS module IG onto the module template
 
-This skill **supports and partly automates** the migration. It never publishes, and four human
-review gates are mandatory. The full procedure, with acceptance criteria per step, is in
+This skill **supports and partly automates** the migration. It never publishes, and four human review
+gates are mandatory. The full procedure, with acceptance criteria per step, is in
 [the migration specification](references/migration-spec.md); this file is the operating summary.
 
 ## Preconditions
 
-Discover the context. Do not assume any of it, and do not create what is missing.
+Discover the context: assume none of it, create nothing that is missing.
 
 1. **The source guide.** Two inputs come from the human and cannot be derived: the URL of the
-   rendered Simplifier IG, and the URL of its source GitHub repository. If either is absent, ask
-   for it and stop. Everything else about the module's identity is *read*, not asked (step 2).
+   rendered Simplifier IG and the URL of its source GitHub repository. If either is absent, ask for
+   it and stop. Everything else about the module's identity is *read*, not asked (step 2).
 
-2. **The module repository.** Identify it by locating, from the repository root, a
-   `sushi-config.yaml` **or** an `ig.ini`, together with an `input/fsh/` directory. These are FHIR
-   IG ecosystem conventions rather than one project's layout, which is what makes this skill
-   portable.
-   - Neither present → this is not a FHIR IG project. Say so and stop. Do not scaffold one.
-   - `input/fsh/` present but empty → report it; a migration with no artefacts to move is a
-     configuration error, not a no-op.
+2. **The module repository — classify the source shape.** Two shapes are in scope and take
+   different routes to the same place; a third is not. Decide first, and record it (spec §5.1b).
 
-3. **The target template.** Determine which state the module is in — discovery only here; the
-   skeleton is created later, in step 3 of the procedure:
-   - **Already on the module template** — a vendored `ig-template/` directory, or a `template`
-     entry in `ig.ini` pointing at it. Then this is a *re-migration* or a partial one; report
-     what is already in place before changing anything.
+   - **Shape A — a SUSHI / IG-Publisher project.** A `sushi-config.yaml` **or** an `ig.ini` at the
+     repository root plus an `input/fsh/` — the FHIR IG ecosystem conventions that make this skill
+     portable. The FSH exists; step 4 transfers it. `input/fsh/` present but empty → report it; a
+     migration with no artefacts to move is a configuration error, not a no-op.
+   - **Shape B — a raw FHIR resource repository.** No scaffolding at all (no `sushi-config.yaml`,
+     no `ig.ini`, no `input/`) but conformance resources present as `.xml` and/or `.json`.
+     **This is the normal state of a module authored in Forge and published on Simplifier, and it
+     is fully in scope** — the most authentic case this skill exists for. Step **2b** derives the
+     FSH with goFSH; from step 3 the two paths are identical. **Detect it by content, not by folder
+     name** (spec §5.1b.1): a file is a FHIR resource if it parses and carries a `resourceType`;
+     folder names are hand-chosen and often German, so no conventional-name glob finds them.
+     **The rendered guide's narrative is on Simplifier, not in the repository** — no
+     `implementation-guides/**` tree, so step 1 takes the page structure from the rendered IG and
+     `fql-scan.sh` rightly exits 2 on an empty target set before migration. That is not "no narrative
+     in the repository": the reference module ships a 43-line German `README.md` and a 126-line
+     CodeSystem mirror. Inventory every narrative-bearing text file, with a disposition each.
+   - **Neither** — no scaffolding **and** no FHIR resources: not a FHIR IG project. Say so and stop.
+     **Do not scaffold one.** Path B is no exception: it creates no artefacts, deriving FSH from
+     resources that already exist, each tracing to a source file (guardrail 3).
+
+3. **The target template.** Determine which state the module is in — discovery only here, the
+   skeleton comes in step 3 of the procedure. In every state, read
+   `forschungsgruppe-digital-health/mii-kds-module-template` at the ref you intend to use rather
+   than relying on this skill's description of it.
+   - **Already on the module template** — a vendored `ig-template/`, or an `ig.ini` `template` entry
+     pointing at it. A *re-migration*: report what is in place before changing anything.
    - **Plain Simplifier project** — Simplifier files only (`.simplifier/`, `project.yaml`,
      `implementation-guides/`), no IG-Publisher scaffolding. The normal starting state.
-   - **Hybrid, or on another template** — IG-Publisher files exist alongside the Simplifier
-     files: an `ig.ini` naming some other template (e.g. `fhir.base.template`), `_genonce.sh`
-     & co., a committed `fsh-generated/`, or a committed rendered output (which may be live
-     GitHub Pages). Still a migration, not a re-migration — but inventory those files and
-     record in the migration report which of them the module template replaces (`ig.ini`, the
-     `_gen*`/`_update*` scripts), which carry content to transfer (`input/`, `fsh-generated/`),
-     and which are retired only after Gate D (the Simplifier project files, a committed
-     rendered output). List **any unrecognized top-level entry** too (real modules carry e.g. a
-     `validator/` directory) with a retain/retire proposal. Deleting any of them is not this
-     skill's work — list, do not remove.
-
-   In every state, read `forschungsgruppe-digital-health/mii-kds-module-template` at the ref
-   you intend to use; do not rely on this skill's description of it.
+   - **Hybrid, or on another template** — IG-Publisher files beside the Simplifier ones: an `ig.ini`
+     naming another template, `_genonce.sh` & co., a committed `fsh-generated/` or rendered output
+     (possibly live GitHub Pages). Still a migration. Inventory them and record which the template
+     replaces (`ig.ini`, `_gen*`/`_update*`), which carry content to transfer (`input/`,
+     `fsh-generated/`), and which retire only after Gate D. List **any unrecognized top-level entry**
+     too (e.g. `validator/`) with a retain/retire proposal — list, do not remove.
 
 4. **Unreplaced placeholders.** The template does not build until every `{{...}}` placeholder is
-   replaced, and an unreplaced one **ships a bogus artefact** rather than failing loudly. Before
-   and after migrating, grep the working tree for `{{` and account for every hit. Scope the
-   check: exclude `.github/**` (GitHub-Actions `${{ … }}` expressions match the pattern but are
-   not placeholders), and count Simplifier directives in narrative sources as accounted — they
-   are step-5 material, not placeholders. The template's own `sushi-config.yaml` header block
-   enumerates the real placeholders and says which are active.
+   replaced, and an unreplaced one **ships a bogus artefact** rather than failing loudly. Before and
+   after migrating, grep the tree for `{{` and account for every hit — excluding `.github/**`
+   (Actions `${{ … }}` matches the pattern) and counting Simplifier directives in narrative sources
+   as accounted (step-5 material). The template's `sushi-config.yaml` header enumerates the real
+   placeholders and says which are active.
 
-5. **The toolchain.** `sushi` and the IG Publisher must be runnable; `gofsh` is needed only if the
-   source ships JSON/XML rather than FSH. Missing → report which one and **stop after step 2**:
-   the inventory and the identity read are still useful, but do not create the skeleton or
-   transfer artefacts on top of an unverifiable build. Do not fetch and execute a toolchain to
-   get past this.
+5. **The toolchain — invoke SUSHI and goFSH only as a version-pinned `npx`.** Neither is normally
+   installed (`which gofsh` finds nothing on the reference machine), so **a bare `sushi`/`gofsh` is
+   unrunnable and appears nowhere in this skill**: write `npx --yes fsh-sushi@3.20.0` and
+   `npx --yes gofsh@2.6.1` — the npm package for SUSHI is **`fsh-sushi`**, not `sushi`. What the "no
+   fetching a toolchain" rule protects is an **exact, recorded version**, which the pin supplies and
+   an unpinned `npx` does not; let the pin be the record, carried in the log's `cmd=` token.
+   (`allowed-tools` grants `Bash(npx:*)`; `Bash(gofsh:*)` never matches an `npx` command line.) goFSH
+   is **required for shape B**, for shape A only where the source ships JSON/XML; the IG Publisher is
+   needed from step 7. Missing node/npx → say which and **stop after step 2**.
 
 ## Procedure
 
@@ -85,348 +97,399 @@ of art are kept as such. **Output language follows the target template: English 
 language and German is the translation.** This reverses the older convention — see *Language*
 below, and verify it against the target's `sushi-config.yaml` rather than trusting this sentence.
 
+> **Resolve the script path first.** The commands below name tools relative to **this skill's own
+> directory**, not to your working directory — which is the project being migrated. Set
+> `SKILL_DIR=<the directory containing this SKILL.md>` (e.g. `.claude/skills/mii-ig-migration`) and
+> `ML="$SKILL_DIR/scripts/migration-log.sh"`, and use them in every invocation. A bare
+> `scripts/...` from the project root does not merely fail: if the project has its own `scripts/`
+> with a same-named file, it silently runs **that** instead.
 
-> **Resolve the script path first.** The commands below name the tool relative to **this skill's
-> own directory**, not to your working directory — which is the project you are operating on. Set
-> `SKILL_DIR` to the directory containing this `SKILL.md` (you just read it, so you know where it
-> is) and use it in every invocation:
->
-> ```bash
-> SKILL_DIR=<the directory containing this SKILL.md>   # e.g. .claude/skills/mii-ig-migration
-> ```
->
-> Running a bare `scripts/...` from the project root does not merely fail — if the project happens
-> to have its own `scripts/` directory with a same-named file, it silently runs **that** instead.
+1. **Inventory the source.** From the rendered IG and the source repository, extract every artefact
+   (profiles, extensions, value sets, code systems, capability statements, examples) and the
+   narrative structure, each with its source path → `migration-log/source-inventory.json`. When
+   `implementation-guides/` holds **several guide trees** (versions × languages + shared assets — a
+   real module ships six), apply spec §5.1a: pick the authoritative tree, mark parallel-language
+   trees as harvest seeds, retain the rest.
 
-1. **Inventory the source.** From the rendered IG and the source repository, extract every
-   artefact (profiles, extensions, value sets, code systems, capability statements, examples) and
-   the narrative structure. Record each entry with its source path. Write
-   `.ai-log/source-inventory.json`. When `implementation-guides/` holds **several guide trees**
-   (versions × languages + shared assets — a real module ships six), apply spec §5.1a: choose the
-   authoritative tree, mark parallel-language trees as harvest seeds, retain the rest.
+2. **Read the module's identity — do not ask for it, and do not invent it.** From the source's
+   `sushi-config.yaml` and `package.json` (absent a `sushi-config.yaml`: `package.json` plus the
+   `ImplementationGuide` resource) read `title`, `packageId`, `canonical`, `status`, `releaseLabel`,
+   `license`, `dependencies` and `publisher`, and carry them over **unchanged**. On disagreement
+   `sushi-config.yaml` wins — it is what the build reads; record it. A field in neither file comes
+   from the generated `ImplementationGuide`; absent everywhere it takes the template default, at
+   Gate A. Resolve floating pins (`1.5.x`) per spec §2.1, recording the pick and its evidence.
+   **Shape B often has none of the three files** — identity then comes from the published package
+   manifest and the resources' own canonicals (spec §2.1, fourth tier); goFSH's config is never it.
 
-2. **Read the module's identity — do not ask for it, and do not invent it.** From the source
-   repository's `sushi-config.yaml` and `package.json` (or, absent a `sushi-config.yaml`, from
-   `package.json` plus the `ImplementationGuide` resource), read `title`, `packageId`, `canonical`,
-   `status`, `releaseLabel`, `license`, `dependencies` and `publisher`, and carry them over
-   **unchanged**. When the two files disagree on a field, `sushi-config.yaml` wins — it is what
-   the build reads; record the disagreement. When a field exists in neither file, read it from
-   the generated `ImplementationGuide` resource; a value absent everywhere takes the template's
-   default and is recorded at Gate A (spec §2.1). Resolve floating pins (`1.5.x`) to concrete
-   versions per the registry procedure in spec §2.1 and record the pick and its evidence.
+   Log each value read, and each divergence as a WARN. The **target version** is the only identity
+   value that is a human decision: MII CalVer `YYYY.n.n`, not SemVer, defaulting to the source's.
+   **When the source and the template disagree, the source wins** — the template's `canonical` and
+   `packageId` patterns are what a *new* module gets, and changing a published canonical breaks every
+   consumer. Report each divergence and let a human decide; never normalize silently. That covers
+   every value the template pre-fills as a **literal** rather than a placeholder, `license` above
+   all: the template ships `CC-BY-4.0`, no placeholder check flags it, and MII modules commonly
+   declare `CC0-1.0`. Relicensing is a human decision, never a default. Spec §2.2.
 
-   The **target version** is the only identity value that is a human decision. It is MII CalVer
-   `YYYY.n.n`, not SemVer; the default is the source's version.
+2b. **Source shape B only — derive the FSH from the raw resources.** Runs **before** the skeleton,
+   which step 3 merges into FSH that must already exist. Work in a scratch directory outside the
+   module repository; skip for shape A. **Spec §5.1b is normative here** (measured with goFSH
+   **2.6.1** and SUSHI **3.20.0** on `medizininformatik-initiative/kerndatensatzmodul-consent`).
 
-   **When the source and the template disagree, the source wins.** The template prescribes
-   `canonical: https://www.medizininformatik-initiative.de/fhir/modul-<slug>` and
-   `packageId: de.medizininformatikinitiative.kerndatensatz.<slug>`. Those are what a *new* module
-   gets. A module that is already published keeps its own values — changing a published canonical
-   breaks every consumer of it. Report any divergence explicitly and let a human decide; never
-   normalize silently. The same rule covers every identity value the template pre-fills as a
-   **literal** rather than a placeholder — `license` above all: the template ships
-   `license: CC-BY-4.0` as a literal, so no placeholder check will flag it, and MII modules
-   commonly declare `CC0-1.0`. Relicensing is a human decision, never a default.
+   ```bash
+   mkdir -p migration-log
+   ML="$SKILL_DIR/scripts/migration-log.sh"   # run-log helper — see *Run log* below
+   SRC=<source-repo-root>; OUT=<scratch-dir>; GLOG=migration-log/gofsh.log
+   SUSHI="npx --yes fsh-sushi@3.20.0"
+   E() { grep -oE '[0-9]+ Errors' "$1" | tail -1 | cut -d' ' -f1 | grep . || echo n/a; }
+   bash "$ML" begin "step 2b — Path B on $SRC"   # run boundary: re-runs stay separable
+   rm -rf "$OUT"     # goFSH refuses a non-empty -o dir; $OUT is derived, so clearing is safe
 
-3. **Create the skeleton** (spec §5.2). The migration happens **in place**: on a working branch
-   of the module's existing repository, vendor the template checked out in Preconditions 3 and
-   run its first-run bootstrap — do not mint a new repository; the module's history, issues and
-   consumers stay where they are (a new repository is a human decision, recorded in the
-   migration report, never a default). Replace every `{{...}}` placeholder from the identity
-   read in step 2. The template's CRMI `meta.profile` claims **require the
-   `hl7.fhir.uv.crmi` dependency** — add it to the carried source dependencies and record the
-   addition at Gate A (it is template machinery, not source identity). Then **delete the
-   template's example artefacts** —
-   `input/fsh/profiles/example-patient.fsh` and
-   `input/fsh/instances/example-patient-instance.fsh` — so they cannot collide with the module's
-   real examples. Verify the paths against the template you actually checked out; example
-   filenames are template-version-specific. **Before copying the template's FSH scaffold**
-   (`input/fsh/aliases.fsh`, `input/fsh/rulesets/*`), diff its `RuleSet:` and `Alias:` names
-   against the module's own FSH: **module definitions win** — the module's FSH is never changed —
-   so skip every colliding template file and record the skip list in the migration report. The
-   template mirrors MII conventions modules commonly already carry (`aliases.fsh` with `$SCT`,
-   `$v2-0203` …; `publisher`/`version`/`translation`/`meta-profile`/`test-data-label`/`license*`
-   and the CapabilityStatement support rulesets); overwriting a module's `aliases.fsh` broke a
-   real migration with 234 SUSHI errors. Acceptance: `sushi .` runs clean after the merge.
+   N_IN=$(find "$SRC" -type f \( -name '*.json' -o -name '*.xml' \) \
+          -exec grep -lE '"resourceType"[[:space:]]*:|xmlns="http://hl7\.org/fhir"' {} + \
+          | wc -l | tr -d ' ')                                     # inputs, BY CONTENT
+   bash "$ML" info 5.1b.2 gofsh-input "inputs=$N_IN src=$SRC"
 
-4. **Transfer the artefacts.** Move the FSH sources across; convert JSON/XML with `gofsh` where
-   that is all the source has. IDs and URLs unchanged.
+   bash "$ML" run 5.1b.2 gofsh-convert --raw-log "$GLOG" -- \
+     npx --yes gofsh@2.6.1 "$SRC" -o "$OUT" -s file-per-definition -t json-and-xml \
+     -d <parent-ig-package>@<version> -d hl7.fhir.r4.core@4.0.1
+   GOFSH_EXIT=$?
+   bash "$SKILL_DIR/scripts/gofsh-results.sh" --log "$GLOG" --inputs "$N_IN" \
+     --exit $GOFSH_EXIT                          # <- the mandatory WARN fires here
+   # A failed conversion is a stop: everything below measures $OUT (spec §5.1b.2).
+   [ "$GOFSH_EXIT" -eq 0 ] || { bash "$ML" error 5.1b.2 gofsh-convert \
+     "conversion failed — not measuring \$OUT; fix the cause and re-run"; exit 1; }
+
+   bash "$ML" run 5.1b.3 sushi-before --raw-log migration-log/sushi-before.log -- \
+     bash -c "cd '$OUT' && $SUSHI ."                               # the 41 of "41 -> 5"
+   B=$(E migration-log/sushi-before.log); bash "$ML" info 5.1b.3 sushi-before "errors=$B"
+   bash "$ML" run 5.1b.3 postprocess-gofsh --emits-runlog -- \
+     python3 "$SKILL_DIR/scripts/postprocess-gofsh.py" "$OUT/input/fsh" --gofsh-log "$GLOG"
+   bash "$ML" run 5.1b.3 sushi-after --raw-log migration-log/sushi-after.log \
+     --expected-nonzero 'shape B: unresolvable parents are a Gate-A escalation (§5.1b.4)' -- \
+     bash -c "cd '$OUT' && $SUSHI ."                               # the 5
+   A=$(E migration-log/sushi-after.log)   # n/a when a run printed no count (crash/kill)
+   case "$B$A" in *n/a*) R="resolved=not-measured";; *) R="resolved=$(( B - A ))";; esac
+   bash "$ML" info 5.1b.3 sushi-after "errors=$A $R  before=$B"
+   ```
+
+   Run verbatim, in that order, from the same directory: the post-processor reads `$GLOG`, and the
+   `E` helper reads each SUSHI error count back out of its raw log into an INFO line — that pair
+   **is** the 41 → 5 evidence, and it is in the block, not only in the spec. `gofsh-results.sh`
+   reads goFSH's own RESULTS table back, labels every cell, counts converted **resources** only
+   (never Invariants/Mappings/Aliases) and reconciles them against `$N_IN`. **That reconciliation is
+   the point of the whole block** — goFSH's exit code is not the signal, its counts are — and `run`
+   keeps each real exit status, truncating each raw log per invocation so a re-run measures itself
+   and not the sum of both.
+
+   - **Point goFSH at the repository ROOT, not at one resource folder.** The reference module keeps its
+     20 resources in **five** hand-named directories and needs no staging: measured, goFSH walks the tree
+     recursively and the FSH from the root is **byte-identical** to that from a staged flat directory.
+     Stage only for a recorded reason (spec §5.1b.2).
+   - **`-t json-and-xml` is mandatory; its absence fails SILENTLY.** goFSH defaults to `json-only`:
+     on Consent (19 XML + 1 JSON) the flagless run **exited 0, reported "0 Errors" and converted
+     exactly ONE resource**, warning only that "**13** XML definition(s)" lacked a JSON counterpart —
+     goFSH's own count, not the input's 19 files (the difference is the six `SearchParameter`s); say
+     which you mean. The deciding number is neither: it is `converted 1 of 20`, which
+     `gofsh-results.sh` emits and WARNs on. Reconcile against step 1's inventory, never the exit code.
+   - **Declare every foreign parent IG with `-d <package>@<version>`,** found in the resources' own
+     `baseDefinition` canonicals; goFSH's "cannot find a definition for its parent … declaring that
+     IG as a dependency" is the signal. Re-run rather than patch the dependency-less output — the two
+     differ (12 mappings / 14 aliases without, 0 / 8 with). A Forge repo names neither package nor
+     version: resolve it against the FHIR package registry (spec §5.1b.2); no hit is a Gate-A stop.
+   - **goFSH writes the `sushi-config.yaml` itself but it is a STARTING POINT, NOT IDENTITY**: no
+     `id`/`name`/`title`/`publisher`/`packageId`/`license`, and an **untrusted `version`** (measured
+     `1.0.8` — one arbitrary profile's — against a published `2026.0.1-rc-3`).
+   - **The script's two passes are mechanical:** `fhir_comments` rules and unquoted code-reference
+     systems whose name carries whitespace, repaired with the name goFSH itself reports. It classifies
+     before writing, writes nothing on a shape it does not model, and is idempotent. Give it the
+     **whole** FSH tree — a narrowed path cannot see the declarations it checks against, so it refuses
+     (exit 1, which `run` returns and a `tee` would have hidden).
+   - **Then SUSHI must compile clean apart from genuinely unresolvable parents** — measured
+     **41 errors before, 5 after**, both logged by the block above. A parse error stops SUSHI reading
+     the rest of a file while it still *exports* the instance, silently truncated ("exported" is not
+     "converted"): the three Consent examples carried **1** nested provision each before, 27 / 6 / 3
+     after. SUSHI's exit status is its error count, so `sushi-after` exits 5 — the anticipated
+     shape-B outcome, which `--expected-nonzero` logs as an escalation rather than as a failure.
+   - **A parent package that ships no snapshots is a Gate-A escalation, not a post-processing task**:
+     SUSHI cannot import such a parent at all, blocking those profiles and the instances declaring
+     `InstanceOf` them. Obtain a snapshot-bearing build, or record the profiles as blocked and migrate
+     the rest — **never invent a parent** (guardrails 1 and 3). **goFSH-invented ids and GUID-named
+     files** go to the ② queue: minted ids become the module's, so Gate A confirms them.
+   - **Acceptance:** counts match the inventory; the script exits 0; every remaining SUSHI error is a
+     named unresolvable-parent escalation; all of it is in `run.log`. **Path B does not by itself produce
+     a clean build**, so every "clean build" criterion below (steps 3 and 7, *Verification*) is read for
+     shape B through the **shape-B qualifier**, spec §5.1b.4: no mechanical error left, every residual in
+     the ① queue with a Gate-A decision, no parent fabricated. A tolerated error count is not a pass.
+
+3. **Create the skeleton** (spec §5.2). The migration happens **in place**: on a working branch of
+   the module's existing repository, vendor the template checked out in Preconditions 3 and run its
+   first-run bootstrap — do not mint a new repository; history, issues and consumers stay where they
+   are (a new repository is a human decision, recorded in the report, never a default). Replace
+   every `{{...}}` placeholder from the identity read in step 2. The template's CRMI `meta.profile`
+   claims **require the `hl7.fhir.uv.crmi` dependency** — add it to the carried source dependencies
+   and record it at Gate A (template machinery, not source identity). Then **delete the template's
+   example artefacts** (`input/fsh/profiles/example-patient.fsh`,
+   `input/fsh/instances/example-patient-instance.fsh` — verify the paths against the template you
+   actually checked out) so they cannot collide with the module's real examples. **Before copying
+   the template's FSH scaffold** (`input/fsh/aliases.fsh`, `input/fsh/rulesets/*`), diff its
+   `RuleSet:`/`Alias:` names against the module's FSH: **module definitions win** — the module's FSH
+   is never changed — so skip every colliding template file and log the skip list. Overwriting a
+   module's `aliases.fsh` broke a real migration with 234 SUSHI errors. Acceptance:
+   `bash "$ML" run 5.2 sushi-skeleton -- npx --yes fsh-sushi@3.20.0 .` runs clean (shape B: as
+   qualified in step 2b), and the skip list is in the log.
+
+4. **Transfer the artefacts.** Move the FSH sources across; convert JSON/XML with a pinned
+   `npx --yes gofsh@2.6.1` where that is all the source has — for shape B that happened in step 2b,
+   so what moves here is its post-processed output. IDs and URLs unchanged.
 
 5. **Migrate the narrative.** Move the Manteldokument content into `input/pagecontent/*.md` and
    translate Simplifier and FQL directives into IG Publisher equivalents:
 
    ```bash
-   bash "$SKILL_DIR/scripts/fql-scan.sh"                # scan (recursive; see below)
-   bash "$SKILL_DIR/scripts/fql-scan.sh" --strict       # exit 1 on any finding, for CI
+   bash "$ML" run 5.4 fql-scan --emits-runlog -- bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
    ```
 
-   The scan is recursive and, pre-migration, includes `implementation-guides/**` where a
-   Simplifier project keeps its pages; it prints how many files it scanned, and a run whose
-   target set is empty exits 2 — never read "nothing scanned" as "nothing found".
+   The scan is recursive and, pre-migration, includes `implementation-guides/**` where a Simplifier
+   project keeps its pages; it logs how many files it scanned per target, WARNs when a named
+   directory contributed none, and exits 2 on an empty target set — never read "nothing scanned" as
+   "nothing found". `--strict` exits 1 on any finding, for CI; `run` keeps both statuses where a
+   `tee` would report 0. Apply the recommendation printed per finding; the mapping is in [the FQL
+   crosswalk](references/fql-crosswalk.md), the rules in
+   [`references/fql-rules.tsv`](references/fql-rules.tsv). In doubt, write `TODO:REVIEW`.
 
-   Apply the recommendation the scanner prints per finding. The mapping and the reasoning are in
-   [the FQL crosswalk](references/fql-crosswalk.md); the machine-readable rules, extensible by
-   hand, are [`references/fql-rules.tsv`](references/fql-rules.tsv). Ambiguous cases take
-   professional judgement — when in doubt write `TODO:REVIEW` and move on. Do not invent content.
+   The Manteldokument requires sections the template's English-named page set does not name. They
+   are not missing: they map onto *sections within* the fixed page set, never onto pages of their own
+   — **never create a page outside it**, an extra page is an unlisted orphan the menu cannot reach.
+   The mapping is [spec](references/migration-spec.md) §9, which also records that the reference
+   module is itself incomplete on use cases: record such a gap in the report, never fill it. With
+   **more than two profiles**, route the per-profile narrative to
+   `input/intro-notes/<Type>-<id>-intro.md` (German mirror under
+   `input/translations/de/intro-notes/`, same filename — both render atop the artifact page,
+   build-verified) and keep `profiles-and-extensions.md` as a short index.
 
-   The template ships a fixed page set, and the Manteldokument's mandatory sections map onto
-   *sections within* those pages rather than onto pages of their own — see
-   [the section mapping](references/migration-spec.md). **Do not create a page outside the
-   template's page set** to hold one of them. For modules with **more than two profiles**, route
-   the per-profile narrative to `input/intro-notes/<Type>-<id>-intro.md` (German mirror under
-   `input/translations/de/intro-notes/`, same filename — both render atop the artifact page;
-   build-verified) and keep `profiles-and-extensions.md` as a short index — see the spec's §9
-   homes table.
-
-6. **Set up the bilingual pages.** English is the default; German is the translation, living at
-   `input/translations/de/pagecontent/<same-filename>.md`. These **do** render. The menu is
+6. **Set up the bilingual pages.** English is the default; German is the translation, a same-named
+   file under `input/translations/de/pagecontent/`. These **do** render. The menu is
    `input/includes/menu.xml` with a per-language mirror at
-   `input/translations/de/includes/menu.xml` — not a `menu:` property in `sushi-config.yaml`, which
-   would compete with it. Resource translations are `.po` supplements under
-   `input/translations/de/`; check the target's own translation recipe for which resource types and
-   fields actually render before investing in a supplement. When the source narrative is
-   German-only, the German pages come first and the English defaults are produced from them —
-   see *Language* below for the one sanctioned exception to the no-fabrication guardrail.
-   **Page titles (breadcrumbs, table of contents, `<title>`):** the publisher *does* localize the
-   titles of the `pages:` tree, and the only **publisher-level** mechanism for it is an **IG-level
-   translation catalogue** `input/translations/<lang>/ImplementationGuide-<ig-id>.po` — it imports
-   that file into the IG resource at load time, which is a different mechanism from the resource
-   supplements above (their type restriction does not apply here). Without it, the default-language
-   title is copied into every language and the `/de/` breadcrumbs stay English. (The retired
-   template breadcrumb override reached the same three surfaces, but at *rendering* time by string
-   replacement — see the spec's §5.5.) Generate it after `sushi .`:
+   `input/translations/de/includes/menu.xml` — never a `menu:` property in `sushi-config.yaml`,
+   which competes with it. Resource translations are `.po` supplements under
+   `input/translations/de/`; check the target's recipe for which resource types actually render
+   before investing in one. A German-only source inverts the direction — see *Language* below.
+   **Page titles (breadcrumbs, table of contents, `<title>`) — full recipe in spec §5.5.** The
+   publisher *does* localize them, through one IG-level catalogue
+   `input/translations/<lang>/ImplementationGuide-<ig-id>.po` (imported into the IG resource at load
+   time — not a resource supplement, so their type restriction does not apply). Generate it after the
+   step-3 SUSHI run from the SUSHI-generated ImplementationGuide resource, the authoritative title
+   set — the menus serve only as a translation seed:
 
    ```bash
-   python3 "$SKILL_DIR/scripts/gen-page-title-po.py" \
-     fsh-generated/resources/ImplementationGuide-<ig-id>.json \
-     .ai-log/menu-titles-de.txt \
-     de input/translations/de/ImplementationGuide-<ig-id>.po
+   bash "$ML" run 5.5 gen-page-title-po --emits-runlog -- \
+     python3 "$SKILL_DIR/scripts/gen-page-title-po.py" \
+       fsh-generated/resources/ImplementationGuide-<ig-id>.json \
+       migration-log/menu-titles-de.txt \
+       de input/translations/de/ImplementationGuide-<ig-id>.po
    ```
 
-   One `#: ImplementationGuide.definition.page.title` unit per **distinct title in the `pages:`
-   tree**, and the authoritative source of that set is the **SUSHI-generated ImplementationGuide
-   resource** — not the menus. It carries the whole tree including the root `toc.html` page and the
-   pages that are not menu entries. Use the two menus only as a **translation seed**: pair the
-   labels of `input/includes/menu.xml` and `input/translations/de/includes/menu.xml` by `href` into
-   an `English Title => Deutscher Titel` seed file (a working file under `.ai-log/`, not a committed
-   artefact — pass `-` when there is deliberately no seed; a seed *path* that does not resolve is a
-   setup error and the script stops rather than emitting an untranslated catalogue). Titles the seed
-   does not cover are emitted with an **empty `msgstr`** — gettext reads that as untranslated and
-   the publisher falls back to English for exactly those entries — and the script names every one of
-   them; carry them into the report's ② review queue and have them translated. Two pages sharing one
-   English title share **one** unit (gettext keys by `msgid`) and cannot get different translations;
-   the script reports every such collision. **Regenerating is non-destructive:** units the generator
-   does not own — the IG's own `title`/`description`/`publisher`, per-artifact units, a gettext
-   header entry — are written back verbatim, and an existing non-empty `msgstr` wins over the seed,
-   so hand translations survive. Change a translation in the `.po`, not in the seed.
-   **Precondition:** the target language must appear in a **`translation-sources`** parameter as
-   well as in `i18n-lang`; a language declared only in `i18n-lang` has its `.po` files silently
-   ignored, so verify this in `sushi-config.yaml` before concluding the catalogue does not work.
-   Modules generated from module template **v0.5.0** — the one release that shipped the template
-   breadcrumb override plus `input/includes/breadcrumb-titles-de.txt` — should add the catalogue and
-   drop the override; see the spec's §5.5. The old mapping file is a usable seed, but not a complete
-   one (it was generated from the menus and omits the non-menu pages).
+   `migration-log/menu-titles-de.txt` is a **required argument with no default** (one
+   `English Title => Deutscher Titel` per line; build it, and the `-` "no seed" option, per spec §5.5
+   — an unresolvable path is a setup error, never a silent empty seed). Regenerating is
+   non-destructive; an empty `msgstr` means untranslated and goes to the ② queue. **Footgun:** the
+   language must appear in **`translation-sources`**, not only `i18n-lang`, or every `.po` is
+   silently ignored. Modules from template **v0.5.0** also drop its breadcrumb override.
 
-7. **Build and QA.** `sushi .`, then the IG Publisher. The target pins its toolchain in the build
+7. **Build and QA.** SUSHI, then the IG Publisher — both through `bash "$ML" run 5.6 …`, so the two
+   numbers this step exists to produce end up in the log: SUSHI's error count, and `qa.txt`'s summary
+   line copied into an INFO (spec §5.6 has the block). The target pins its toolchain in the build
    workflow's `env:` block — read the pins from there rather than from this file. Acceptance:
-   `qa.txt` reports `Errors: 0` and every example validates. Then run the **same-module
-   verification** with the catalog's `fhir-ig-analysis` skill (measure the unmigrated source and
-   the migrated tree, then compare — same `packageId` triggers the verification report
-   automatically; the SOURCE is the first input): identity fields, the published artifact set and
-   the canonical URLs must all read **IDENTISCH**, and the narrative per-language table goes into
-   the migration report's QA triage. A DIVERGIERT there is a stop, not a warning.
+   `qa.txt` reports `Errors: 0` and every example validates — shape B: as qualified in step 2b, the
+   named escalations excepted and every *other* error still a stop. Then run the **same-module
+   verification** with `fhir-ig-analysis` (measure the unmigrated source, then the migrated tree — an
+   equal `packageId` triggers the comparison; the SOURCE is the first input): identity, published
+   artifact set and canonical URLs must all read **IDENTISCH** and a DIVERGIERT is a stop; the
+   narrative per-language table goes into the report's QA triage.
 
-8. **Report.** Write `.ai-log/migration-report.md` **from
-   [the report template](references/migration-report-template.md)** — it is built around three
-   reviewer queues (① decide, ② review, ③ triage) so the report is a work instrument, not a
-   protocol: every open decision, every `TODO:REVIEW`, and every QA finding lands in exactly one
-   queue with a concrete next action and an owner, QA provenance requires proof (build the
-   unmigrated source to claim "pre-existing"), and the L0 box + mini-glossary keep it readable
-   for people new to FHIR IGs. Every open point is either addressed or explicitly queued.
+8. **Report.** Write `migration-log/migration-report.md` **from
+   [the report template](references/migration-report-template.md)** — built around three reviewer
+   queues (① decide, ② review, ③ triage) so the report is a work instrument: every open decision,
+   every `TODO:REVIEW` and every QA finding lands in exactly one queue with a concrete next action
+   and an owner, QA provenance requires proof (build the unmigrated source to claim "pre-existing"),
+   and the L0 box + mini-glossary keep it readable for people new to FHIR IGs. **The protocol section
+   is generated FROM `migration-log/run.log`** (spec §10.6): every claim traces to a log line, every
+   WARN and ERROR lands in a queue, and where the two disagree the log is right.
 
 9. **Open a pull request** with the report as its description. **Do not publish.** Determine the
-   target branch from the module repository's own branching convention — **discover it, do not
-   assume it**: the default branch, the bases of previously merged pull requests, and
-   CONTRIBUTING/README are the evidence. The template previews every non-`main` branch to
-   `gh-pages` under `branches/<branch>/` and reserves `main` and tags for formal publication, so
-   a working branch gets a preview without touching the default branch. If the module repository
-   has a different convention, follow that one and say which you followed — and if its
-   conventional PR base is itself the publication branch (for example GitHub Pages served from
-   it), say so in the pull request description and at Gate D: there, merging publishes.
+   target branch from the module repository's own convention — **discover it, do not assume it**:
+   the default branch, the bases of merged pull requests, CONTRIBUTING/README. The template previews
+   every non-`main` branch to `gh-pages` under `branches/<branch>/` and reserves `main` and tags for
+   publication, so a working branch previews without touching the default branch. Follow a different
+   convention where the repository has one and say so — and if that PR base is itself the publication
+   branch, say so in the PR and at Gate D: there, merging publishes.
+
+## Run log
+
+**What it is for, once: so a human reader can reconstruct which steps ran and what each produced — the command actually executed, the counts it returned, the status it exited with — without re-running anything and without trusting recollection.** `migration-log/run.log`: plain text, append-only, committed with the branch. The report's protocol section is generated **from** it (step 8), so it cannot claim what the run did not do. Spec §10 is normative. **Emit every line through the bundled helper**, `ML="$SKILL_DIR/scripts/migration-log.sh"` — including from the many steps that run no bundled script.
+
+| Call | Emits |
+| --- | --- |
+| `bash "$ML" begin LABEL` | one numbered `run-boundary` line — call it first in every block, so a second invocation does not concatenate into the first |
+| `bash "$ML" info\|warn\|error STEP ACTION DETAIL [CONT …]` | one line plus indented continuations |
+| `bash "$ML" ratio [--exit N] STEP ACTION VERB NOUN EXPECTED ACTUAL [CONT …]` | an INFO naming both counts — plus the mandatory WARN when ACTUAL < EXPECTED |
+| `bash "$ML" run STEP ACTION [--emits-runlog] [--raw-log F] [--expected-nonzero WHY] -- CMD …` | the command actually executed, its output at `migration-log/<ACTION>.log` (**truncated per invocation**), and its **real exit status**, returned rather than swallowed |
+
+**Never `… 2>&1 | tee -a migration-log/run.log`.** A pipeline's status is `tee`'s, and this skill's
+acceptance criteria *are* exit statuses: measured, that pipeline reported **0** where `fsh-sushi`
+exited **41** and `postprocess-gofsh.py` exited **1**, so failed steps read as passed. `run` takes
+the status from `PIPESTATUS[0]`; `--emits-runlog` folds in the bundled scripts' own lines (wrapped,
+they log `params`/`result` rather than a second `start`/`done`). **An exit status is eight bits** —
+256 SUSHI errors report as `exit=0` — so `run` cross-checks it against the raw log's error count and
+WARNs (`exit-status-truncated:`) on disagreement. `--expected-nonzero WHY` marks the one step whose
+non-zero exit is the documented outcome (shape-B `sushi-after`), logging a WARN naming the
+escalation rather than an ERROR calling the expected result a failure.
+
+```text
+2026-08-05T22:29:04Z  INFO   5.1b.2  gofsh-convert  converted 1 of 20 inputs  expected=20 actual=1 exit=0
+2026-08-05T22:29:04Z  WARN   5.1b.2  gofsh-convert  silent-partial-success: converted 1 of 20 inputs at exit 0
+```
+
+`<UTC ISO-8601>  <LEVEL>  <STEP>  <ACTION>  <DETAIL>`, two spaces between fields; `LEVEL` is
+`INFO `/`WARN `/`ERROR` padded to five, `STEP` the spec section (`5.1b.3`, `5.4`, `pre.5`), `ACTION`
+a stable slug, `DETAIL` the command **actually executed** as ``cmd=`…` `` plus measured `key=value`
+outcomes. Continuations are indented four spaces; every step emits at least one INFO line.
+**WARN is mandatory for silent partial success**: when a tool reports success while producing less
+than its input implies, name **both** numbers in a WARN beginning `silent-partial-success:`. Use
+`ratio`, never do it by hand — on that run every other signal is green (postprocess "nothing to
+repair", SUSHI 0 errors) while 19 of 20 resources are missing. Read the log back with
+`grep -E '  (WARN |ERROR)  '`.
 
 ## Guardrails
 
-Binding. A migration that violates one is wrong even if it builds.
+Binding — a migration that violates one is wrong even if it builds.
 
 1. **Canonical URLs and IDs of existing conformance resources are never changed.**
 2. **FHIR R4 (4.0.1).**
-3. **No fabrication.** Every artefact and every narrative section traces to a source URL or repo
-   path. Uncertainty is marked `TODO:REVIEW`, never guessed. (Note: `TODO:REVIEW` is this skill's
-   marker for the migrated guide. The catalog's own marker for unfinished skill content is
-   `TODO(owner):` — different things, do not mix them.)
+3. **No fabrication.** Every artefact and narrative section traces to a source URL or repo path;
+   uncertainty is marked `TODO:REVIEW`, never guessed. (`TODO:REVIEW` marks the migrated guide; the
+   catalog's marker for unfinished *skill* content is `TODO(owner):` — do not mix them.)
 4. **Human in the loop.** The review gates below are mandatory. The agent does not publish.
 5. **Template examples are deleted before migrating**, never merged with the module's own.
 6. **The default branch is not modified.** Work on a branch, deliver a pull request.
-7. **Traceability.** Every step, assumption and open point is logged in
-   `.ai-log/migration-report.md`.
-8. **No Liquid literals in `pagecontent`, including inside HTML comments.** Jekyll evaluates
-   `{% … %}` and `{{ … }}` everywhere: an invalid `{% … %}` **breaks the build hard**, and an
-   unknown `{{ … }}` silently becomes an empty string and leaks into the HTML. Describe mechanisms
-   in prose. This matters more on this template than on most, because the template's own files are
-   full of `{{PLACEHOLDER}}` values.
+7. **Traceability.** Every step emits run-log lines as it runs, through `scripts/migration-log.sh`
+   (*Run log*, above), and every assumption and open point reaches
+   `migration-log/migration-report.md`, whose protocol section is generated **from** that log.
+8. **No Liquid literals in `pagecontent`, including inside HTML comments.** Jekyll evaluates `{% … %}`
+   and `{{ … }}` everywhere: an invalid `{% … %}` **breaks the build hard**, an unknown `{{ … }}`
+   silently empties and leaks into the HTML. Describe such mechanisms in prose.
 
 ## Language
 
-Three facts, easy to conflate:
+Three facts, easy to conflate.
 
-- **The target template's default language is English**, with German as the translation
-  (`i18n-default-lang: en`). Verify this in the target's `sushi-config.yaml` on every run — it is
-  the value most likely to move, and it was reversed once already.
-- **FHIR artefact identifiers stay English** regardless.
-- **A `de-DE` mismatch warning is conditional.** It fires only when the source FSH sets
-  `^language = #de-DE` on resources, producing a per-resource warning (resource `de-DE` vs XHTML
-  `de`). It is cosmetic — `de-DE` is a subtag of `de` — and is suppressed by adding an entry with
-  a justifying comment to the module's `input/ignoreWarnings.txt`, leaving the FSH untouched
-  (guardrail 1). That file uses **glob matching with `%` wildcards, not regex**, and the publisher
-  emits the message in German or English depending on JVM locale, so match the locale-stable
-  token: `%(de-DE)%`.
-- **A German-only source inverts the direction — and that is this skill's to handle.** The normal
-  KDS case: the source's entire narrative is German, while the target's default language is
-  English, so the migration makes the German text the *translation* of English pages that do not
-  yet exist. Transfer the source text into `input/translations/de/pagecontent/` (it is the
-  translation now) and produce the default-language `input/pagecontent/*.md` as **machine
-  translations of the German source, every page marked `TODO:REVIEW`**, reviewed at Gate C. This
-  is the one sanctioned exception to guardrail 3 (no fabrication): the translation traces to the
-  source page it renders, and the German text stays the authoritative reference until Gate C
-  signs the English pages off. A top-level `language:` value in the source's `sushi-config.yaml`
-  is part of its old single-language setup, not identity — do not carry it into the template's
-  i18n configuration.
+- **The target template's default language is English**, German the translation
+  (`i18n-default-lang: en`). Verify it in the target's `sushi-config.yaml` on every run — it moved once
+  already. **FHIR artefact identifiers stay English** regardless.
+- **A `de-DE` mismatch warning is conditional** — it fires only when the source FSH sets
+  `^language = #de-DE`, is cosmetic, and is suppressed in `input/ignoreWarnings.txt` (glob with `%`
+  wildcards, not regex; match `%(de-DE)%`), leaving the FSH untouched. Spec §4.1.
+- **A German-only source inverts the direction — and that is this skill's to handle.** The normal KDS
+  case: the source's narrative is German while the target's default is English, so the German text
+  becomes the *translation* of English pages that do not yet exist. Transfer it to
+  `input/translations/de/pagecontent/` and produce `input/pagecontent/*.md` as **machine translations of
+  it, every page marked `TODO:REVIEW`**, reviewed at Gate C — the one sanctioned exception to guardrail
+  3, since each traces to the page it renders. A top-level `language:` in the source is old
+  single-language setup, not identity.
 
 ## Verification
 
 ```bash
 grep -rn '{{' . --include='*.yaml' --include='*.yml' --include='*.md' --include='*.json' | grep -v '\${{'
-sushi .
-bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
+bash "$ML" run 7 sushi-verify -- npx --yes fsh-sushi@3.20.0 .
+bash "$ML" run 5.4 fql-scan --emits-runlog -- bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
 ```
 
 - Every `{{...}}` placeholder accounted for — an unreplaced one ships a bogus artefact silently.
-- `sushi .` completes without error.
-- IG Publisher `qa.txt` reports `Errors: 0`; every example validates.
-- **Canonical URL diff against the source is empty.** This is the guardrail-1 check and the one
-  that matters most; a non-empty diff is a stop, not a warning. The mechanical form of this and
-  the two checks below is `fhir-ig-analysis`' same-module comparison (step 7) — its Befund block
-  must read IDENTISCH for identity, published artifact set, and canonical URLs.
-- **The `license` (and every other identity value) diff against the source is empty**, or the
-  divergence is reported and human-decided — never silently normalized to a template value.
-- `fql-scan.sh --strict` exits 0 **and reports a non-zero scanned-file count**, or every
-  remaining finding is a deliberate `TODO:REVIEW`. An empty target set exits 2 and is not a pass.
-- No `[UNKNOWN]` findings; an unknown directive means a rule is missing from `fql-rules.tsv`.
+  SUSHI completes without error, and `qa.txt` reports `Errors: 0` with every example validating —
+  both shape B: as qualified in step 2b. The IDENTISCH checks below are **not** qualified by shape.
+  **Shape B also:** goFSH ran with `-t json-and-xml`, its counts reconcile against the step-1
+  inventory, every foreign parent IG was declared with `-d`, `postprocess-gofsh.py` exits 0.
+- **Canonical URL diff against the source is empty** — a non-empty diff is a stop, not a warning. Its
+  mechanical form is `fhir-ig-analysis`' same-module comparison (step 7): IDENTISCH for identity,
+  artifact set and canonical URLs. **The `license` and every other identity value** likewise, or the
+  divergence is reported and human-decided.
+- `fql-scan.sh --strict` exits 0 **and reports a non-zero scanned-file count**, or every finding is a
+  deliberate `TODO:REVIEW`. An empty target set exits 2 and is not a pass. No `[UNKNOWN]` findings.
 - The IG builds both language variants and the German pages render.
-- `input/translations/de/ImplementationGuide-<ig-id>.po` exists, has a
-  `#: ImplementationGuide.definition.page.title` unit for **every** distinct title in the `pages:`
-  tree, and any empty `msgstr` is in the report's ② review queue. `de` appears in a
-  `translation-sources` parameter — not only in `i18n-lang`. Confirm on the built output, not on
-  the source: a `/de/` page's breadcrumb renders German.
-- Template example artefacts are gone.
-- The default branch is unchanged, and `.ai-log/migration-report.md` exists.
+  `input/translations/de/ImplementationGuide-<ig-id>.po` has a page-title unit for **every** distinct
+  title in the `pages:` tree, every empty `msgstr` is in the ② queue, and `de` appears in a
+  `translation-sources` parameter — not only in `i18n-lang`. Confirm on the **built output** (a `/de/`
+  breadcrumb renders German). Template example artefacts are gone.
+- `migration-log/run.log` exists, every step appears in it with the command it ran and what that
+  measurably produced, and every WARN/ERROR is in a report queue. `grep -F 'silent-partial-success:'`
+  returns nothing, or each hit is resolved; the protocol section was generated from it, not recalled.
 
 ## Mandatory human review gates
 
 | Gate | After step | What is reviewed |
 | --- | --- | --- |
-| **A** | 4 | Canonical URL, ID **and licence/identity** preservation; artefact completeness |
+| **A** | 4 | Canonical URL, ID **and licence/identity** preservation; artefact completeness; for shape B also the ids goFSH minted and every unresolvable-parent decision |
 | **B** | 5 | The narrative, especially any section added to satisfy the Manteldokument |
 | **C** | 6 | Language handling and translation, including machine-translated default pages |
-| **D** | before merge | Release per KDS governance (TF KDS / AG IOP / NSG) |
-
-Gate D is organizational, not technical. Nothing publishes before it.
-
-## Mandatory sections
-
-The Manteldokument requires sections that the template's English-named page set does not name.
-They are not missing: they live **inside** pages. The mapping, derived from
-`medizininformatik-initiative/kerndatensatz-basis` — the MII's own reference module, whose page set
-matches the template's except for two template-only pages (`security-and-privacy`,
-`rendering-artifacts`) — is in [the migration specification](references/migration-spec.md).
-
-Two things to carry into step 5:
-
-- **Never create a page outside the template's page set** to hold one of these sections. The page
-  set and the menu are owned by the module template, and an extra page is an unlisted orphan.
-- **The reference module itself is incomplete on use cases** — its researcher guidance says in as
-  many words that detail will follow in a future version. A migrated module is not held to a higher
-  standard than `kerndatensatz-basis`; record the gap in the report rather than inventing content
-  to fill it.
+| **D** | before merge | Release per KDS governance (TF KDS / AG IOP / NSG) — organizational, not technical. Nothing publishes before it. |
 
 ## Scope and delimitation
 
 Covers **moving an existing guide onto the template**: identity preservation, artefact transfer,
-directive translation, bilingual setup, and the QA that proves it.
-
-Does not cover, deliberately:
-
-- **Authoring new profiles or remodelling content.** Migration is not an opportunity to change
-  normative decisions.
-- **Creating a module from scratch** — the module template ships its own recipe for that.
-- **Translating a guide already on the template** — the module template ships an `ig-translate`
-  skill. This skill only sets translation up as part of a migration.
-- **Publishing.** No release, no registry entry, no package push.
-- **Filling in missing domain content.** If the source lacks something, that is a `TODO:REVIEW`
-  for a human, not something to write.
-
-If a skill of this name is provided both by this catalog and locally, the local one wins.
+directive translation, bilingual setup, and the QA that proves it. Does not cover, deliberately:
+**authoring new profiles or remodelling content** (migration never changes normative decisions);
+**creating a module from scratch** (the module template ships its own recipe); **translating a guide
+already on the template** (the template's `ig-translate` skill); **publishing** (no release, no registry
+entry, no package push); and **filling in missing domain content** (a gap in the source is a
+`TODO:REVIEW`, not a writing task). If the catalog and a local copy both provide this skill, local wins.
 
 ## Provenance
 
 Derived from `skills/mii-ig-migration` in
 `forschungsgruppe-digital-health/mii-kds-sample-ig-inoffiziell` at commit
-`bd38e2722a594254f3450e73c3fcdbfc2c47b7e8`.
+`bd38e2722a594254f3450e73c3fcdbfc2c47b7e8`. **2026-07-31** — reworked for a changed target template
+(38-row fact inventory): default language reversed German→English, the `hl7-ig-build` branch
+convention gone, tool and example paths moved, `references/agent-manifest.yaml` dropped.
 
-Reworked on 2026-07-31 for a changed target template. The rework was driven by a 38-row fact
-inventory; the substantive changes were that the target's default language had been reversed from
-German to English, that the `hl7-ig-build` branch convention no longer exists, and that several
-tool and example paths had moved. The original bundled `references/agent-manifest.yaml` was dropped
-because it duplicated the guardrails and had already gone stale against them. See the repository
-history for the diff.
+**2026-08-01 / 08-02** — first dry run (`kerndatensatz-dokument`) and first full migration (Dokument,
+steps 1–7 incl. build): identity gained `license` and a sushi-config-wins rule; target-state discovery
+gained the hybrid state; skeleton creation became in-place; the German-only inversion, branch-convention
+discovery, scoped placeholder check, recursive `fql-scan.sh` with an empty-target failure, the report
+template, the `-xml` → `-xml-html` crosswalk fix and spec §9's Datensatz split all arrived.
 
-Revised on 2026-08-01 after the skill's first real-task exercise (a dry run against
-`kerndatensatz-dokument`): the identity read-list gained `license` and a
-sushi-config-wins conflict rule; target-state discovery gained the hybrid/other-template state;
-skeleton creation became an explicit in-place procedure step; the German-only-source language
-inversion, the branch-convention discovery recipe, and the scoped placeholder check were added;
-`fql-scan.sh` became recursive with an empty-target failure. The dry-run findings live in the
-`mii-kds-dokument-ig-inoffiziell` sandbox under `docs/reports/dry-run-2026-07-31/`.
+**2026-08-05** — retired a false claim: earlier revisions said the IG Publisher cannot localize
+`pages:` titles and that an `ImplementationGuide-<id>.po` is ignored. It can, and it is not. Step 6 and
+spec §5.5 prescribe the catalogue, `scripts/gen-page-title-po.py` generates it non-destructively, and
+§5.5 carries the evidence (our build on IG Publisher 2.2.11, the HL7 `multi-lang-test-ig` `/fr/`
+controlled negative) plus what is deliberately not claimed: the menu and the IG's own description.
 
-Revised on 2026-08-02 after the first full migration (Dokument, steps 1–7 incl. build): step 8
-now prescribes the bundled report template (three reviewer queues, proof-backed QA provenance);
-the crosswalk fixed the nonexistent `-xml` fragment (it is `-xml-html`; one bad include fails the
-whole Jekyll run), prefers artefact-page links over inline serializations/tabs, prescribes
-float-safe width-capped image markup, warns that kramdown IAL heading ids are not applied, and
-sanctions mechanically *extracted* (never invented) tables for FQL projections no publisher view
-renders; spec §9 gained the Datensatz/logical-models split, the Suchparameter page, and the
-example-serialization homes.
+**2026-08-05** — added **source shape B** (Precondition 2, step 2b, spec §5.1b,
+`scripts/postprocess-gofsh.py`), because the previous binary "IG project or stop" gate refused exactly
+the modules the skill exists for. Measured end to end against
+`medizininformatik-initiative/kerndatensatzmodul-consent` (32 files, read-only; goFSH 2.6.1, SUSHI
+3.20.0); deliberately **not** claimed: that Path B produces a clean build. Hardened the same day after
+an operator followed it literally and it stopped on itself — pinned `npx`, the repository root as
+input, the retired "no narrative" overclaim, the shape-B qualifier on three "clean build" criteria, the
+canonical→package recipe for `-d`, four `postprocess-gofsh.py` fixes — and the **run-log convention**
+(spec §10) was written in that pass, `.ai-log/` becoming `migration-log/`.
 
-Revised on 2026-08-05 to retire a false claim: earlier revisions stated that the IG Publisher cannot
-localize the titles of the `pages:` tree and that an `ImplementationGuide-<id>.po` is ignored. It is
-not — a catalogue in a `translation-sources` folder is imported into the IG resource at load time,
-and its `#: ImplementationGuide.definition.page.title` units localize breadcrumbs, the
-table-of-contents page body and the page `<title>`. Evidence, in the order it carries weight: our
-own build on IG Publisher **2.2.11** (the migrated Dokument guide, breadcrumb override deleted, 23
-units supplied — German `/de/` breadcrumbs incl. the root *Inhaltsverzeichnis*, German TOC body,
-German `<title>`, differing `titlelang` per language in `temp/pages/_data/pages.json`, build health
-unchanged); the HL7 reference guide `FHIR/multi-lang-test-ig` (live build by publisher 2.0.13) with
-`/fr/` as a controlled negative because it is missing from `translation-sources`; and prior art in
-our own organisation — both MII template repos already carry such a catalogue on `dev`, citing the
-MII's `kerndatensatz-basis` module, verified 2026-07-30. Step 6 and spec §5.5 now prescribe the
-catalogue, `scripts/gen-page-title-po.py` generates it non-destructively (hand-added and
-hand-translated units survive regeneration), and the record of the breadcrumb override was corrected:
-it shipped in **one** template release, v0.5.0, and is being retired. Deliberately **not** claimed,
-because it was not tested on 2.2.11: the navigation menu, and the IG's own
-description/publisher/name and artifact names.
+**2026-08-06 — the run log made real.** An operator ran Path B verbatim and almost nothing emitted the
+log the convention describes: the goFSH stage wrote no `run.log` line, the mandatory WARN never fired
+because nothing compared input to output, SUSHI's 41 → 5 was captured nowhere, and a step running no
+bundled script had no way to emit a line. `scripts/migration-log.sh` now supplies `info`/`warn`/`error`,
+a `ratio` implementing §10.4, and a `run` wrapper **returning the wrapped command's real exit status** —
+the previous `2>&1 | tee -a run.log` reported 0 for a SUSHI run that exited 41. A re-measurement then
+found the read-back itself defective, fixed at the cause: raw logs truncated per invocation and the
+goFSH table parsed **with its labels** by `scripts/gofsh-results.sh`, so a re-run no longer sums two
+tables and Mappings/Invariants are no longer counted as converted resources; `run` gained the 8-bit
+exit-status cross-check, `--expected-nonzero` for the anticipated shape-B `sushi-after` and a `begin`
+run-boundary; wrapped scripts log `params`/`result`, not a second `start`/`done`; the step-2b block logs
+both SUSHI error counts. Measured: 20 of 20 converted with `-t json-and-xml` (no WARN), 1 of 20 without
+(WARN), 41 → 5 across the repair, identical on a second run in place.
 
-Original licence: CC-BY-4.0, as declared by the source repository and the source skill.
-`scripts/` is Apache-2.0, matching this repository's code licence.
-
-Promoted to `stable` on 2026-08-05: two full real-task migrations (Dokument, Person), both passing the same-module verification (identity, published artifact set, canonical URLs all IDENTISCH) with baseline-proven QA. The trigger set in
+Original licence: CC-BY-4.0, as declared by the source repository and the source skill; `scripts/` is
+Apache-2.0, matching this repository's code licence. Promoted to `stable` on 2026-08-05 after two full
+real-task migrations (Dokument, Person), both passing the same-module verification (identity, artifact
+set, canonical URLs all IDENTISCH) with baseline-proven QA; the trigger set in
 [references/triggers.md](references/triggers.md) was exercised by those runs.

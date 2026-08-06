@@ -1,6 +1,6 @@
 # Migration report — {MODULE} → MII KDS module template
 
-<!-- TEMPLATE for .ai-log/migration-report.md (SKILL.md step 8). Copy, then replace every
+<!-- TEMPLATE for migration-log/migration-report.md (SKILL.md step 8). Copy, then replace every
      {curly} value. A section that would be empty says "none" — never delete it: an absent
      section is indistinguishable from a forgotten one. Keep the L0 box under 8 lines.
      The three QUEUES are the point of this report: every reviewer action lands in exactly
@@ -67,8 +67,29 @@ Nothing is published until Gate D (a human merge decision); everything here is r
 
 ## Protocol (what was executed — for auditors; keep last)
 
-{step-by-step run log: tool versions and pins, preconditions results, per-step outcomes,
-deviations from the skill or template with their justification}
+<!-- GENERATED FROM `migration-log/run.log` (spec §10.6). Do NOT write this from recollection:
+     every claim here traces to a log line, and where the two disagree the log is right. A claim
+     with no line behind it is a defect — re-run the step, do not add the sentence.
+     Structure: the log grouped by step, in step order, each group with its acceptance verdict.
+     Tool versions, pins and the goFSH `-d` set are read out of the `cmd=` tokens, never restated
+     from memory. Every WARN and ERROR in the log must also appear in one of the queues above —
+     a WARN that reaches nobody is the failure mode this section exists to prevent. -->
+
+| Step | What ran (`cmd=` from the log) | Measured outcome | Raw log | WARN/ERROR → queue | Acceptance |
+|---|---|---|---|---|---|
+| {5.1b.2} | `{the actual command line}` | {counts, exit code} | `migration-log/{action}.log` | {n} → {①②③ \| none} | met \| met-as-qualified (spec §5.1b.4) \| NOT met |
+
+**Log:** `migration-log/run.log` — {n} lines, {n} WARN, {n} ERROR, {n} runs, all accounted for above.
+Take those numbers from the log itself, not from memory: `wc -l`,
+`grep -c '  WARN   ' migration-log/run.log`, `grep -c '  ERROR  ' migration-log/run.log`,
+`grep -c '  run-boundary  ' migration-log/run.log`. More than one run means the block was repeated;
+report the LAST run's numbers and say the earlier ones exist.
+**Silent-partial-success WARNs:** {list | none}
+(`grep -F 'silent-partial-success:' migration-log/run.log`).
+**Other WARN classes, each with its queue:** `anticipated-nonzero-exit:` (the shape-B `sushi-after`
+escalation → ①, one entry per residual error), `exit-status-truncated:` / `exit-status-disagrees:`
+(believe the printed error count, not the status), `stale-raw-log:`, `count-above-expected:`.
+**Deviations from the skill or the template, with justification:** {list | none}.
 
 ## Mini-glossary (novices start here)
 
@@ -79,3 +100,6 @@ deviations from the skill or template with their justification}
   release governance (D). The agent never passes a gate itself.
 - **TODO:REVIEW** — an in-tree marker meaning "a human must look here"; queue ② lists them all.
 - **Logical model / profile** — the dataset described abstractly vs. its concrete FHIR shape.
+- **Run log** — `migration-log/run.log`, the timestamped record of every step, the command it ran
+  and what that command measurably produced. The Protocol section above is generated from it, so
+  the report cannot claim something the run did not do.
