@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.12.0...v0.13.0) (2026-08-06)
+
+
+### Skills and capabilities
+
+* **mii-ig-migration:** correct the false Simplifier claim and harvest the guide narrative ([#57](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/57)) ([e77a998](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/e77a998b0ae3f49e9a9595c6b3f5aecb6d046cec))
+* **mii-ig-migration:** discover a Simplifier guide from a module name, and pin a published version ([#58](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/58)) ([cebcce9](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/cebcce9294d01908762910d26db5d00eb0de715a))
+
 ## [0.12.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.11.0...v0.12.0) (2026-08-06)
 
 
