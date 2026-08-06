@@ -259,9 +259,16 @@ elif [ -n "$PROJECT" ]; then
   BODY=$(mktemp); CODE=$(fetch "$URL" "$BODY")
   BYTES=$(wc -c <"$BODY" 2>/dev/null | tr -d ' ')
   if [ "$CODE" = "200" ]; then
-    KEYS=$(grep -o 'data-url="/guide/[A-Za-z0-9._-]*"' "$BODY" 2>/dev/null \
-      | sed 's|^data-url="/guide/||; s|"$||' | sort -u)
+    # The attribute is NOT always `data-url="/guide/<key>"`. Simplifier appends a
+    # query for preview/archived guides: `data-url="/guide/<key>?version=current"`.
+    # An anchored `"` therefore drops those keys SILENTLY. Measured across modules:
+    # consent 3 of 3 (every key bare -- which is why a consent-only test passed),
+    # mikrobiologie 2 of 3, person 0 of 3. Stop at `?`, `#` or `"`, whichever comes
+    # first, and count the raw occurrences separately so a drop cannot pass unseen.
+    KEYS=$(grep -o 'data-url="/guide/[^"?#]*' "$BODY" 2>/dev/null \
+      | sed 's|^data-url="/guide/||' | grep . | sort -u)
     N=$(printf '%s\n' "$KEYS" | grep -c . | tr -d ' ')
+    RAW=$(grep -o 'data-url="/guide/' "$BODY" 2>/dev/null | grep -c . | tr -d ' ')
     if [ "${N:-0}" -gt 0 ]; then
       log_info "$STEP" "$ACTION" \
         "hop 3 project -> guide keys  cmd=\`curl -sL $URL\`  http=$CODE bytes=${BYTES:-0} keys=$N" \
@@ -269,12 +276,25 @@ elif [ -n "$PROJECT" ]; then
         "NO TILDE in the path. \`~filterprojectguides\` and \`~guides\` return 200 and" \
         "yield nothing, and the project page itself is the client-rendered app" \
         "shell -- this endpoint is the one that answers (spec §5.1c)."
+      # Silent-loss guard: distinct keys must account for every occurrence. A
+      # mismatch means the markup carries a shape this extractor does not model,
+      # and a quietly short list is the failure mode that reaches a report unnoticed.
+      if [ "${RAW:-0}" -gt 0 ] && [ "$N" -lt "$RAW" ]; then
+        log_warn "$STEP" "$ACTION" \
+          "silent-partial-success: extracted $N of $RAW guide-key occurrences  url=$URL" \
+          "Occurrences that did not yield a key carry an attribute shape this" \
+          "extractor does not model. Do NOT proceed on the short list -- inspect" \
+          "the markup and extend the extractor (spec §5.1c.1)."
+        WARNED=1
+      fi
     else
       log_warn "$STEP" "$ACTION" \
         "project-guides-empty: hop 3 yielded no guide key  http=$CODE bytes=${BYTES:-0} url=$URL" \
-        "Check the path has NO tilde and the project slug came from hop 2. Do not" \
-        "fall back to the project page: it is client-rendered and yields nothing," \
-        "which is exactly the false negative this chain exists to prevent."
+        "The commonest cause is NOT the tilde: it is a project that registers no" \
+        "guide at all, which is normal. Confirm by opening the URL. Only then" \
+        "check the path has no tilde and that the slug came from hop 2. Never" \
+        "fall back to the project page -- it is the client-rendered app shell and" \
+        "yields nothing, the false negative this chain exists to prevent."
       WARNED=1
     fi
   else

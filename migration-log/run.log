@@ -1,0 +1,644 @@
+2026-08-06T13:00:27Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=base package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:27Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:27Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=base package=de.medizininformatikinitiative.kerndatensatz.base
+2026-08-06T13:00:28Z  WARN   5.1c  simplifier-discover  package-project-link-absent: hop 2 found no project link  http=200 url=https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.base/latest
+    A package published outside a project has none, and a renamed anchor
+    breaks the match. Read the page and pass --project; do not assemble a
+    slug from the package id -- they are unrelated strings.
+2026-08-06T13:00:28Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:28Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=bildgebung package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:28Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:28Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=bildgebung package=de.medizininformatikinitiative.kerndatensatz.bildgebung
+2026-08-06T13:00:28Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.bildgebung/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.bildgebung project=medizininformatik-initiative-modul-bildgebung
+2026-08-06T13:00:28Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatik-initiative-modul-bildgebung/filterprojectguides`  http=200 bytes=3240 keys=2
+    keys: miiigmodulbefundebildgebenderverfahrenv2025 miiigmodulbildgebungv2026
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:29Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=miiigmodulbefundebildgebenderverfahrenv2025 preview=1 url=https://simplifier.net/published-guide/miiigmodulbefundebildgebenderverfahrenv2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:29Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=miiigmodulbildgebungv2026 preview=1 url=https://simplifier.net/published-guide/miiigmodulbildgebungv2026/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:29Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:29Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=biobank package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:29Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:29Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=biobank package=de.medizininformatikinitiative.kerndatensatz.biobank
+2026-08-06T13:00:29Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.biobank/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.biobank project=medizininformatikinitiative-modulbiobank
+2026-08-06T13:00:30Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-modulbiobank/filterprojectguides`  http=200 bytes=3189 keys=2
+    keys: medizininformatikinitiative-modulbiobank-implementationguide mii-ig-biobank-de-v2026
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:30Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=medizininformatikinitiative-modulbiobank-implementationguide preview=1 url=https://simplifier.net/published-guide/medizininformatikinitiative-modulbiobank-implementationguide/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:30Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-biobank-de-v2026 preview=1 url=https://simplifier.net/published-guide/mii-ig-biobank-de-v2026/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:30Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:30Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=consent package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:30Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:30Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=consent package=de.medizininformatikinitiative.kerndatensatz.consent
+2026-08-06T13:00:31Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.consent/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.consent project=medizininformatikinitiative-modulconsent
+2026-08-06T13:00:31Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-modulconsent/filterprojectguides`  http=200 bytes=4657 keys=3
+    keys: mii-ig-modul-consent-2025 mii-ig-modul-consent-2026 miiigmodulconsent
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:31Z  INFO   5.1c  simplifier-discover  hop 4 guide versions  cmd=`curl -sL https://simplifier.net/published-guide/mii-ig-modul-consent-2025/versions`  http=200 key=mii-ig-modul-consent-2025 published=5 preview=0
+    2025.0.4 Default,Read-only,Public 2025-06-16 07:54 -;2025.0.3 Read-only,Public 2025-06-13 02:13 -;2025.0.2 Read-only,Public 2025-06-12 06:13 -;2025.0.1 Read-only,Public 2025-01-21 10:46 de.medizininformatikinitiative.kerndatensatz.consent@2025.0.0;2025.0.0 Read-only,Public 2025-01-07 10:31 de.medizininformatikinitiative.kerndatensatz.consent@2025.0.0
+    The preview row is reported and never pinned. A version row naming a package
+    pin is REPORTED, not claimed: a guide's version and its module's version are
+    different sequences (measured: guide 2025.0.1 carries package 2025.0.0).
+2026-08-06T13:00:31Z  INFO   5.1c  simplifier-discover  hop 4 proposed pin  key=mii-ig-modul-consent-2025 version=2025.0.4 reason=flagged Default
+    PROPOSED, and a Gate-B confirmation: record this version in the migration
+    report exactly as the source commit SHA is recorded (spec §5.1c).
+2026-08-06T13:00:31Z  INFO   5.1c  simplifier-discover  hop 5 guide pages  cmd=`curl -sL 'https://simplifier.net/guide/mii-ig-modul-consent-2025?version=2025.0.4'`  http=200 bytes=20803 key=mii-ig-modul-consent-2025 version=2025.0.4 root=MII-IG-Modul-Consent pages=16 out=migration-log/simplifier-pages-mii-ig-modul-consent-2025-2025.0.4.tsv
+    The GuideRoot and every slug were READ from this page, not constructed.
+    Leaf pages carry the real narrative; the root carries the tree.
+2026-08-06T13:00:32Z  INFO   5.1c  simplifier-discover  hop 4 guide versions  cmd=`curl -sL https://simplifier.net/published-guide/mii-ig-modul-consent-2026/versions`  http=200 key=mii-ig-modul-consent-2026 published=1 preview=0
+    2026.0.0 Default,Read-only,Public 2025-12-18 01:02 -
+    The preview row is reported and never pinned. A version row naming a package
+    pin is REPORTED, not claimed: a guide's version and its module's version are
+    different sequences (measured: guide 2025.0.1 carries package 2025.0.0).
+2026-08-06T13:00:32Z  INFO   5.1c  simplifier-discover  hop 4 proposed pin  key=mii-ig-modul-consent-2026 version=2026.0.0 reason=flagged Default
+    PROPOSED, and a Gate-B confirmation: record this version in the migration
+    report exactly as the source commit SHA is recorded (spec §5.1c).
+2026-08-06T13:00:32Z  INFO   5.1c  simplifier-discover  hop 5 guide pages  cmd=`curl -sL 'https://simplifier.net/guide/mii-ig-modul-consent-2026?version=2026.0.0'`  http=200 bytes=22966 key=mii-ig-modul-consent-2026 version=2026.0.0 root=MII-IG-Modul-Consent pages=18 out=migration-log/simplifier-pages-mii-ig-modul-consent-2026-2026.0.0.tsv
+    The GuideRoot and every slug were READ from this page, not constructed.
+    Leaf pages carry the real narrative; the root carries the tree.
+2026-08-06T13:00:32Z  INFO   5.1c  simplifier-discover  hop 4 guide versions  cmd=`curl -sL https://simplifier.net/published-guide/miiigmodulconsent/versions`  http=200 key=miiigmodulconsent published=1 preview=1
+    2026.0.0 Default,Read-only,Public 2025-12-18 01:17 -
+    The preview row is reported and never pinned. A version row naming a package
+    pin is REPORTED, not claimed: a guide's version and its module's version are
+    different sequences (measured: guide 2025.0.1 carries package 2025.0.0).
+2026-08-06T13:00:32Z  INFO   5.1c  simplifier-discover  hop 4 proposed pin  key=miiigmodulconsent version=2026.0.0 reason=flagged Default
+    PROPOSED, and a Gate-B confirmation: record this version in the migration
+    report exactly as the source commit SHA is recorded (spec §5.1c).
+2026-08-06T13:00:32Z  INFO   5.1c  simplifier-discover  hop 5 guide pages  cmd=`curl -sL 'https://simplifier.net/guide/miiigmodulconsent?version=2026.0.0'`  http=200 bytes=22616 key=miiigmodulconsent version=2026.0.0 root=MIIIGModulConsent pages=18 out=migration-log/simplifier-pages-miiigmodulconsent-2026.0.0.tsv
+    The GuideRoot and every slug were READ from this page, not constructed.
+    Leaf pages carry the real narrative; the root carries the tree.
+2026-08-06T13:00:32Z  INFO   5.1c  simplifier-discover  done  pages=52 guides=migration-log/simplifier-guides.tsv exit=0
+    Every pinned version is PUBLISHED and READ-ONLY. Record it in the migration
+    report beside the source commit SHA -- a harvest of `current` would not be
+    reproducible (spec §5.1c).
+2026-08-06T13:00:32Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=diagnose package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:33Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:33Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=diagnose package=de.medizininformatikinitiative.kerndatensatz.diagnose
+2026-08-06T13:00:33Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.diagnose/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.diagnose project=mii-basismodul-diagnose-2024
+2026-08-06T13:00:33Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-basismodul-diagnose-2024/filterprojectguides`  http=200 bytes=4756 keys=3
+    keys: mii-ig-modul-diagnose-2024-de mii-ig-modul-diagnose-2024-en mii-ig-modul-diagnose-2025
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:33Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-diagnose-2024-de preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-diagnose-2024-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:34Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-diagnose-2024-en preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-diagnose-2024-en/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:34Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-diagnose-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-diagnose-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:34Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:34Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=dokument package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:34Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:34Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=dokument package=de.medizininformatikinitiative.kerndatensatz.dokument
+2026-08-06T13:00:34Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.dokument/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.dokument project=mii-erweiterungsmodul-dokument
+2026-08-06T13:00:35Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-erweiterungsmodul-dokument/filterprojectguides`  http=200 bytes=1647 keys=1
+    keys: medizininformatikinitiative-dokument
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:35Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=medizininformatikinitiative-dokument preview=1 url=https://simplifier.net/published-guide/medizininformatikinitiative-dokument/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:35Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:35Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=fall package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:35Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:35Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=fall package=de.medizininformatikinitiative.kerndatensatz.fall
+2026-08-06T13:00:35Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.fall/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.fall project=medizininformatikinitiative-modulfall
+2026-08-06T13:00:36Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-modulfall/filterprojectguides`  http=200 bytes=4946 keys=3
+    keys: medizininformatikinitiative-modulfall-implementationguide-backup mii-ig-modul-fall-2024-de mii-ig-modul-fall-2025
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:36Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=medizininformatikinitiative-modulfall-implementationguide-backup preview=1 url=https://simplifier.net/published-guide/medizininformatikinitiative-modulfall-implementationguide-backup/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:36Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-fall-2024-de preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-fall-2024-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:36Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-fall-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-fall-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:36Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:36Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=icu package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:36Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:36Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=icu package=de.medizininformatikinitiative.kerndatensatz.icu
+2026-08-06T13:00:37Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.icu/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.icu project=medizininformatikinitiative-modul-intensivmedizin
+2026-08-06T13:00:37Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-modul-intensivmedizin/filterprojectguides`  http=200 bytes=3432 keys=2
+    keys: miiigintensivecare-en miiigintensivmedizin-de
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:37Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=miiigintensivecare-en preview=1 url=https://simplifier.net/published-guide/miiigintensivecare-en/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:37Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=miiigintensivmedizin-de preview=1 url=https://simplifier.net/published-guide/miiigintensivmedizin-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:37Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:37Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=kardiologie package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:38Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:38Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=kardiologie package=de.medizininformatikinitiative.kerndatensatz.kardiologie
+2026-08-06T13:00:38Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.kardiologie/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.kardiologie project=mii-erweiterungsmodul-kardiologie
+2026-08-06T13:00:38Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-erweiterungsmodul-kardiologie/filterprojectguides`  http=200 bytes=1536 keys=1
+    keys: mii-kardio-v2026-de
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:38Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-kardio-v2026-de preview=1 url=https://simplifier.net/published-guide/mii-kardio-v2026-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:38Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:38Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=laborbefund package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:39Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:39Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=laborbefund package=de.medizininformatikinitiative.kerndatensatz.laborbefund
+2026-08-06T13:00:39Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.laborbefund/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.laborbefund project=mii-basismodul-labor-2025
+2026-08-06T13:00:39Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-basismodul-labor-2025/filterprojectguides`  http=200 bytes=3171 keys=2
+    keys: mii-ig-modul-labor-2025-de miiigmodullaborbefund
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:40Z  INFO   5.1c  simplifier-discover  hop 4 guide versions  cmd=`curl -sL https://simplifier.net/published-guide/mii-ig-modul-labor-2025-de/versions`  http=200 key=mii-ig-modul-labor-2025-de published=1 preview=1
+    2025.0.2 Default,Read-only,Public 2025-01-17 07:24 de.medizininformatikinitiative.kerndatensatz.laborbefund@2025.0.2
+    The preview row is reported and never pinned. A version row naming a package
+    pin is REPORTED, not claimed: a guide's version and its module's version are
+    different sequences (measured: guide 2025.0.1 carries package 2025.0.0).
+2026-08-06T13:00:40Z  INFO   5.1c  simplifier-discover  hop 4 proposed pin  key=mii-ig-modul-labor-2025-de version=2025.0.2 reason=flagged Default
+    PROPOSED, and a Gate-B confirmation: record this version in the migration
+    report exactly as the source commit SHA is recorded (spec §5.1c).
+2026-08-06T13:00:40Z  INFO   5.1c  simplifier-discover  hop 5 guide pages  cmd=`curl -sL 'https://simplifier.net/guide/mii-ig-modul-labor-2025-de?version=2025.0.2'`  http=200 bytes=55256 key=mii-ig-modul-labor-2025-de version=2025.0.2 root=MIIIGModulLaborbefund pages=18 out=migration-log/simplifier-pages-mii-ig-modul-labor-2025-de-2025.0.2.tsv
+    The GuideRoot and every slug were READ from this page, not constructed.
+    Leaf pages carry the real narrative; the root carries the tree.
+2026-08-06T13:00:40Z  INFO   5.1c  simplifier-discover  hop 4 guide versions  cmd=`curl -sL https://simplifier.net/published-guide/miiigmodullaborbefund/versions`  http=200 key=miiigmodullaborbefund published=2 preview=0
+    2026.0.3 Default,Read-only,Public 2026-06-12 12:18 de.medizininformatikinitiative.kerndatensatz.laborbefund@2026.0.3;2026.0.0 Read-only,Public 2025-12-22 09:40 de.medizininformatikinitiative.kerndatensatz.laborbefund@2026.0.0
+    The preview row is reported and never pinned. A version row naming a package
+    pin is REPORTED, not claimed: a guide's version and its module's version are
+    different sequences (measured: guide 2025.0.1 carries package 2025.0.0).
+2026-08-06T13:00:40Z  INFO   5.1c  simplifier-discover  hop 4 proposed pin  key=miiigmodullaborbefund version=2026.0.3 reason=flagged Default
+    PROPOSED, and a Gate-B confirmation: record this version in the migration
+    report exactly as the source commit SHA is recorded (spec §5.1c).
+2026-08-06T13:00:40Z  INFO   5.1c  simplifier-discover  hop 5 guide pages  cmd=`curl -sL 'https://simplifier.net/guide/miiigmodullaborbefund?version=2026.0.3'`  http=200 bytes=57163 key=miiigmodullaborbefund version=2026.0.3 root=MIIIGModulLaborbefund pages=20 out=migration-log/simplifier-pages-miiigmodullaborbefund-2026.0.3.tsv
+    The GuideRoot and every slug were READ from this page, not constructed.
+    Leaf pages carry the real narrative; the root carries the tree.
+2026-08-06T13:00:40Z  INFO   5.1c  simplifier-discover  done  pages=38 guides=migration-log/simplifier-guides.tsv exit=0
+    Every pinned version is PUBLISHED and READ-ONLY. Record it in the migration
+    report beside the source commit SHA -- a harvest of `current` would not be
+    reproducible (spec §5.1c).
+2026-08-06T13:00:40Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=medikation package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:41Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:41Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=medikation package=de.medizininformatikinitiative.kerndatensatz.medikation
+2026-08-06T13:00:41Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.medikation/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.medikation project=mii-basismodul-medikation-2024
+2026-08-06T13:00:41Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-basismodul-medikation-2024/filterprojectguides`  http=200 bytes=2989 keys=2
+    keys: mii-ig-modul-medikation-2024-de mii-ig-modul-medikation-2025
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:41Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-medikation-2024-de preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-medikation-2024-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:42Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-medikation-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-medikation-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:42Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:42Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=meta package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:42Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:42Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=meta package=de.medizininformatikinitiative.kerndatensatz.meta
+2026-08-06T13:00:42Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.meta/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.meta project=medizininformatikinitiative-kerndatensatz
+2026-08-06T13:00:42Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-kerndatensatz/filterprojectguides`  http=200 bytes=6606 keys=4
+    keys: medizininformatikinitiative-implementationguide-manteldokument medizininformatikinitiative-implementationguide-template-backup mii-ig-modul-meta-2025 mii-ig-modul-template-2025
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:43Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=medizininformatikinitiative-implementationguide-manteldokument preview=1 url=https://simplifier.net/published-guide/medizininformatikinitiative-implementationguide-manteldokument/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:43Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=medizininformatikinitiative-implementationguide-template-backup preview=1 url=https://simplifier.net/published-guide/medizininformatikinitiative-implementationguide-template-backup/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:43Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-meta-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-meta-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:43Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-template-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-template-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:43Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:43Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=mikrobiologie package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:44Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:44Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=mikrobiologie package=de.medizininformatikinitiative.kerndatensatz.mikrobiologie
+2026-08-06T13:00:44Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.mikrobiologie/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.mikrobiologie project=medizininformatik-initiative-modul-mikrobiologie
+2026-08-06T13:00:44Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatik-initiative-modul-mikrobiologie/filterprojectguides`  http=200 bytes=4814 keys=3
+    keys: copy-of---en--medizininformatik-initiative---modul-mikrobiologie mii-ig-modul-mikrobiologie-2025-de mii-ig-modul-mikrobiologie-2027-de
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:44Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=copy-of---en--medizininformatik-initiative---modul-mikrobiologie preview=1 url=https://simplifier.net/published-guide/copy-of---en--medizininformatik-initiative---modul-mikrobiologie/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:45Z  INFO   5.1c  simplifier-discover  hop 4 guide versions  cmd=`curl -sL https://simplifier.net/published-guide/mii-ig-modul-mikrobiologie-2025-de/versions`  http=200 key=mii-ig-modul-mikrobiologie-2025-de published=1 preview=1
+    2025.0.1 Default,Read-only,Public 2024-12-20 11:49 de.medizininformatikinitiative.kerndatensatz.mikrobiologie@2025.0.1
+    The preview row is reported and never pinned. A version row naming a package
+    pin is REPORTED, not claimed: a guide's version and its module's version are
+    different sequences (measured: guide 2025.0.1 carries package 2025.0.0).
+2026-08-06T13:00:45Z  INFO   5.1c  simplifier-discover  hop 4 proposed pin  key=mii-ig-modul-mikrobiologie-2025-de version=2025.0.1 reason=flagged Default
+    PROPOSED, and a Gate-B confirmation: record this version in the migration
+    report exactly as the source commit SHA is recorded (spec §5.1c).
+2026-08-06T13:00:45Z  INFO   5.1c  simplifier-discover  hop 5 guide pages  cmd=`curl -sL 'https://simplifier.net/guide/mii-ig-modul-mikrobiologie-2025-de?version=2025.0.1'`  http=200 bytes=69493 key=mii-ig-modul-mikrobiologie-2025-de version=2025.0.1 root=MIIIGModulMikrobiologie pages=30 out=migration-log/simplifier-pages-mii-ig-modul-mikrobiologie-2025-de-2025.0.1.tsv
+    The GuideRoot and every slug were READ from this page, not constructed.
+    Leaf pages carry the real narrative; the root carries the tree.
+2026-08-06T13:00:45Z  INFO   5.1c  simplifier-discover  hop 4 guide versions  cmd=`curl -sL https://simplifier.net/published-guide/mii-ig-modul-mikrobiologie-2027-de/versions`  http=200 key=mii-ig-modul-mikrobiologie-2027-de published=3 preview=0
+    2027.0.0-alpha.5 Default,Read-only,Public 2026-06-26 10:19 de.medizininformatikinitiative.kerndatensatz.mikrobiologie@2027.0.0-alpha.5;2027.0.0-alpha.4 Read-only,Public 2026-06-12 12:33 de.medizininformatikinitiative.kerndatensatz.mikrobiologie@2027.0.0-alpha.4;2027.0.0-alpha.2 Read-only,Public 2026-04-17 01:59 de.medizininformatikinitiative.kerndatensatz.mikrobiologie@2027.0.0-alpha.2
+    The preview row is reported and never pinned. A version row naming a package
+    pin is REPORTED, not claimed: a guide's version and its module's version are
+    different sequences (measured: guide 2025.0.1 carries package 2025.0.0).
+2026-08-06T13:00:45Z  INFO   5.1c  simplifier-discover  hop 4 proposed pin  key=mii-ig-modul-mikrobiologie-2027-de version=2027.0.0-alpha.5 reason=flagged Default
+    PROPOSED, and a Gate-B confirmation: record this version in the migration
+    report exactly as the source commit SHA is recorded (spec §5.1c).
+2026-08-06T13:00:45Z  INFO   5.1c  simplifier-discover  hop 5 guide pages  cmd=`curl -sL 'https://simplifier.net/guide/mii-ig-modul-mikrobiologie-2027-de?version=2027.0.0-alpha.5'`  http=200 bytes=75873 key=mii-ig-modul-mikrobiologie-2027-de version=2027.0.0-alpha.5 root=MIIIGModulMikrobiologie pages=37 out=migration-log/simplifier-pages-mii-ig-modul-mikrobiologie-2027-de-2027.0.0-alpha.5.tsv
+    The GuideRoot and every slug were READ from this page, not constructed.
+    Leaf pages carry the real narrative; the root carries the tree.
+2026-08-06T13:00:45Z  WARN   5.1c  simplifier-discover  partial-discovery: some hops yielded nothing  pages=67 guides=migration-log/simplifier-guides.tsv exit=1
+    What was discovered is above and in the TSVs; what was not is named by its
+    own WARN. Nothing was filled in for the gaps.
+2026-08-06T13:00:45Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=molgen package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:46Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:46Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=molgen package=de.medizininformatikinitiative.kerndatensatz.molgen
+2026-08-06T13:00:46Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.molgen/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.molgen project=medizininformatikinitiative-modulomics
+2026-08-06T13:00:46Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-modulomics/filterprojectguides`  http=200 bytes=4783 keys=3
+    keys: mii-ig-molgen-1-0 mii-ig-molgen-v2025-de mii-modul-molekulargenetischerbefundbericht-v2026-de
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:46Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-molgen-1-0 preview=1 url=https://simplifier.net/published-guide/mii-ig-molgen-1-0/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:47Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-molgen-v2025-de preview=1 url=https://simplifier.net/published-guide/mii-ig-molgen-v2025-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:47Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-modul-molekulargenetischerbefundbericht-v2026-de preview=1 url=https://simplifier.net/published-guide/mii-modul-molekulargenetischerbefundbericht-v2026-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:47Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:47Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=mtb package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:47Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:47Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=mtb package=de.medizininformatikinitiative.kerndatensatz.mtb
+2026-08-06T13:00:48Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.mtb/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.mtb project=mii-erweiterungsmodul-molekulares-tumorboard
+2026-08-06T13:00:48Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-erweiterungsmodul-molekulares-tumorboard/filterprojectguides`  http=200 bytes=1729 keys=1
+    keys: mii-ig-molekulares-tumorboard-v2026-de
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:48Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-molekulares-tumorboard-v2026-de preview=1 url=https://simplifier.net/published-guide/mii-ig-molekulares-tumorboard-v2026-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:48Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:48Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=onkologie package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:48Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:48Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=onkologie package=de.medizininformatikinitiative.kerndatensatz.onkologie
+2026-08-06T13:00:49Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.onkologie/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.onkologie project=medizininformatikinitiative-modulonkologie
+2026-08-06T13:00:49Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-modulonkologie/filterprojectguides`  http=200 bytes=5982 keys=4
+    keys: mii-ig-modul-onkologie-2024-de mii-ig-onko-de mii-ig-onkologie-de-v2026 mii-ig-onkologie-en-v2025
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:49Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-onkologie-2024-de preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-onkologie-2024-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:49Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-onko-de preview=1 url=https://simplifier.net/published-guide/mii-ig-onko-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:50Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-onkologie-de-v2026 preview=1 url=https://simplifier.net/published-guide/mii-ig-onkologie-de-v2026/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:50Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-onkologie-en-v2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-onkologie-en-v2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:50Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:50Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=patho package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:50Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:50Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=patho package=de.medizininformatikinitiative.kerndatensatz.patho
+2026-08-06T13:00:50Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.patho/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.patho project=medizininformatikinitiative-modulpathologie
+2026-08-06T13:00:51Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-modulpathologie/filterprojectguides`  http=200 bytes=6228 keys=4
+    keys: mii-ig-modul-patho-2025 mii-ig-pathologie miiigmodulepathologiebefund miiigmodulpathologiebefund
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:51Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-patho-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-patho-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:51Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-pathologie preview=1 url=https://simplifier.net/published-guide/mii-ig-pathologie/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:51Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=miiigmodulepathologiebefund preview=1 url=https://simplifier.net/published-guide/miiigmodulepathologiebefund/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:51Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=miiigmodulpathologiebefund preview=1 url=https://simplifier.net/published-guide/miiigmodulpathologiebefund/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:51Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:51Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=person package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:52Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:52Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=person package=de.medizininformatikinitiative.kerndatensatz.person
+2026-08-06T13:00:52Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.person/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.person project=mii-basismodul-person-2024
+2026-08-06T13:00:52Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-basismodul-person-2024/filterprojectguides`  http=200 bytes=4714 keys=3
+    keys: mii-ig-modul-person-2024-de mii-ig-modul-person-2024-en mii-ig-modul-person-2025
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:52Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-person-2024-de preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-person-2024-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:53Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-person-2024-en preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-person-2024-en/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:53Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-person-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-person-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:53Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:53Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=pros package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:53Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:53Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=pros package=de.medizininformatikinitiative.kerndatensatz.pros
+2026-08-06T13:00:54Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.pros/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.pros project=mii-erweiterungsmodul-pro-2025
+2026-08-06T13:00:54Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-erweiterungsmodul-pro-2025/filterprojectguides`  http=200 bytes=1580 keys=1
+    keys: modul-pro-v2026
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:54Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=modul-pro-v2026 preview=1 url=https://simplifier.net/published-guide/modul-pro-v2026/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:54Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:54Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=prozedur package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:54Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:54Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=prozedur package=de.medizininformatikinitiative.kerndatensatz.prozedur
+2026-08-06T13:00:55Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.prozedur/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.prozedur project=mii-basismodul-prozedur-2024
+2026-08-06T13:00:55Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-basismodul-prozedur-2024/filterprojectguides`  http=200 bytes=4761 keys=3
+    keys: mii-ig-modul-prozedur-2024-de mii-ig-modul-prozedur-2024-en mii-ig-modul-prozedur-2025
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:55Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-prozedur-2024-de preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-prozedur-2024-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:55Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-prozedur-2024-en preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-prozedur-2024-en/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:55Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-prozedur-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-prozedur-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:55Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:55Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=seltene package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:56Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:56Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=seltene package=de.medizininformatikinitiative.kerndatensatz.seltene
+2026-08-06T13:00:56Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.seltene/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.seltene project=mii-modul-seltene-erkrankungen
+2026-08-06T13:00:56Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/mii-modul-seltene-erkrankungen/filterprojectguides`  http=200 bytes=1711 keys=1
+    keys: miimodulselteneerkrankungen-v2026-de
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:56Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=miimodulselteneerkrankungen-v2026-de preview=1 url=https://simplifier.net/published-guide/miimodulselteneerkrankungen-v2026-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:56Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:56Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=studie package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:57Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:57Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=studie package=de.medizininformatikinitiative.kerndatensatz.studie
+2026-08-06T13:00:57Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.studie/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.studie project=medizininformatik-initiative-modul-studien
+2026-08-06T13:00:57Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatik-initiative-modul-studien/filterprojectguides`  http=200 bytes=3531 keys=2
+    keys: mii-ig-modul-studie-2025 miiigmodulstudie2026ballot
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:57Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-studie-2025 preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-studie-2025/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:58Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=miiigmodulstudie2026ballot preview=1 url=https://simplifier.net/published-guide/miiigmodulstudie2026ballot/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:58Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
+2026-08-06T13:00:58Z  INFO   5.1c  simplifier-discover  params  base=https://simplifier.net org=koordinationsstellemii module=symptom package=<none> project=<none> guide=<none> pin=<propose> out=migration-log
+    Discovery only: nothing in the module repository is written, and no value is
+    claimed into the identity ledger -- a guide's version is not the module's
+    version (spec §5.1c).
+2026-08-06T13:00:58Z  INFO   5.1c  simplifier-discover  hop 1 org project list  cmd=`curl -sL https://simplifier.net/organization/koordinationsstellemii/~projects`  http=200 bytes=142233 packages=23
+    This listing is the AUTHORITATIVE package-id set for the organization.
+    It does NOT expose project slugs or guide keys -- those are hops 2 and 3.
+2026-08-06T13:00:58Z  INFO   5.1c  simplifier-discover  hop 1b module resolved  module=symptom package=de.medizininformatikinitiative.kerndatensatz.symptom
+2026-08-06T13:00:58Z  INFO   5.1c  simplifier-discover  hop 2 package -> project  cmd=`curl -sL https://simplifier.net/packages/de.medizininformatikinitiative.kerndatensatz.symptom/latest`  http=200 package=de.medizininformatikinitiative.kerndatensatz.symptom project=medizininformatikinitiative-symptome
+2026-08-06T13:00:58Z  INFO   5.1c  simplifier-discover  hop 3 project -> guide keys  cmd=`curl -sL https://simplifier.net/medizininformatikinitiative-symptome/filterprojectguides`  http=200 bytes=1479 keys=1
+    keys: mii-ig-modul-symptom-2024-de
+    NO TILDE in the path. `~filterprojectguides` and `~guides` return 200 and
+    yield nothing, and the project page itself is the client-rendered app
+    shell -- this endpoint is the one that answers (spec §5.1c).
+2026-08-06T13:00:59Z  WARN   5.1c  simplifier-discover  no-published-version: hop 4 lists only a preview  key=mii-ig-modul-symptom-2024-de preview=1 url=https://simplifier.net/published-guide/mii-ig-modul-symptom-2024-de/versions
+    `?version=current` is the LIVE EDITABLE project, so harvesting it makes the
+    migration unreproducible -- two runs could silently differ. Nothing is
+    pinned here; a human decides whether to publish a version first.
+2026-08-06T13:00:59Z  WARN   5.1c  simplifier-discover  no-discovery: the chain yielded no guide page  pages=0 exit=1
+    Read the WARNs above for the hop that stopped it. An empty result is a
+    finding for a human, never a licence to construct a key, a slug or a version.
