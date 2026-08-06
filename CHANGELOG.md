@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.13.0...v0.14.0) (2026-08-06)
+
+
+### Skills and capabilities
+
+* **mii-ig-migration:** verify a migration mechanically, with a bounded auto-fix loop ([9def929](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/9def9295e98d0c09e6b499a6cbb903d73f3bafd1)), closes [#60](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/60)
+
 ## [0.13.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.12.0...v0.13.0) (2026-08-06)
 
 
