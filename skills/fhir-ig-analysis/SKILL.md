@@ -144,7 +144,13 @@ Deliberately not covered:
   or a readiness score, and an earlier version of this skill that framed the numbers as migration
   scoping was narrowed on purpose. Do not reintroduce it: a measurement dressed as a forecast is
   the least trustworthy thing this skill could produce.
-- **Migration** onto the MII KDS module template — see `mii-ig-migration`.
+- **Migration** onto the MII KDS module template — see `mii-ig-migration`. **Verifying a migrated
+  guide against its source belongs there too**, in its `scripts/verify-migration.py`: artefact
+  *reachability*, menu structure, content placement, rendered header metadata and toolchain
+  provenance are pass/fail gates that read the migration's page map and run log — inputs that are
+  not properties of an IG and would break this skill's "a path, a URL or a `.tgz`" contract. The
+  same-module verification below is the *measurement* that gate consumes, not a substitute for it:
+  it proves an artefact is PRESENT, never that anything links to it.
 - **Translation** — see `fhir-ig-translation`.
 - **Convention and naming checks** against the MII meta wiki or the metadata contract. Those are a
   different check, and the module template ships its own skill for them.
