@@ -10,7 +10,7 @@ description: Migrates a Simplifier-published MII KDS module Implementation Guide
   the user mentions Kerndatensatz, KDS-Modul, Implementierungsleitfaden, Manteldokument,
   sushi-config, ig.ini, gofsh, StructureDefinition XML or the IG Publisher in the context of moving
   a guide. Not for authoring new profiles, creating a module from scratch, or translating a guide
-  already on the template — the template ships recipes and an ig-translate skill for those.
+  already on the template — the catalog ships fhir-ig-translation for that.
 license: CC-BY-4.0
 allowed-tools: Read Grep Glob WebFetch Bash(npx:*) Bash(bash:*) Bash(python3:*) Bash(curl:*) Bash(find:*) Bash(grep:*) Bash(sed:*) Bash(awk:*) Bash(paste:*) Bash(wc:*) Bash(git clone:*) Bash(git status:*) Bash(git diff:*)
 metadata:
@@ -97,6 +97,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    `implementation-guides/` holds **several guide trees** (versions × languages + shared assets — a
    real module ships six), apply spec §5.1a: pick the authoritative tree, mark parallel-language
    trees as harvest seeds, retain the rest.
+   **No rendered-IG URL? Discover it — spec §5.1c.** `bash "$SKILL_DIR/scripts/simplifier-discover.sh" --org ORG --module SLUG` walks org project list → package → project → **`/<project>/filterprojectguides`** (no tilde; the `~` variants return 200 and yield nothing) → `/published-guide/<key>/versions` → the server-rendered guide root, WARNing at any hop that yields nothing. **Pin a PUBLISHED, read-only version and record it like the source commit SHA — never `?version=current`, the live editable project.** Keys and page slugs are **discovered, never constructed** (a constructed key 404s; the renderer de-punctuates slugs). The PROJECT page is client-rendered and yields nothing while the GUIDE pages yield everything — generalizing that one measurement to the platform is what once cost this skill the procedure. **One instance is not the class, in BOTH directions** (spec §5.1c.2a): measure a negative on the exact artefact you claim it about, and before encoding a *shape* as normative measure it on more than one instance, choosing the one most likely to differ — the same day's `data-url="/guide/<key>"` reading was taken on the one module where every key is bare and silently dropped keys on two others (consent 3 of 3, mikrobiologie 2 of 3, person 0 of 3, all at exit 0).
 
 2. **Read the module's identity — do not ask for it, and do not invent it.** From the source's
    `sushi-config.yaml` and `package.json` (absent a `sushi-config.yaml`: `package.json` plus the
@@ -232,7 +233,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
      the ① queue with a Gate-A decision, no parent fabricated. A tolerated error count is not a pass.
 
 2c. **Harvest the narrative when it is not in the repository** — shape B always, and any shape A
-   whose pages live on the platform. **Spec §5.1c is normative.** Order of sources, most trustworthy
+   whose pages live on the platform. **Spec §5.1d is normative** (§5.1c found the guide). Order of sources, most trustworthy
    first, and "nothing" is not the third one:
 
    - **① The authenticated project download — preferred whenever credentials exist.** `https://simplifier.net/<project-slug>/$actions/downloading` yields the project **including the narrative markdown as the author wrote it**, behind a Simplifier login: measured, anonymous access returns the login page (`/login?ReturnUrl=…`) and every anonymous alternative probed 404s or returns HTML, so **no verified anonymous project download exists**. A human signs in *in their own browser*, downloads the archive and names a path outside the repository; the agent reads it and logs `narrative-source=project-download`. **Never invent a credential mechanism, ask for a password or store a token** — the gate is the point. Nobody available: log `project-download-unavailable:` and fall through to ②.
@@ -337,7 +338,11 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    verification** with `fhir-ig-analysis` (measure the unmigrated source, then the migrated tree — an
    equal `packageId` triggers the comparison; the SOURCE is the first input): identity, published
    artifact set and canonical URLs must all read **IDENTISCH** and a DIVERGIERT is a stop; the
-   narrative per-language table goes into the report's QA triage.
+   narrative per-language table goes into the report's QA triage. **That sibling skill is a checked
+   precondition, not an assumption** — `bash "$SKILL_DIR/scripts/sibling-skill-check.sh" --skill-dir
+   "$SKILL_DIR"` finds it or WARNs `sibling-skill-unavailable:` with the exact **pinned**
+   `npx skills add` command, and **never installs it**: a tool grant is permission, not a dependency,
+   and an unrelated run must not write into the operator's skills directory (spec §5.6a).
 
 8. **Report.** Write `migration-log/migration-report.md` **from
    [the report template](references/migration-report-template.md)** — built around three reviewer
@@ -471,7 +476,7 @@ Covers **moving an existing guide onto the template**: identity preservation, ar
 directive translation, bilingual setup, and the QA that proves it. Does not cover, deliberately:
 **authoring new profiles or remodelling content** (migration never changes normative decisions);
 **creating a module from scratch** (the module template ships its own recipe); **translating a guide
-already on the template** (the template's `ig-translate` skill); **publishing** (no release, no registry
+already on the template** (the catalog's `fhir-ig-translation`); **publishing** (no release, no registry
 entry, no package push); and **filling in missing domain content** (a gap in the source is a
 `TODO:REVIEW`, not a writing task). If the catalog and a local copy both provide this skill, local wins.
 
@@ -483,7 +488,7 @@ Derived from `skills/mii-ig-migration` in
 measurement that forced it — is [references/provenance.md](references/provenance.md)**; it is
 history, and nothing in it changes what to do on a run.
 
-**2026-08-06 — the false "Simplifier is not a scrape target" claim, corrected.** This skill said the guide was client-rendered and therefore a human reference only. That was **measured on the PROJECT page and wrongly generalised to the GUIDE pages**, which are a different URL space and **are server-rendered** — and because of it the KDS Consent migration shipped the **template's starter pages** instead of the module's narrative. Re-measured 2026-08-06: guide root **24509 bytes / 18 page links**, leaf page **20481 bytes** with `<h1 id="page-title">` and the real German narrative; the gated project download (`$actions/downloading`, login required) is the more trustworthy alternative. Step 2c, spec §2.1.3 and §5.1c, and `scripts/guide-harvest.sh` + `guide-page-to-md.py` replace the claim with a verified procedure — measured 18 of 18 pages harvested. Guardrail 9 generalises the lesson: a negative capability finding is only valid for the artefact it was measured on.
+**2026-08-06 — the false "Simplifier is not a scrape target" claim, corrected.** This skill said the guide was client-rendered and therefore a human reference only. That was **measured on the PROJECT page and wrongly generalised to the GUIDE pages**, which are a different URL space and **are server-rendered** — and because of it the KDS Consent migration shipped the **template's starter pages** instead of the module's narrative. Re-measured 2026-08-06: guide root **24509 bytes / 18 page links**, leaf page **20481 bytes** with `<h1 id="page-title">` and the real German narrative; the gated project download (`$actions/downloading`, login required) is the more trustworthy alternative. Step 2c, spec §2.1.3 and §5.1d, and `scripts/guide-harvest.sh` + `guide-page-to-md.py` replace the claim with a verified procedure — measured 18 of 18 pages harvested. Guardrail 9 generalises the lesson: a negative capability finding is only valid for the artefact it was measured on. **The same day, step 1 gained the discovery chain that finds the guide in the first place** (spec §5.1c; the harvest moved to §5.1d), and §5.1c.2a states the rule in both directions — a *shape* measured on one instance is a hypothesis too.
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill; `scripts/` is
 Apache-2.0, matching this repository's code licence. Promoted to `stable` on 2026-08-05 after two full

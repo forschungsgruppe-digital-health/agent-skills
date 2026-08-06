@@ -76,6 +76,31 @@ checklist and state that you did.
    `## Verification`, `## Scope and delimitation`. Prefer a command with an exit code over
    a judgement call at every step where one is possible.
 
+4a. **Measure on more than one instance before writing anything down as normative.** A skill
+    turns measurements into rules, and a measurement licenses a claim about the artefact it
+    was taken on — nothing more. That cuts **both** ways: "X cannot be done here" must not
+    become "X cannot be done", and "X has this shape here" must not become the shape every
+    instance has. The positive direction is the dangerous one, because a false negative stops
+    while a false shape keeps running and looks green.
+
+    So: name the class the claim is about, measure a **second** instance chosen as the one
+    most likely to differ (the irregular one, a controlled negative, or the whole set where it
+    is small), and record the sample — instances, versions, date, numbers — beside the claim.
+    Where only one instance is available, bound the claim to it and say the generalisation is
+    unverified. The rule, the three shipped defects it is made of, and the checklist are in
+    [the measurement rule](references/measurement-rule.md).
+
+4b. **State a dependency on another skill as a checked precondition, never as an install.**
+    `allowed-tools` grants permission; it does not express a dependency, and the two are
+    routinely confused because a grant broad enough to run the skill's own tooling is usually
+    broad enough to install something. If your procedure hands off to a sibling skill, detect
+    whether it is present and, when it is not, **emit the exact pinned install command and
+    stop** — the consumer installs it. Installing it yourself writes to the user's project as
+    a side effect of an unrelated run, makes that run non-hermetic (the version that executes
+    is not the version anybody reviewed or recorded), and contradicts the catalog's
+    static-by-design stance: installation is an explicit, reviewed act, recorded in
+    `skills-lock.json`.
+
 5. **Set the metadata.** `fgdh.tier`, `fgdh.domain` and `fgdh.owner` are required;
    `fgdh.language` and `fgdh.status` default to `en` and `stable`. All values are strings —
    quote anything YAML would coerce, and quote `"@handle"` because `@` is a reserved YAML
@@ -149,6 +174,11 @@ Outside the catalog repository, or if the validator is unavailable, confirm by h
 - [ ] `fgdh.domain` and `fgdh.owner` are set; `fgdh.owner` is quoted and starts with `@`
 - [ ] status is `experimental` and the body opens with the banner; the description does not mention it
 - [ ] all four mandatory sections are present, in order
+- [ ] every normative claim about a class of artefacts was measured on more than one instance,
+      or is explicitly bounded to the single one it was measured on; the sample is recorded
+      beside the claim — see [the measurement rule](references/measurement-rule.md)
+- [ ] a dependency on another skill is a detected precondition that emits the pinned install
+      command, not an install the skill performs
 - [ ] `SKILL.md` is under 500 lines
 - [ ] no absolute path, no upward `..` traversal, every relative reference exists and is one level deep
 - [ ] bundled scripts are *referenced* relatively but *invoked* through a resolved `$SKILL_DIR`

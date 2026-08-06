@@ -49,7 +49,7 @@ must supply everything" after reading one place and finding nothing.
 | **J** | repo `package.json` | `name`, `version`, `canonical`, `title`, `license` where present | §2.1 |
 | **I** | the generated `ImplementationGuide` resource | fields absent from C/J | §2.1 |
 | **R** | the **source GitHub repository**: README, LICENSE, tags, repo metadata | `license` (real evidence), a `title` candidate, a `description` candidate, release-tag evidence for `version` | §2.1.2 |
-| **H** | the **Simplifier project page** | nothing mechanically — a **human reference** for what no machine source carries. The **guide** pages are a different URL space, are server-rendered, and are the narrative harvest source | §2.1.3, §5.1c |
+| **H** | the **Simplifier project page** | nothing mechanically — a **human reference** for what no machine source carries. The **guide** pages are a different URL space, are server-rendered, and are the narrative harvest source | §2.1.3, §5.1c, §5.1d |
 | **T** | the template's own literals and patterns | last resort, and a Gate-A note every time | §2.2 |
 | **G** | goFSH's derived `sushi-config.yaml` | **never identity** — recorded only so its disagreement becomes visible | §5.1b.2 |
 
@@ -236,13 +236,14 @@ bash "$SKILL_DIR/scripts/repo-identity.sh" \
 edition of this spec said the platform renders client-side and is therefore not a scrape target.
 That was measured on the PROJECT page and generalised to the GUIDE pages, which are a different URL
 space and are server-rendered. The generalisation was wrong, and it cost a real migration its
-narrative — see §5.1c and the correction entry in `references/provenance.md`.
+narrative — see §5.1c (finding the guide) and §5.1d (harvesting it), and the correction entry in
+`references/provenance.md`.
 
 | URL space | Example | Measured 2026-08-06 | Verdict |
 | --- | --- | --- | --- |
 | **Project page** | `https://simplifier.net/MedizininformatikInitiative-ModulConsent/` | HTTP 200, ~56 KB, 52 `<script` markers, **no identity metadata in the DOM** | client-rendered application shell — **a human reference, not a scrape target** |
-| **Guide root** | `https://simplifier.net/guide/miiigmodulconsent/MIIIGModulConsent?version=2026.0.0` | HTTP 200, **24509 bytes**, **~3.4 k characters of visible text** after stripping script/style, carrying the complete page tree (Release Notes, Beschreibung Modul Consent, Kontext im Gesamtprojekt / Bezüge zu anderen Modulen, Referenzen, Anwendungsfälle / Informationsmodell, …); **23 `href="/guide/…"` links, 18 of them pages** | **SERVER-RENDERED — a real harvest source** (§5.1c) |
-| **Guide leaf page** | `…/MIIIGModulConsent/Beschreibung-Modul-Consent?version=2026.0.0` | HTTP 200, **20481 bytes**, **~1.4 k characters of visible text**, `<h1 id="page-title">Beschreibung Modul Consent</h1>` and the real German narrative ("Das MII KDS Modul Consent ist ein Basismodul des Kerndatensatzes (KDS) der Medizininformatik-Initiative (MII). Es setzt auf den publizierten Vorarbeiten der MII Taskforce Consent Umsetzung auf. …") | **SERVER-RENDERED — a real harvest source** (§5.1c) |
+| **Guide root** | `https://simplifier.net/guide/miiigmodulconsent/MIIIGModulConsent?version=2026.0.0` | HTTP 200, **24509 bytes**, **~3.4 k characters of visible text** after stripping script/style, carrying the complete page tree (Release Notes, Beschreibung Modul Consent, Kontext im Gesamtprojekt / Bezüge zu anderen Modulen, Referenzen, Anwendungsfälle / Informationsmodell, …); **23 `href="/guide/…"` links, 18 of them pages** | **SERVER-RENDERED — a real harvest source** (§5.1d) |
+| **Guide leaf page** | `…/MIIIGModulConsent/Beschreibung-Modul-Consent?version=2026.0.0` | HTTP 200, **20481 bytes**, **~1.4 k characters of visible text**, `<h1 id="page-title">Beschreibung Modul Consent</h1>` and the real German narrative ("Das MII KDS Modul Consent ist ein Basismodul des Kerndatensatzes (KDS) der Medizininformatik-Initiative (MII). Es setzt auf den publizierten Vorarbeiten der MII Taskforce Consent Umsetzung auf. …") | **SERVER-RENDERED — a real harvest source** (§5.1d) |
 
 **URL shape:** `https://simplifier.net/guide/<guide-key>/<GuideRoot>[/<Page-Slug>]?version=<version>`.
 Slugs are de-punctuated — "Anwendungsfälle / Informationsmodell" becomes `AnwendungsflleInformationsmodell`
@@ -258,8 +259,8 @@ So, for identity:
   `server-rendered-guide:` instead and names `guide-harvest.sh`. It still extracts no identity from
   either: a value read out of a rendering that changes tomorrow cannot be re-derived, so an agent
   extracting one would be fabricating with a URL attached (guardrail 3).
-- The **guide pages** yield the NARRATIVE, mechanically and verifiably (§5.1c). That is a different
-  question from identity, and the answer to it is yes.
+- The **guide pages** yield the NARRATIVE, mechanically and verifiably (§5.1d), and they are found
+  mechanically too (§5.1c). That is a different question from identity, and the answer to it is yes.
 
 **The general rule this section now carries** (see also §4, guardrail 9): a negative capability
 finding — "this cannot be read", "this is not available", "this is not possible" — is only valid for
@@ -267,6 +268,12 @@ finding — "this cannot be read", "this is not available", "this is not possibl
 endpoint or a sibling mechanism, and re-measure before reusing one. This is the second such error in
 this skill's history; the first was the claim that the IG Publisher cannot localize page titles,
 which §5.5 now disproves with a working recipe.
+
+**This is a statement about the PROJECT page, not about Simplifier.** The package page, the project's
+guide listing, the version listing and the guide pages are all server-rendered and are read
+mechanically by §5.1c — which is how the guide gets found in the first place when no URL was handed
+over. What tier H does not yield is *identity*, and that is unchanged: a `title` or a `publisher`
+read off a rendering is still a human's reading, recorded with the URL as evidence.
 
 ### 2.1.4 Recording the evidence: the identity ledger and contradictions
 
@@ -393,8 +400,9 @@ varies between agents, so **this list is the normative statement** of what the s
     actually tested. A "not possible" is the most expensive kind of error in this skill, because
     nothing downstream re-checks it: it silently converts a missing capability into a missing
     deliverable. Twice now it has done exactly that — page-title localization, which §5.5 disproves
-    with a working recipe, and the Simplifier guide, which §2.1.3 and §5.1c disprove with a working
-    harvest after the false claim shipped a migration with the template's starter pages.
+    with a working recipe, and the Simplifier guide, which §2.1.3, §5.1c and §5.1d disprove with a
+    working discovery chain and harvest after the false claim shipped a migration with the template's
+    starter pages.
 
 ### 4.1 The conditional `de-DE` warning
 
@@ -418,10 +426,18 @@ difference between working and not:
 Extract from `SOURCE_RENDERED_IG_URL` and `SOURCE_REPO_URL` the artefact list (profiles,
 extensions, value sets, code systems, capability statements, examples) and the narrative structure.
 
-**The rendered guide IS mechanically extractable — harvest it (§5.1c).** Simplifier's `/guide/`
-URL space is server-rendered: the guide root delivers the whole page tree and each page delivers its
+**A rendered IG nobody handed over is still discoverable — run §5.1c first.** From an organization
+key and a module name it recovers the package, the project, the guide keys, the published versions
+and the page tree, without a credential. The **project page** is client-rendered and yields nothing;
+the **guide pages** are server-rendered and yield everything, and treating the first measurement as a
+statement about the platform is what once removed both procedures from the specification (§5.1c.2).
+
+**The guide it finds IS mechanically extractable — harvest it (§5.1d).** Simplifier's `/guide/` URL
+space is server-rendered: the guide root delivers the whole page tree and each page delivers its
 narrative, both without a browser. Only the **project** page (`simplifier.net/<Project>/`) is a
 client-rendered shell, and pointing a harvest at it is a setup error the script names as such.
+Discovery (§5.1c) and harvest (§5.1d) are two steps of one workflow: pin a published guide version,
+then harvest exactly that pin.
 
 **Where a repository does carry the narrative** — a Simplifier project checked into git, with
 `implementation-guides/**/toc.yaml` and `*.page.md` — that is the better source: it is the author's
@@ -429,9 +445,10 @@ markdown rather than a rendering of it. Take the structure from there, and use t
 cross-check. Where the repository carries none (source shape B), the harvest **is** the source, and
 the fallback below applies only when both are unavailable.
 
-**If neither can be read**, mark the narrative structure `TODO:REVIEW` in the inventory and have
-Gate B supply it by hand — but record WHICH of the two was tried and what it returned. "No narrative
-found" is a measurement, not a default.
+**If neither can be read** — every hop of §5.1c WARNs rather than guessing, so "nothing" is a
+recorded URL and status, not an impression — mark the narrative structure and the rendered-IG
+cross-check `TODO:REVIEW` in the inventory and have Gate B supply them by hand, recording WHICH of
+the two sources was tried and what it returned. "No narrative found" is a measurement, not a default.
 
 → Output: `migration-log/source-inventory.json`.
 → **Acceptance:** the inventory is complete and every entry carries its source path.
@@ -497,8 +514,8 @@ directory names finds them.
 Consequence for §5.1: **the rendered guide's narrative lives on the Simplifier platform, not in
 git.** There is no `implementation-guides/**` tree, so the page structure comes from the rendered IG,
 and `fql-scan.sh` correctly exits 2 with an empty target set when run on the unmigrated repository.
-**That platform narrative is retrievable — §5.1c** (the project download when credentials exist,
-otherwise the verified guide harvest). "Not in git" was once read as "not obtainable", and a shape-B
+**That platform narrative is retrievable — §5.1c finds the guide and §5.1d harvests it** (the
+project download when credentials exist, otherwise the verified guide harvest). "Not in git" was once read as "not obtainable", and a shape-B
 migration shipped the template's starter pages because of it.
 
 **That is not the same as "the repository carries no narrative", and the earlier wording of this
@@ -1056,8 +1073,190 @@ machine. Name the option chosen in the report and record it at Gate A:
 and the durable resolution is the parent's maintainers publishing snapshot-bearing releases. The
 procedure above unblocks a migration; it does not make the local rebuild an authority.
 
-### 5.1c Harvest the narrative from the rendered guide
+### 5.1c Discovering the rendered guide — from a module name to pinned guide pages
 
+**Discovery comes first, the harvest (§5.1d) second.** This section ends with a guide key and a
+**pinned, published** version; that pin is what §5.1d harvests. Where a URL was handed over, start at
+§5.1d and use this section to verify that the URL names a published version.
+
+**The problem this solves.** §5.1 needs the rendered guide's page structure, and §2 lists
+`SOURCE_RENDERED_IG_URL` as human-provided. That is fine when somebody hands over a URL, and useless
+when nobody does: the module name is known, the guide key is not, and a guide key does not follow
+from anything a human can spell. This section is the **normative procedure that recovers the whole
+address from an organization key and a module name**, with no credential at any point.
+
+**Measured 2026-08-06, anonymous, every hop verified against the reference module.** Do not extend
+these statements beyond what they say; re-measure before widening any of them.
+
+#### 5.1c.1 The chain — five hops
+
+| Hop | Endpoint | Yields | Measured on the reference |
+| --- | --- | --- | --- |
+| **1** | `/organization/<org-key>/~projects` | the **authoritative package-id list**, via the `/packages/<packageId>/` hrefs | MII org key `koordinationsstellemii`: HTTP 200, ~142 KB, **23** package ids — base, bildgebung, biobank, consent, diagnose, dokument, fall, icu, kardiologie, laborbefund, medikation, meta, mikrobiologie, molgen, mtb, onkologie, patho, person, pros, prozedur, seltene, studie, symptom |
+| **2** | `/packages/<packageId>/latest` | the **project slug**, from the page's `Project <a href="/…">` item | `de.medizininformatikinitiative.kerndatensatz.consent` → `medizininformatikinitiative-modulconsent` |
+| **3** | `/<project-slug>/filterprojectguides` — **no tilde** | the project's **guide keys**, as `data-url="/guide/<key>"` **or** `data-url="/guide/<key>?version=current"` (preview/archived guides carry the query; measured across the 23 modules, an extractor anchored on the closing quote silently drops keys — consent 3 of 3, mikrobiologie 2 of 3, person 0 of 3, so stop at `?`, `#` or `"`) | HTTP 200, ~4.7 KB, **3** keys: `mii-ig-modul-consent-2025`, `mii-ig-modul-consent-2026`, `miiigmodulconsent` |
+| **4** | `/published-guide/<guide-key>/versions` | the **published versions** with dates and status, and separately the **"Current preview"** | `miiigmodulconsent` → 2026.0.0 (Default, Read-only, Public, 2025-12-18) plus a preview row; `mii-ig-modul-consent-2025` → 2025.0.0 … 2025.0.4 |
+| **5** | `/guide/<key>?version=<v>` (root) and `/guide/<key>/<GuideRoot>/<Page-Slug>?version=<v>` (leaf) | the **page tree** — the root is server-rendered and carries every `href="/guide/<key>/…"`; the leaf carries the narrative | root `MIIIGModulConsent` @ 2026.0.0: 18 page links; leaf `Beschreibung-Modul-Consent`: HTTP 200, real German narrative in `div.ig-view-content` |
+
+Hop 1 yields **only** package ids: it exposes neither project slugs nor guide keys, which is why
+hops 2 and 3 exist rather than being an optimisation.
+
+**Variants that do NOT work, and are named so nobody re-derives them:** `~filterprojectguides` and
+`~guides` both return **200 and yield nothing**, and so does the project page itself. A 200 is not
+evidence that an endpoint answered; the extracted count is.
+
+#### 5.1c.2 The project page yields nothing, the guide pages do
+
+**§2.1.3's measurement stands and is narrower than it reads.** The Simplifier **project page** is
+client-rendered — HTTP 200, ~56 KB, 52 script markers, no metadata in the DOM — and it is the one
+genuine application shell in this chain. Everything else above is **server-rendered** and hands its
+content to `curl`: the package page, the guide listing, the version listing, the guide root, the
+leaf pages.
+
+**Conflating the two produced an earlier false negative** — "Simplifier is not scrapeable", concluded
+from the project page and generalized to the platform, which is why §5.1 once told a reader to give
+up on the rendered IG and work from the repository. That fallback survives only for the case where
+this chain **and** the harvest (§5.1d) genuinely yield nothing; it is not the starting position.
+
+##### 5.1c.2a One instance is not the class — in BOTH directions
+
+The rule this restates was written down here in one direction only, and the other direction has cost
+this specification more. Stated whole:
+
+**A measurement licenses a claim about the artefact it was taken on. Encoding it as normative for a
+CLASS of artefacts is a separate act and needs its own evidence.**
+
+- **Negative** — "X cannot be done", measured on one artefact and stated about the platform, the
+  format or the tool. It removes a capability, and a claim of impossibility is never re-checked.
+- **Positive** — "X has shape S", measured on one instance and encoded as the shape every instance
+  has. It keeps running and looks green, which is why it is the more expensive of the two.
+
+Three shipped defects, all of them found by an operator rather than by review:
+
+| # | The claim | Sample it rested on | What a second instance showed |
+| --- | --- | --- | --- |
+| **a** | how IG page titles localize (§5.5) | first a constant in the publisher's source with **no build at all**, read as "page titles cannot be localized"; then **one** build, of one guide, on one publisher version (2.2.11) | the HL7 `multi-lang-test-ig` on publisher **2.0.13**, with `/fr/` declared in `i18n-lang` but deliberately left out of `translation-sources` as a controlled negative. The impossibility was false; §5.5 now states the mechanism bullet by bullet, each with its own basis, and lends none of them to another |
+| **b** | "Simplifier is client-rendered, so nothing is extractable" (§2.1.3) | the **project** page: HTTP 200, ~56 KB, 52 script markers, no identity metadata in the DOM — a real measurement, still true of that URL | the **guide** pages are server-rendered and carry the whole narrative. The generalisation cost this specification the procedure that is now §5.1c |
+| **c** | the guide-key attribute shape `data-url="/guide/<key>"` (hop 3) | the Consent guide listing, where **every** key happens to be bare, so an extractor anchored on the closing quote read 3 of 3 | preview and archived guides carry `?version=current` inside that attribute. Measured across all **23** MII modules: consent 3 of 3, **mikrobiologie 2 of 3, person 0 of 3** — keys dropped silently, at exit 0 |
+
+**In every case the single sample was the benign one, and that is the normal case rather than bad
+luck.** The first instance to hand is the reference module — the best-maintained, most regular member
+of its class, and therefore the one *least* likely to exhibit a variant. **b** and **c** were measured
+on the same module on the same day, one in each direction, so the direction is not the diagnosis; the
+sample size is.
+
+→ **The operational test, before encoding a shape or a capability as normative here:**
+
+1. **Name the class** the claim is about — this guide, this project, Simplifier, every MII module.
+   A claim whose class is left implicit gets generalised by its reader instead of by its author.
+2. **Measure it on more than one instance.** One is a hypothesis.
+3. **Choose the second instance as the one most likely to differ** — the irregular one (an archived
+   or preview guide, the oldest release, the module nobody maintains), never a second page of the
+   same artefact. Where the class is small and enumerable, take **all** of it: the 23 MII modules are
+   a `for` loop, and running it is what turned **c** from "works" into "drops 1 of 3 keys on two
+   modules". Best of all, try a **controlled negative** — an instance where the mechanism should
+   *not* work; if it works there too, the mechanism is not the one you think it is.
+4. **Record the sample beside the claim**: which instances, which versions, which date, which
+   numbers. Every measured statement in this specification carries one, and that is what lets a
+   later run re-scope it instead of re-deriving it.
+5. **With only one instance available, bound the claim to it and say the generalisation is
+   unverified** — a `TODO:REVIEW` or a gate item. Never widen it silently because widening reads
+   better. Where a run finds an endpoint empty, record *which URL* returned *what*, never the
+   inference; `repo-identity.sh` reports `client-rendered-page:` scoped to the URL it probed for
+   exactly this reason.
+6. **Claim completeness from counts, never from an exit code.** Defect **c** exited 0 on all 23
+   modules; what exposed it was comparing keys extracted against keys present (§10.4).
+
+The general, skill-independent form of this rule — it is an authoring rule, not a FHIR one — is
+carried by the catalog's `skill-authoring` skill in its `references/measurement-rule.md`. Changing
+one without the other leaves the catalog saying two things.
+
+#### 5.1c.3 Reproducibility — pin a published version, never `current`
+
+**A migration MUST pin a PUBLISHED, READ-ONLY version and record it in the migration report, exactly
+as it records the source commit SHA.** Hop 4 distinguishes the two kinds of row for precisely this
+reason: **`?version=current` is the live, editable project**, so two runs of the same migration could
+harvest different text with nothing in either report showing that they differ.
+
+- Pin the version the listing flags `Default` + `Read-only`, or the one a human chose from it. Record
+  the key, the version, its publication date and the URLs harvested.
+- A guide that lists **only** a preview cannot be pinned. That is a Gate-B item — a human decides
+  whether a version is published first — not a licence to harvest `current`.
+- **A guide's version is NOT the module's version, and is never claimed into the identity ledger**
+  (§2.1.4). They are different sequences: measured, guide `mii-ig-modul-consent-2025` version
+  **2025.0.1** carries package version **2025.0.0**. A version row naming a package pin is reported;
+  claiming it would manufacture an `identity-contradiction:` out of two correct numbers.
+
+#### 5.1c.4 Keys and slugs are DISCOVERED, never constructed
+
+Guide keys do not follow from the project name, the package id or the module name, and page slugs do
+not follow from the page titles.
+
+- **Measured:** `miiigmodulconsent` exists; the analogously built `miiigmodulperson` **404s**. A key
+  is read from hop 3 or it is not used.
+- **Measured:** the renderer de-punctuates slugs — *Anwendungsfälle / Informationsmodell* becomes
+  `AnwendungsflleInformationsmodell`, *Datensätze inkl. Beschreibungen* becomes
+  `Datenstzeinkl.Beschreibungen`. Read every slug from the guide root.
+- **The GuideRoot is read too, not derived from the key:** measured, key `miiigmodulconsent` has root
+  `MIIIGModulConsent` while key `mii-ig-modul-consent-2025` has root `MII-IG-Modul-Consent`.
+
+A constructed path is a 404 at best and the **wrong page** at worst, and the wrong page is the one
+that reaches a report unnoticed.
+
+#### 5.1c.5 The gated alternative — unchanged, opt-in, human
+
+The project download `<project-slug>/$actions/downloading` requires a Simplifier login. **Verified:
+all four query variants — none, `?format=zip`, `?scope=project`, `?download=true` — redirect to
+`/login?ReturnUrl=…`.** Its status is unchanged by this section: it is an **opt-in human step** a
+maintainer may perform and hand over, never a credential mechanism the skill invents, asks for or
+stores. The chain above needs no account, so nothing in a normal run depends on it. **How a
+human-supplied archive is accepted, logged and preferred over the harvest is §5.1d.1** — this section
+only records that the endpoint is gated.
+
+#### 5.1c.6 Running it — `scripts/simplifier-discover.sh`
+
+The chain is bundled, so that a discovery is logged rather than performed in a browser and
+remembered. It sources the run-log helper as a library — **call it directly, never through
+`run --emits-runlog`** (§10.5).
+
+```bash
+bash "$SKILL_DIR/scripts/simplifier-discover.sh" \
+  --org koordinationsstellemii --module consent
+```
+
+It walks hops 1 → 5, **WARNs at whichever hop yields nothing rather than guessing past it**, and
+writes `migration-log/simplifier-guides.tsv` (key, version, flags, date, package pin) plus one
+`migration-log/simplifier-pages-<key>-<version>.tsv` per guide (depth, slug path, URL). Options:
+`--package`/`--project`/`--guide` enter the chain further down, `--version` pins explicitly.
+
+Measured end to end on Consent (2026-08-06): 23 packages → 1 module match → project
+`medizininformatikinitiative-modulconsent` → **3** guide keys → 3 pinned versions (2025.0.4,
+2026.0.0, 2026.0.0) → **52** page URLs across the three guides, 18 of them under
+`miiigmodulconsent` @ 2026.0.0. Exit 0.
+
+Every refusal is its own greppable WARN token, and each one exits 1 rather than continuing on a
+guess — verified by running each branch:
+
+| Token | Fires when | Verified with |
+| --- | --- | --- |
+| `org-project-list-empty:` / `org-project-list-unreachable:` | hop 1 returned nothing readable | a nonexistent org key → HTTP 404 |
+| `module-not-in-org-list:` | no package id matches the module | `--module nichtvorhanden` |
+| `module-ambiguous:` | several do — **never** resolved by taking the first or the shortest | `--module kerndatensatz` → 23 candidates listed |
+| `package-project-link-absent:` | hop 2 found no project link | — (a package published outside a project) |
+| `project-guides-empty:` | hop 3 yielded no key — check the **missing tilde** first | — |
+| `guide-key-not-published:` | hop 4 returned 404 — the key was constructed, not discovered | `--guide miiigmodulperson` → 404 |
+| `no-published-version:` | hop 4 lists only a preview; nothing is pinned | — |
+| `pinned-version-not-published:` | `--version` is absent from the listing — **not** silently replaced | `--version 9.9.9` |
+| `guide-pages-empty:` / `guide-root-not-unanimous:` | hop 5 yielded no page, or several roots | — |
+
+→ **Acceptance:** for each guide key carried forward, the report names the key, the **published,
+read-only** version, its date, and the page list harvested from it. A report that cites a page
+without naming the pinned version it came from does not meet this criterion.
+
+### 5.1d Harvest the narrative from the rendered guide
+
+**Its input is what §5.1c produced** — a guide key and a pinned, published version — or a guide URL a
+human handed over, which §5.1c's hop 4 is used to confirm is published rather than `current`.
 **Applies whenever the module's narrative is not in its repository** — source shape B above all,
 and any shape A whose pages live on the platform rather than in `implementation-guides/**`. It
 produces the Markdown that §5.4 maps onto the template's page set. It does **not** decide where the
@@ -1065,10 +1264,10 @@ pages end up: §9's mapping and the language direction (SKILL.md *Language*) do 
 
 #### The order of sources — most trustworthy first
 
-1. **The authenticated project download (§5.1c.1)** — the project *including its narrative markdown*,
+1. **The authenticated project download (§5.1d.1)** — the project *including its narrative markdown*,
    as the author wrote it. Gated behind a Simplifier login, so a human supplies it. **Prefer it
    whenever credentials exist.**
-2. **The guide harvest (§5.1c.2)** — anonymous, verified, and a *rendering*: directives are already
+2. **The guide harvest (§5.1d.2)** — anonymous, verified, and a *rendering*: directives are already
    expanded, `{{tree}}`/`{{render}}` blocks arrive as their output, and a rendered artefact view is
    not the resource it renders.
 3. **Nothing** — which in practice means shipping the template's starter pages under the module's
@@ -1080,7 +1279,7 @@ identity (§2.1.1) and **no narrative**. Its job here is the opposite one: it is
 set is **VERIFIED AGAINST** — every profile, extension, value set and code system in the package
 either has a harvested page or is recorded as having none.
 
-#### 5.1c.1 The authenticated project download (preferred, gated)
+#### 5.1d.1 The authenticated project download (preferred, gated)
 
 `https://simplifier.net/<project-slug>/$actions/downloading` offers a download of the whole project,
 narrative markdown included.
@@ -1102,14 +1301,14 @@ ask for a password, do not store a token anywhere in the repository or the run l
 3. The agent reads that path, logs `narrative-source=project-download path=<path>` with the
    archive's size and file count, and proceeds. The provenance recorded on each page is the archive
    and the date, not a URL the agent fetched.
-4. If no human is available, say so once and fall through to §5.1c.2. **Waiting is not a stop, and a
+4. If no human is available, say so once and fall through to §5.1d.2. **Waiting is not a stop, and a
    gate is not an impossibility** — record `project-download-unavailable: no credentials offered`
    and name it in the report so a later run can do better.
 
 An account is personal, so nothing about it is automated: no stored cookie, no `curl -u`, no
 credential in an environment variable, no session replay. The gate is the point.
 
-#### 5.1c.2 The guide harvest (anonymous, verified)
+#### 5.1d.2 The guide harvest (anonymous, verified)
 
 ```bash
 bash "$SKILL_DIR/scripts/guide-harvest.sh" \
@@ -1166,7 +1365,7 @@ discovered from the root's links, **18 harvested, 0 skipped**, 14 `narrative` an
 `beschreibung-modul-consent.md` opens with the module's real first paragraph, "Das MII KDS Modul
 Consent ist ein Basismodul des Kerndatensatzes (KDS) der Medizininformatik-Initiative (MII)…".
 
-#### 5.1c.3 After the harvest
+#### 5.1d.3 After the harvest
 
 - **Verify the harvested set against the published package** (§2.1.1): every packaged conformance
   resource either has a page or is recorded as having none. A module whose guide documents fewer
@@ -1216,8 +1415,9 @@ source is empty.**
 
 ### 5.4 Migrate the narrative
 
-**Where the narrative comes from is §5.1c** — the repository's own pages where it has them, the
-authenticated project download where credentials exist, otherwise the verified guide harvest. This
+**Where the narrative comes from is §5.1d** (pointed at the guide §5.1c discovered) — the
+repository's own pages where it has them, the authenticated project download where credentials
+exist, otherwise the verified guide harvest. This
 section maps whatever that produced onto the template's **fixed** page set (§9); it never invents a
 page, and never creates one page per harvested page.
 
@@ -1425,6 +1625,74 @@ set and canonical URLs, and its narrative per-language table is carried into the
 The IDENTISCH criteria are **not** qualified by shape: they are identity checks, and a DIVERGIERT is
 a stop in either shape.
 
+### 5.6a The same-module verification needs a SIBLING SKILL — a checked precondition
+
+§5.6's acceptance criterion and §7's Definition of Done both require the same-module comparison of
+the catalog's **`fhir-ig-analysis`** skill. Until now this specification named that skill and never
+said how to obtain it, which leaves an operator whose installation does not carry it with three bad
+options: skip the check, hand-wave it, or improvise a comparison. All three end with a migration
+reported as done on evidence nobody produced.
+
+So the dependency is **detected, and its absence is a loud, actionable WARN**:
+
+```bash
+bash "$SKILL_DIR/scripts/sibling-skill-check.sh" --skill-dir "$SKILL_DIR"
+```
+
+It resolves the installed-skills root from `--skill-dir` (and, failing that, from the conventional
+project- and user-level agent directories), confirms a candidate by reading `name:` out of its
+`SKILL.md` rather than trusting the directory name, and reports:
+
+| Outcome | Emits | Exit |
+| --- | --- | --- |
+| found | INFO naming the resolved path and, where a `skills-lock.json` records one, the ref this project pinned it to | 0 |
+| not found | WARN `sibling-skill-unavailable:` carrying **the exact install command, pinned** | 1 |
+| pinned ref reads `main`/`master` | additionally WARN `pin-not-taken:` — the lock file is the second, independent way to see that a pin did not apply | 0 or 1 |
+| no `--skill-dir` and nothing in any conventional root | WARN `skill-root-undetermined:` naming the roots it examined — reported as *unread*, never as *absent* | 1 |
+
+The command it emits is the pinning form, with the ref taken from this project's own
+`skills-lock.json` so the sibling arrives at the version the rest of the installation is on:
+
+```text
+npx skills add "https://github.com/forschungsgruppe-digital-health/agent-skills/tree/<ref>" \
+  --skill fhir-ig-analysis --agent claude-code codex --yes
+```
+
+`<owner>/<repo>@<tag>` is **not** the pinning form — in that CLI `@` introduces a skill *name* and the
+install silently comes from the default branch — so the script never emits it.
+
+#### 5.6a.1 Why it does NOT install it
+
+**A tool grant is not a dependency declaration.** `allowed-tools` answers "may the agent run this
+command", never "does this skill need that skill". This skill's own frontmatter is the proof: it
+grants `Bash(npx:*)` for the pinned SUSHI and goFSH invocations, and that grant would equally permit
+`npx skills add`. Permission without intent is exactly the confusion to avoid — a dependency has to
+be stated where it is *checked*, in the procedure, with an observable outcome.
+
+Three further reasons, each of which stands on its own:
+
+- **It would write to the operator's project as a side effect of an unrelated run.** A migration
+  touches a working branch of the module repository (guardrail 6) and nothing else. Installing a
+  skill mutates `.claude/skills/` or `.agents/skills/` and `skills-lock.json` — files that are not
+  this migration's to change, and that a reviewer of the migration's pull request will never see.
+- **It would make the run non-hermetic.** A sibling resolved from the network at run time is not the
+  version anybody reviewed, and — unless the install is also committed — not a version the run log
+  can name. The run's own reproducibility rule (§5.1c.3: pin a published version, record it like the
+  source commit SHA) would then hold for the guide and not for the tooling.
+- **It cuts against the catalog's static-by-design stance.** The catalog is a Git repository with a
+  generated index, no server and no runtime; installation is an explicit, reviewed act by the
+  consumer, recorded in `skills-lock.json`. A skill that installs another skill turns the consumer's
+  deliberate pin into a run-time resolution. The catalog's own authoring guidance names fetching and
+  executing remote content on the agent's initiative as an anti-pattern for the same reason.
+
+**What the operator does instead is one command, and it is in the WARN.** That is the whole trade:
+one copy-paste, in exchange for the install staying visible, pinned, reviewed and theirs.
+
+→ **Acceptance:** the check ran and is in the run log. Either it exited 0 and the same-module
+verification's IDENTISCH lines are in the log behind it, or it exited 1 and the missing sibling is in
+the report's ① decision queue — a Definition-of-Done item that has not been met, never a step quietly
+dropped. The check itself installs nothing and modifies nothing.
+
 ### 5.7 Report
 
 Write `migration-log/migration-report.md`: mapping table, assumptions, the `TODO:REVIEW` list, the QA
@@ -1461,7 +1729,9 @@ Gate D is organizational. Nothing publishes before it.
 SUSHI and the IG Publisher build cleanly (`Errors: 0`) — **for source shape B read that through the
 shape-B qualifier of §5.1b.4, never flatly**; the Manteldokument crosswalk is complete; the
 `fhir-ig-analysis` same-module verification reads IDENTISCH (identity, published artifact set,
-canonical URLs); the language configuration is English-default with a German translation; every
+canonical URLs) — that sibling skill being a **checked precondition**, §5.6a, so an installation
+without it produces an open decision-queue item and never a silently skipped criterion; the
+language configuration is English-default with a German translation; every
 placeholder is replaced; template examples are removed; the default branch is unchanged; a pull
 request carries `migration-report.md`; all review gates are signed off.
 
@@ -1749,10 +2019,13 @@ block-buffered when it is a pipe while stderr is not: measured before the fix, a
 appeared *first* in the captured log, ahead of INFO lines emitted seconds earlier. A log that claims
 to read as one chronological stream has to actually be one.
 
-**Two bundled scripts take the other route: they `source` this helper as a library** —
-`gofsh-results.sh` (§5.1b.2) and `package-identity.sh` (§2.1.1, §5.1b.1a) — so their lines are
-emitted by the same code that emits everyone else's rather than hand-assembled. **Call those two
-directly, never through `run --emits-runlog`:** they already write `run.log` themselves, and the
+**Seven bundled scripts take the other route: they `source` this helper as a library** —
+`gofsh-results.sh` (§5.1b.2), `package-identity.sh` (§2.1.1, §5.1b.1a), `repo-identity.sh` (§2.1.2),
+`parent-snapshots.sh` (§5.1b.5), `simplifier-discover.sh` (§5.1c.6), `guide-harvest.sh` (§5.1d.2)
+and `sibling-skill-check.sh` (§5.6a) — so their lines are emitted by the same code that emits
+everyone else's rather than hand-assembled. **Call those seven directly, never through
+`run --emits-runlog`:** they already write
+`run.log` themselves, and the
 wrapper's `tee` into it would duplicate every line. The distinction to remember is not which
 language a script is written in but where its lines come from: a script that *prints* §10.2 lines is
 wrapped with `--emits-runlog`; a script that *calls* the helper is not wrapped at all.
@@ -1789,7 +2062,7 @@ same lines. Where the report and the log disagree, the log is right.
 > report it and stop rather than normalizing. Invent no domain content; mark uncertainty
 > `TODO:REVIEW`. Do not publish. Delete the template's example artefacts before migrating. Replace
 > every `{{...}}` placeholder and verify none remain. Do not modify the default branch.
-> **Where the module's narrative is not in its repository, get it (§5.1c) — the authenticated
+> **Where the module's narrative is not in its repository, get it (§5.1c, §5.1d) — the authenticated
 > project download if credentials are offered, otherwise the guide harvest — and account for every
 > discovered page. Shipping the template's starter pages is a failed migration, not a short one.
 > Any "this cannot be read" you record must name the exact URL, the date and the numbers, and must

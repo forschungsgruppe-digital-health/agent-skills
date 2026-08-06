@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # guide-harvest -- harvest a module's NARRATIVE out of its server-rendered
 # Simplifier guide, page by page, into Markdown -- and prove that it got all of
-# it (spec §5.1c).
+# it (spec §5.1d).
 #
 # WHY THIS EXISTS. A module authored in Forge and published on Simplifier keeps
 # NO narrative in its repository (spec §5.1b.1): the pages live on the platform.
@@ -28,7 +28,7 @@
 #      yields the project INCLUDING the narrative markdown as the author wrote
 #      it. It requires a Simplifier login (measured: anonymous access redirects
 #      to `/login?ReturnUrl=...`), so a human supplies the archive; this script
-#      is not it. Spec §5.1c.1.
+#      is not it. Spec §5.1d.1.
 #   2. THIS HARVEST -- anonymous, verified, and a RENDERING: what it returns is
 #      the guide's HTML, not the author's source. Directives have already been
 #      expanded, and `{{tree}}`/`{{render}}` blocks arrive as their output.
@@ -90,7 +90,7 @@
 #     --keep-html DIR  keep the fetched HTML there instead of in a scratch
 #                      directory that is removed. Evidence for a disputed page.
 #     --sleep SECONDS  pause between fetches (default 1). Be a polite client.
-#     --step S         run-log STEP field   (default 5.1c)
+#     --step S         run-log STEP field   (default 5.1d)
 #     --action A       run-log ACTION field (default guide-harvest)
 #
 # Call it DIRECTLY, not through `migration-log.sh run --emits-runlog`: it emits
@@ -113,7 +113,7 @@ _here() { cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd; }
 . "$(_here)/migration-log.sh"
 PY="$(_here)/guide-page-to-md.py"
 
-STEP=5.1c
+STEP=5.1d
 ACTION=guide-harvest
 GUIDE_URL=""
 OUT=""
@@ -213,7 +213,7 @@ if [ "${N_DISC:-0}" -eq 0 ]; then
     "Either --guide-url is a PROJECT page (client-rendered: that URL space really" \
     "does deliver an application shell) rather than a /guide/<key>/<Root> URL," \
     "or the guide renders differently than measured. Do NOT conclude that the" \
-    "module has no narrative -- see the authenticated project download, spec 5.1c.1."
+    "module has no narrative -- see the authenticated project download, spec 5.1d.1."
   exit 2
 fi
 log_info "$STEP" "$ACTION" \

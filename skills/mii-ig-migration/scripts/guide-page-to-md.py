@@ -511,7 +511,7 @@ def cmd_extract(args):
     md, r = to_markdown(region, args.url)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     header = (
-        "<!-- Harvested from %s on %s by scripts/guide-harvest.sh (spec 5.1c). -->\n"
+        "<!-- Harvested from %s on %s by scripts/guide-harvest.sh (spec 5.1d). -->\n"
         "<!-- Source of record: the Simplifier-rendered guide. Links and images are "
         "still absolute to simplifier.net and the page is not yet mapped onto the "
         "template page set (spec 9). TODO:REVIEW -->\n\n" % (args.url, stamp)

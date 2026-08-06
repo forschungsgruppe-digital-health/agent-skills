@@ -48,7 +48,7 @@
 #     are SERVER-RENDERED and carry the module's NARRATIVE (measured: root 24509
 #     bytes with the whole page tree, leaf 20481 bytes with the real German
 #     text), so a `/guide/` URL is reported as `server-rendered-guide:` and
-#     pointed at `guide-harvest.sh`, which harvests it (spec §5.1c).
+#     pointed at `guide-harvest.sh`, which harvests it (spec §5.1d).
 #
 #     Do NOT carry a finding from one of those URL spaces to the other. That
 #     over-generalisation is what shipped a migration with the template's
@@ -295,7 +295,7 @@ if [ -n "$RENDERED" ]; then
     log_info "$STEP" "$ACTION" \
       "server-rendered-guide: this URL space DOES deliver content  http=$CODE bytes=${BYTES:-0} guide_page_links=${GUIDE_LINKS:-0} url=$RENDERED" \
       "It still yields no IDENTITY -- that stays a Gate-A read by a human. What it" \
-      "yields is the NARRATIVE: harvest it with scripts/guide-harvest.sh (spec 5.1c)," \
+      "yields is the NARRATIVE: harvest it with scripts/guide-harvest.sh (spec 5.1d)," \
       "or supply the authenticated project download, which is the better source." \
       "Do NOT read the project page's client-rendered finding onto this one."
   elif [ "$CODE" = "200" ] && [ "${MARKERS:-0}" -eq 0 ]; then
