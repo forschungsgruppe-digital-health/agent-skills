@@ -302,10 +302,10 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    workflow's `env:` block — read the pins from there rather than from this file. Acceptance:
    `qa.txt` reports `Errors: 0` and every example validates — shape B: as qualified in step 2b, the
    named escalations excepted and every *other* error still a stop. Then run the **same-module
-   verification** with the catalog's `fhir-ig-analysis` skill (measure the unmigrated source, then
-   the migrated tree — an equal `packageId` triggers the comparison; the SOURCE is the first input):
-   identity fields, published artifact set and canonical URLs must all read **IDENTISCH**, and the
-   narrative per-language table goes into the report's QA triage. A DIVERGIERT is a stop.
+   verification** with `fhir-ig-analysis` (measure the unmigrated source, then the migrated tree — an
+   equal `packageId` triggers the comparison; the SOURCE is the first input): identity, published
+   artifact set and canonical URLs must all read **IDENTISCH** and a DIVERGIERT is a stop; the
+   narrative per-language table goes into the report's QA triage.
 
 8. **Report.** Write `migration-log/migration-report.md` **from
    [the report template](references/migration-report-template.md)** — built around three reviewer
@@ -326,13 +326,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
 
 ## Run log
 
-**What it is for, once: so a human reader can reconstruct which steps ran and what each produced —
-the command actually executed, the counts it returned, the status it exited with — without
-re-running anything and without trusting recollection.** `migration-log/run.log`: plain text,
-append-only, committed with the branch. The report's protocol section is generated **from** it
-(step 8), so it cannot claim what the run did not do. Spec §10 is normative.
-**Emit every line through the bundled helper**, `ML="$SKILL_DIR/scripts/migration-log.sh"` — it formats
-the line, appends it to the run log and echoes it, for the many steps that run no bundled script too.
+**What it is for, once: so a human reader can reconstruct which steps ran and what each produced — the command actually executed, the counts it returned, the status it exited with — without re-running anything and without trusting recollection.** `migration-log/run.log`: plain text, append-only, committed with the branch. The report's protocol section is generated **from** it (step 8), so it cannot claim what the run did not do. Spec §10 is normative. **Emit every line through the bundled helper**, `ML="$SKILL_DIR/scripts/migration-log.sh"` — including from the many steps that run no bundled script.
 
 | Call | Emits |
 | --- | --- |
@@ -342,15 +336,14 @@ the line, appends it to the run log and echoes it, for the many steps that run n
 | `bash "$ML" run STEP ACTION [--emits-runlog] [--raw-log F] [--expected-nonzero WHY] -- CMD …` | the command actually executed, its output at `migration-log/<ACTION>.log` (**truncated per invocation**), and its **real exit status**, returned rather than swallowed |
 
 **Never `… 2>&1 | tee -a migration-log/run.log`.** A pipeline's status is `tee`'s, and this skill's
-acceptance criteria *are* exit statuses: measured, `fsh-sushi` exits **41** on raw goFSH output and
-`postprocess-gofsh.py` exits **1** on a too-narrow `FSH_DIR` — that pipeline reported **0** for both,
-so a failed step read as a passed one. `run` takes the status from `PIPESTATUS[0]`; `--emits-runlog`
-folds in the three bundled scripts' own lines, already in this format (wrapped, they log `params`/
-`result` rather than a second `start`/`done` pair). **An exit status is eight bits** — 256 SUSHI
-errors report as `exit=0` — so `run` cross-checks it against the error count in the raw log and WARNs
-(`exit-status-truncated:`) when the two disagree. `--expected-nonzero WHY` marks the one step whose
-non-zero exit is the documented outcome (shape-B `sushi-after`): it logs a WARN naming the
-escalation instead of an ERROR calling the expected result a failure.
+acceptance criteria *are* exit statuses: measured, that pipeline reported **0** where `fsh-sushi`
+exited **41** and `postprocess-gofsh.py` exited **1**, so failed steps read as passed. `run` takes
+the status from `PIPESTATUS[0]`; `--emits-runlog` folds in the bundled scripts' own lines (wrapped,
+they log `params`/`result` rather than a second `start`/`done`). **An exit status is eight bits** —
+256 SUSHI errors report as `exit=0` — so `run` cross-checks it against the raw log's error count and
+WARNs (`exit-status-truncated:`) on disagreement. `--expected-nonzero WHY` marks the one step whose
+non-zero exit is the documented outcome (shape-B `sushi-after`), logging a WARN naming the
+escalation rather than an ERROR calling the expected result a failure.
 
 ```text
 2026-08-05T22:29:04Z  INFO   5.1b.2  gofsh-convert  converted 1 of 20 inputs  expected=20 actual=1 exit=0
@@ -361,11 +354,11 @@ escalation instead of an ERROR calling the expected result a failure.
 `INFO `/`WARN `/`ERROR` padded to five, `STEP` the spec section (`5.1b.3`, `5.4`, `pre.5`), `ACTION`
 a stable slug, `DETAIL` the command **actually executed** as ``cmd=`…` `` plus measured `key=value`
 outcomes. Continuations are indented four spaces; every step emits at least one INFO line.
-**WARN is mandatory for silent partial success**: whenever a tool reports success while producing less
-than its input implies, name **both** numbers in a WARN beginning with the literal token
-`silent-partial-success:`. `ratio` does that — never by hand — because on that run every other signal is
-green (postprocess "nothing to repair", SUSHI 0 errors) while 19 of 20 resources are missing. Read the
-log back with `grep -E '  (WARN |ERROR)  '` and `grep -F 'silent-partial-success:'`.
+**WARN is mandatory for silent partial success**: when a tool reports success while producing less
+than its input implies, name **both** numbers in a WARN beginning `silent-partial-success:`. Use
+`ratio`, never do it by hand — on that run every other signal is green (postprocess "nothing to
+repair", SUSHI 0 errors) while 19 of 20 resources are missing. Read the log back with
+`grep -E '  (WARN |ERROR)  '`.
 
 ## Guardrails
 
