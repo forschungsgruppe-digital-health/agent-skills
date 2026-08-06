@@ -88,7 +88,9 @@ Discover the context: assume none of it, create nothing that is missing.
    an unpinned `npx` does not; let the pin be the record, carried in the log's `cmd=` token.
    (`allowed-tools` grants `Bash(npx:*)`; `Bash(gofsh:*)` never matches an `npx` command line.) goFSH
    is **required for shape B**, for shape A only where the source ships JSON/XML; the IG Publisher is
-   needed from step 7. Missing node/npx → say which and **stop after step 2**.
+   needed from step 7. Missing node/npx → say which and **stop after step 2**. A parent package
+   without snapshots additionally needs **java and a pinned `validator_cli.jar`** — fetched only when
+   that condition is actually detected (spec §5.1b.5), never hand-substituted.
 
 ## Procedure
 
@@ -118,7 +120,20 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    `sushi-config.yaml` wins — it is what the build reads; record it. A field in neither file comes
    from the generated `ImplementationGuide`; absent everywhere it takes the template default, at
    Gate A. Resolve floating pins (`1.5.x`) per spec §2.1, recording the pick and its evidence.
-   **Shape B often has none of the three files — but a PUBLISHED module is not identity-less: its package tarball carries the manifest.** `bash "$SKILL_DIR/scripts/package-identity.sh" --package ID --version V` fetches it and logs `packageId`, `version`, `description`, `fhirVersions`, `jurisdiction` and the **dependency pins** — source evidence, outranking any `dist-tags.latest` — plus the `canonical` derived from the resources' own urls by common prefix, **unanimous or a WARN, never a majority vote**. It reports; it overwrites nothing. A manifest has no field for `title`, `license` or `publisher`, so those three — not "everything" — stay Gate A, and `author` is a registry account, not a publisher. Spec §2.1.1; goFSH's config is never identity.
+   **Shape B often has none of the three files — and a repository carrying no identity is not an
+   identity-less module.** Identity is then RECOVERED from several sources **in this order, each
+   field recorded with the source it came from** (spec §2.1; the scripts write the ledger themselves):
+   - **P — the published package.** `bash "$SKILL_DIR/scripts/package-identity.sh" --package ID --version V` logs `packageId`, `version`, `description`, `fhirVersions`, `jurisdiction` and the **dependency pins** — source evidence, outranking any `dist-tags.latest` — plus the `canonical` derived from the packaged resources' own urls by common prefix, **unanimous or a WARN, never a majority vote**. No manifest carries `title`, `license` or `publisher`; `author` is a registry account, not a publisher.
+   - **R — the source repository.** `bash "$SKILL_DIR/scripts/repo-identity.sh" --dir DIR --repo OWNER/NAME --rendered URL` reads the LICENSE text's **SPDX id — real licence evidence, the field that must never default** (§2.2) — the README's first heading as a `title` candidate, the repo description, and the release tags, whose match with P's version ties that release to the commit. An unrecognized licence text yields nothing (`license-text-unrecognized:`); the GitHub owner is **not** a `publisher`.
+   - **H — the Simplifier project / rendered IG.** Measured client-rendered (HTTP 200, ~56 KB, 52 script markers, **no identity metadata in the DOM**), so it is a **human reference at Gate A** for what no machine source carries — not a scrape target. The same script measures that and extracts nothing.
+
+   Whatever no tier yields stays Gate A — measured on the reference module, `publisher` alone.
+   Every value is claimed with its evidence (`bash "$ML" claim 2.1 ACTION FIELD VALUE TIER SOURCE`),
+   and a second source with a **different** value raises `identity-contradiction:` — **reported,
+   never resolved** (measured: goFSH's `version: 1.0.8` against the package's `2026.0.0`; a source
+   pin `2.0.2` against `dist-tags.latest` `2.0.3`). `bash "$ML" claims --markdown` is the report's
+   identity table. **NEVER ALTER EXISTING METADATA from a recovered value**, even where the recovery
+   shows it to be inconsistent: recovery is evidence for Gate A. Spec §2.1.2–§2.1.4.
 
    Log each value read, and each divergence as a WARN. The **target version** is the only identity
    value that is a human decision: MII CalVer `YYYY.n.n`, not SemVer, defaulting to the source's.
@@ -210,11 +225,21 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
      "converted"): the three Consent examples carried **1** nested provision each before, 27 / 6 / 3
      after. SUSHI's exit status is its error count, so `sushi-after` exits 5 — the anticipated
      shape-B outcome, which `--expected-nonzero` logs as an escalation rather than as a failure.
-   - **A parent package that ships no snapshots is a Gate-A escalation, not a post-processing task**:
-     SUSHI cannot import such a parent at all, blocking those profiles and the instances declaring
-     `InstanceOf` them. Obtain a snapshot-bearing build, or record the profiles as blocked and migrate
-     the rest — **never invent a parent** (guardrails 1 and 3). **goFSH-invented ids and GUID-named
-     files** go to the ② queue: minted ids become the module's, so Gate A confirms them.
+   - **A parent package that ships no snapshots blocks import** — SUSHI cannot read such a parent at
+     all, blocking those profiles and every instance declaring `InstanceOf` them. **Detect it, then
+     generate the snapshots with a real generator; never hand-roll one** (spec §5.1b.5):
+     `parent-snapshots.sh detect --package ID --version V` counts them (measured: 21 SDs, **0**
+     snapshots, in *both* candidate versions — another version does not fix it), and
+     `parent-snapshots.sh build … --validator validator_cli.jar --install --require <parent-url>…`
+     drives the **official HL7 generator** (`java -jar validator_cli.jar snapshot`, ProfileUtilities),
+     verifies every result (**a snapshot whose element count matches only the differential is WRONG**
+     and is refused), and installs a **new** cache entry `<id>#<version>-snapshots` — upstream is
+     never overwritten. A generator refusal is an upstream defect to escalate, not to hand-finish;
+     what the rebuild costs CI (it is local-only) is a Gate-A decision. Approximating a merge —
+     slicing, cardinalities, element order — fabricates a parent (guardrails 1 and 3). Then re-pin,
+     re-run SUSHI and log **both** error counts: measured on Consent, **5 → 0**.
+     **goFSH-invented ids and GUID-named files** go to the ② queue: minted ids become the module's,
+     so Gate A confirms them.
    - **Acceptance:** counts match the inventory; the script exits 0; every remaining SUSHI error is a
      named unresolvable-parent escalation; all of it is in `run.log`. **Path B does not by itself produce
      a clean build**, so every "clean build" criterion below (steps 3 and 7, *Verification*) is read for
@@ -416,6 +441,13 @@ bash "$ML" run 5.4 fql-scan --emits-runlog -- bash "$SKILL_DIR/scripts/fql-scan.
   divergence is reported and human-decided.
 - `fql-scan.sh --strict` exits 0 **and reports a non-zero scanned-file count**, or every finding is a
   deliberate `TODO:REVIEW`. An empty target set exits 2 and is not a pass. No `[UNKNOWN]` findings.
+- **Identity:** every field in `migration-log/identity-claims.tsv` names the source it was read from;
+  `bash "$ML" claims` lists each contradiction as a ① decision (it exits 1 while one is open); the
+  fields no tier yielded are named at Gate A; **no existing metadata was rewritten** from a recovered
+  value. **Parent snapshots (§5.1b.5):** `parent-snapshots.sh detect` exits 0 for every parent, or the
+  rebuild is installed as `<id>#<version>-snapshots` with upstream re-verified untouched, every
+  generated snapshot larger than its own differential, each generator refusal named — and the SUSHI
+  error counts **before and after** the re-pin are both in the log.
 - The IG builds both language variants and the German pages render.
   `input/translations/de/ImplementationGuide-<ig-id>.po` has a page-title unit for **every** distinct
   title in the `pages:` tree, every empty `msgstr` is in the ② queue, and `de` appears in a
@@ -448,47 +480,9 @@ entry, no package push); and **filling in missing domain content** (a gap in the
 
 Derived from `skills/mii-ig-migration` in
 `forschungsgruppe-digital-health/mii-kds-sample-ig-inoffiziell` at commit
-`bd38e2722a594254f3450e73c3fcdbfc2c47b7e8`. **2026-07-31** — reworked for a changed target template
-(38-row fact inventory): default language reversed German→English, the `hl7-ig-build` branch
-convention gone, tool and example paths moved, `references/agent-manifest.yaml` dropped.
-
-**2026-08-01 / 08-02** — first dry run (`kerndatensatz-dokument`) and first full migration (Dokument,
-steps 1–7 incl. build): identity gained `license` and a sushi-config-wins rule; target-state discovery
-gained the hybrid state; skeleton creation became in-place; the German-only inversion, branch-convention
-discovery, scoped placeholder check, recursive `fql-scan.sh` with an empty-target failure, the report
-template, the `-xml` → `-xml-html` crosswalk fix and spec §9's Datensatz split all arrived.
-
-**2026-08-05** — retired a false claim: earlier revisions said the IG Publisher cannot localize
-`pages:` titles and that an `ImplementationGuide-<id>.po` is ignored. It can, and it is not. Step 6 and
-spec §5.5 prescribe the catalogue, `scripts/gen-page-title-po.py` generates it non-destructively, and
-§5.5 carries the evidence (our build on IG Publisher 2.2.11, the HL7 `multi-lang-test-ig` `/fr/`
-controlled negative) plus what is deliberately not claimed: the menu and the IG's own description.
-
-**2026-08-05** — added **source shape B** (Precondition 2, step 2b, spec §5.1b,
-`scripts/postprocess-gofsh.py`), because the previous binary "IG project or stop" gate refused exactly
-the modules the skill exists for. Measured end to end against
-`medizininformatik-initiative/kerndatensatzmodul-consent` (32 files, read-only; goFSH 2.6.1, SUSHI
-3.20.0); deliberately **not** claimed: that Path B produces a clean build. Hardened the same day after
-an operator followed it literally and it stopped on itself — pinned `npx`, the repository root as
-input, the retired "no narrative" overclaim, the shape-B qualifier on three "clean build" criteria, the
-canonical→package recipe for `-d`, four `postprocess-gofsh.py` fixes — and the **run-log convention**
-(spec §10) was written in that pass, `.ai-log/` becoming `migration-log/`.
-
-**2026-08-06 — the run log made real.** An operator ran Path B verbatim and almost nothing emitted the
-log the convention describes: the goFSH stage wrote no `run.log` line, the mandatory WARN never fired
-because nothing compared input to output, SUSHI's 41 → 5 was captured nowhere, and a step running no
-bundled script had no way to emit a line. `scripts/migration-log.sh` now supplies `info`/`warn`/`error`,
-a `ratio` implementing §10.4, and a `run` wrapper **returning the wrapped command's real exit status** —
-the previous `2>&1 | tee -a run.log` reported 0 for a SUSHI run that exited 41. A re-measurement then
-found the read-back itself defective, fixed at the cause: raw logs truncated per invocation and the
-goFSH table parsed **with its labels** by `scripts/gofsh-results.sh`, so a re-run no longer sums two
-tables and Mappings/Invariants are no longer counted as converted resources; `run` gained the 8-bit
-exit-status cross-check, `--expected-nonzero` for the anticipated shape-B `sushi-after` and a `begin`
-run-boundary; wrapped scripts log `params`/`result`, not a second `start`/`done`; the step-2b block logs
-both SUSHI error counts. Measured: 20 of 20 converted with `-t json-and-xml` (no WARN), 1 of 20 without
-(WARN), 41 → 5 across the repair, identical on a second run in place.
-
-**2026-08-06 — identity recovered from the published package.** The Consent run stopped at Gate A claiming identity had *no* authoritative source. Measured against `de.medizininformatikinitiative.kerndatensatz.consent@2026.0.0`, the package tarball yields `packageId`, `version` **2026.0.0**, description, `fhirVersions`, `jurisdiction` and the dependency pins, and its 13 resource urls agree unanimously on the canonical — so the genuine Gate-A remainder is three fields (`title`, `license`, `publisher`), not all of them. Spec §2.1.1 ranks that tier (below a repo-local `sushi-config.yaml`, above the goFSH config and every inference), `scripts/package-identity.sh` performs it, and §5.1b.2's version rule now consults the source package **before** `dist-tags.latest` — which had put the parent at `de.einwilligungsmanagement@2.0.3` where the source pins **2.0.2**.
+`bd38e2722a594254f3450e73c3fcdbfc2c47b7e8`. **The dated revision history — every change and the
+measurement that forced it — is [references/provenance.md](references/provenance.md)**; it is
+history, and nothing in it changes what to do on a run.
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill; `scripts/` is
 Apache-2.0, matching this repository's code licence. Promoted to `stable` on 2026-08-05 after two full

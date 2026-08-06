@@ -37,6 +37,27 @@ and carries them over unchanged. It does not invent them and does not ask.
 
 ### 2.1 Module identity — where each value comes from
 
+**Identity is RECOVERED from several sources in a fixed order, and every field is recorded with the
+source it came from.** A published KDS module whose repository is bare is not identity-less; it is
+identity-*scattered*, and the failure mode this ordering exists to prevent is concluding "a human
+must supply everything" after reading one place and finding nothing.
+
+| Tier | Source | Yields | Where |
+| --- | --- | --- | --- |
+| **C** | repo-local `sushi-config.yaml` | everything it declares — it is what the build reads | §2.1 |
+| **P** | the **published package**: manifest + the packaged resources' own `url`s | `packageId`, `version`, `description`, `fhirVersions`, `jurisdiction`, `dependencies`, `canonical` | §2.1.1 |
+| **J** | repo `package.json` | `name`, `version`, `canonical`, `title`, `license` where present | §2.1 |
+| **I** | the generated `ImplementationGuide` resource | fields absent from C/J | §2.1 |
+| **R** | the **source GitHub repository**: README, LICENSE, tags, repo metadata | `license` (real evidence), a `title` candidate, a `description` candidate, release-tag evidence for `version` | §2.1.2 |
+| **H** | the **Simplifier project / rendered IG** | nothing mechanically — a **human reference** for what no machine source carries | §2.1.3 |
+| **T** | the template's own literals and patterns | last resort, and a Gate-A note every time | §2.2 |
+| **G** | goFSH's derived `sushi-config.yaml` | **never identity** — recorded only so its disagreement becomes visible | §5.1b.2 |
+
+Higher tier wins **only as a recommendation to the human at Gate A**; a lower tier disagreeing is a
+finding, not noise (§2.1.4). Run the recovery in that order — tier P before goFSH, because the `-d`
+dependency set comes out of it (§5.1b.1a) — and **never alter existing metadata from a recovered
+value, even where the recovery shows that metadata to be inconsistent.**
+
 Read from the `sushi-config.yaml` and `package.json` at the root of `SOURCE_REPO_URL` (§2). Absent a `sushi-config.yaml`, read
 `package.json` plus the `ImplementationGuide` resource. **When both files exist and disagree on a
 field, `sushi-config.yaml` wins** — it is what the build reads; record the disagreement in the
@@ -173,6 +194,89 @@ AND its evidence source in the migration report (Gate A) — the pick changes va
 A top-level `language:` value in the source is **not** identity: it belongs to the source's old
 single-language setup. The target's language configuration is the template's i18n mechanism
 (§4.2, §5.5) — do not carry `language:` over into it.
+
+### 2.1.2 Tier R — the source repository (the only machine source for `license`)
+
+Tier P ends with three fields a FHIR package manifest has no place for: `title`, `license`,
+`publisher`. Two of them are not actually unknown, because the repository the migration is already
+reading carries evidence for them.
+
+```bash
+bash "$SKILL_DIR/scripts/repo-identity.sh" \
+  --dir <local-checkout> --repo <owner>/<name> --rendered <rendered-guide-url>
+```
+
+| Read | From | Standing |
+| --- | --- | --- |
+| `license` | the `LICENSE` file's **text**, matched against a conservative SPDX table | **real licence evidence** — the SPDX id of the licence the module is published under |
+| `license` | GitHub's own `license.spdx_id` for the same file | a second, independent reading of the same file; recorded separately so a disagreement is visible |
+| `title` | the README's **first heading, at any level** | a **candidate**, confirmed at Gate A |
+| `description` | the GitHub repository description | a candidate — a repository blurb is not the module's `description` |
+| `version` | the release **tags** | evidence for **which release the migrated commit is**: the tag equal to tier P's version is what ties the two together (measured on Consent: tag `2026.0.0` = package version `2026.0.0`) |
+
+- **`license` is the field this tier exists for.** The template ships `license: CC-BY-4.0` as a
+  literal, so §2.3's placeholder gate never flags it, and MII modules commonly declare `CC0-1.0`
+  (§2.2). A LICENSE file is the difference between carrying a licence over and silently relicensing
+  published content. Measured on `kerndatensatzmodul-consent`: the LICENSE text is CC-BY-4.0 and
+  GitHub's detection agrees — the same value the template would have defaulted to, **which is a
+  finding to record, not a reason it did not need checking**.
+- **An unrecognized LICENSE text yields nothing.** `repo-identity.sh` WARNs
+  `license-text-unrecognized:` and emits no id. A guessed licence is the worst kind of plausible
+  wrong value: legally meaningful, and nobody re-reads it.
+- **`publisher` is NOT the GitHub owner.** An account that hosts a repository is not the publishing
+  organisation of a conformance artefact — the same reason the registry `author` is not one
+  (§2.1.1). The script says so with `not-recoverable-from-a-repository: publisher` and leaves the
+  field to a human.
+- A rate-limited or unreachable API is reported (`github-api-rate-limited:`) and **never recorded as
+  "the repository carries no identity"**; re-run against a local checkout.
+
+### 2.1.3 Tier H — the Simplifier project and the rendered IG (a human reference)
+
+State plainly what is and is not mechanically extractable here.
+
+**The Simplifier project page is CLIENT-RENDERED.** Measured on the reference guide's project page
+(2026-08-06): HTTP 200, ~56 KB of HTML, 52 `<script` markers, and **no identity metadata in the
+DOM** — the delivered document carries the application, and the metadata arrives later by script.
+`repo-identity.sh --rendered URL` measures exactly that and reports `client-rendered-page:`.
+
+So tier H is **a reference for a human, not a scrape target**:
+
+- A human reads the rendered guide at Gate A for the fields no machine source carries — `title` as
+  the guide displays it, and `publisher` — and records what they read, with the URL as the evidence.
+- An agent extracting a value "from the guide" would be fabricating with a URL attached
+  (guardrail 3): a page that renders differently tomorrow leaves no way to re-derive what was read
+  today. The rendered IG's legitimate mechanical uses are elsewhere and unchanged — the page
+  STRUCTURE for step 5.1, and the artefact list for the inventory.
+- Where a rendered page **does** carry identity markers, the script says so and still extracts
+  nothing; a human reads and records them.
+
+### 2.1.4 Recording the evidence: the identity ledger and contradictions
+
+**Every recovered field is recorded with its tier and its source**, through the run-log helper:
+
+```bash
+bash "$ML" claim 2.1 <action> <field> <value> <tier> "<source>"   # one field, one source
+bash "$ML" claims --markdown                                      # the report's identity table
+```
+
+`migration-log/identity-claims.tsv` accumulates one row per field per source, and the bundled
+`package-identity.sh` and `repo-identity.sh` write theirs automatically. The report's identity
+section is generated from it (§10.6), so it cannot claim a value nobody read.
+
+**A second claim for the same field with a different value raises
+`identity-contradiction:`** — naming both values with their tiers, and resolving nothing. Real ones
+this run has already produced:
+
+| Field | One source | The other | Why it is not settled in a script |
+| --- | --- | --- | --- |
+| `version` | tier P `2026.0.0` (the published manifest) | tier G `1.0.8` (goFSH's derived config — one profile's version) | preferring either silently re-versions a published module |
+| parent pin | source package pins `de.einwilligungsmanagement@2.0.2` | registry `dist-tags.latest` is `2.0.3` | **source evidence wins** (§5.1b.2 step 1) — but the divergence is recorded, because it changes which parent everything is validated against |
+| `license` | tier R `CC-BY-4.0` (the LICENSE file) | tier T `CC-BY-4.0` (the template literal) | equal here; had they differed, adopting the template's value would have relicensed the module |
+
+**Contradictions are reported, never silently resolved.** The tier order says which value a human
+should probably adopt; adopting it *here* would rename, relicense or re-version a published module
+without anybody seeing it happen. `migration-log.sh claims` exits 1 while any field holds two
+distinct values, so the same call serves as a CI gate and as the report's input.
 
 ### 2.2 When the source and the template disagree
 
@@ -752,9 +856,9 @@ import."). That blocks the three profiles and, consequentially, the instances de
 them.
 
 Two options, both **human decisions taken at Gate A**: obtain a snapshot-bearing build of the parent
-package, or record the affected profiles as blocked and migrate the rest. **Inventing a parent is
-forbidden** — no local stub, no substituted base resource, no snapshot generated from a guess
-(guardrails 1 and 4).
+package — **which §5.1b.5 makes an executable procedure, not a wish** — or record the affected
+profiles as blocked and migrate the rest. **Inventing a parent is forbidden** — no local stub, no
+substituted base resource, no snapshot generated from a guess (guardrails 1 and 4).
 
 **goFSH-invented ids** are a review-queue item, not an error. Measured: "Encountered 6 definition(s)
 that were missing an id", each named, and where no name could be derived goFSH wrote GUID-named files
@@ -786,6 +890,131 @@ For shape B, "clean" means all four of:
 
 A residual error count that is merely tolerated is not a pass, and neither is a zero reached by
 inventing a parent. For source shape A the flat criteria stand unqualified.
+
+#### 5.1b.5 A parent package that ships no snapshots — detect, then generate with a real generator
+
+**Detect it.** The signal is SUSHI's own error, one per parent:
+
+```text
+error Structure Definition http://fhir.de/ConsentManagement/StructureDefinition/DocumentReference
+      is missing a snapshot. Snapshot is required for import.
+```
+
+Confirm it against the package rather than the error text, and do not chase versions blindly:
+
+```bash
+bash "$SKILL_DIR/scripts/parent-snapshots.sh" detect \
+  --package de.einwilligungsmanagement --version 2.0.2
+# -> surveyed  structure_definitions=21 with_snapshot=0 without_snapshot=21
+# -> WARN parent-without-snapshots: 21 of 21 …                       exit 1
+```
+
+Measured (2026-08-06): **both** `2.0.2` and `2.0.3` ship 21 StructureDefinitions and **0** snapshots
+— the package carries differentials only, so **picking a different version does not solve it**. Take
+the version from the module's own published package (`2.0.2`), not from `dist-tags.latest` (`2.0.3`):
+§2.1.1, source evidence wins. `detect` also reports whether the derivation chain is flat; measured
+here, all 21 derive **directly** from R4 core, which does ship snapshots — one differential over a
+snapshot-bearing base, in any order.
+
+**THE ABSOLUTE RULE: a snapshot is never hand-rolled or approximated.** Merging a differential onto a
+base is full FHIR profile-merging semantics — slicing, cardinality narrowing, type constraints,
+element ordering. An approximation produces profiles that *look* generated and are subtly wrong: the
+same failure shape as a tool reporting success while emitting garbage, and it would put a fabricated
+parent underneath every profile in the module (guardrails 1 and 3). Use a real generator or escalate.
+
+**Generate.** The official HL7 generator is `validator_cli.jar`'s `snapshot` **subcommand** (backed
+by `ProfileUtilities`, the same code the IG Publisher uses). Pin it — `latest` moves:
+
+```bash
+curl -sL -o validator_cli.jar \
+  https://github.com/hapifhir/org.hl7.fhir.core/releases/download/6.10.0/validator_cli.jar   # ~187 MB
+
+bash "$SKILL_DIR/scripts/parent-snapshots.sh" build \
+  --package de.einwilligungsmanagement --version 2.0.2 \
+  --validator ./validator_cli.jar --install \
+  --require http://fhir.de/ConsentManagement/StructureDefinition/DocumentReference \
+  --require http://fhir.de/ConsentManagement/StructureDefinition/DomainReference \
+  --require http://fhir.de/ConsentManagement/StructureDefinition/Provenance
+```
+
+The primitive, if you want it standalone:
+
+```bash
+java -jar validator_cli.jar snapshot <sd.json> -version 4.0.1 -tx n/a -ig <package-dir> -output <out.json>
+```
+
+**Four measured facts the script encodes, each silent if it is not:**
+
+1. **`snapshot` is a subcommand, not a flag.** `-snapshot` does nothing; `snapshot -help` fails with
+   "Unknown option" (the help lives in the top-level `-help`).
+2. **Filenames matter.** The validator lowercases the source path and mis-detects the format of any
+   name containing `template`: `extension-ConsentManagement-XacmlTemplate.json` fails with
+   "Unsupported format for …xacmltemplate.json" while **the identical bytes under another name
+   succeed**. Every SD is staged as `sd000.json`, `sd001.json`, … and merged back by `url`.
+3. **A batch run aborts at the first failure and silently skips the rest** — which made a healthy
+   `QuestionnaireResponse` profile look broken. Invoke once per file, and give `java` `</dev/null`
+   in a loop or it eats the loop's stdin.
+4. **`-tx n/a`** disables terminology resolution. Correct for structural merging; it also means no
+   binding was expanded or checked, and the validator side-installs a few packages into the shared
+   FHIR cache as it runs.
+
+**Verify before believing — the check that catches a fake.** A "snapshot" whose element count equals
+the **differential's** is the differential wearing the name. `build` refuses any generated file that
+does not have **more elements than its own differential** and **at least as many as its base's
+snapshot** (`snapshot-implausible:` / `snapshot-below-base:`, refused, never merged). Measured on the
+three blocking parents — snapshot / base / differential:
+
+| Profile | snapshot | R4 base | differential |
+| --- | --- | --- | --- |
+| `DocumentReference` | 61 | 45 | 8 |
+| `Provenance` | 65 | 32 | 20 |
+| `Consent` | 132 | 57 | 32 |
+
+A differential-only fake would have read 8, 20, 32. This is a **plausibility floor, not a semantic
+proof**: the assurance that slices and cardinalities merged correctly comes from using the official
+generator, not from these counts.
+
+**A refusal from the generator is evidence about the parent, not a gap to work around.** Measured:
+three of the 21 (`TemplateFrame`, `TemplateModule`, `QuestionnaireComposed`) fail with
+"…`Questionnaire.item.text.extension:renderingMarkdown.value[x]:valueMarkdown` launches straight into
+slicing without the slicing being set up properly first" — the generator correctly refusing a
+**malformed upstream differential**. None is a `Parent`/`InstanceOf` target in the Consent FSH, so
+none blocks the migration; `--require` is what makes that judgement mechanical, and the exit code
+follows the parents the migration is actually blocked on. Do not hand-finish a refused profile: a
+module that later derives from one hits the same wall, and that is a Gate-A escalation for the
+upstream package's maintainers.
+
+**Install as a NEW cache entry; never over the upstream.** `--install` writes
+`~/.fhir/packages/<id>#<version>-snapshots`, stamps the manifest `version` and a description saying
+it is a local rebuild, and refuses any destination not ending in `-snapshots` or an existing one
+without `--replace`. Upstream `#2.0.2` and `#2.0.3` stay byte-identical — re-verify that after
+installing (measured after the reference run: still 0 of 21 snapshots each). The rebuilt files are
+re-serialized, so do not diff them against upstream expecting byte equality; only `snapshot` was
+added.
+
+**Then re-pin and re-measure.** Point the FSH project at the rebuild —
+`de.einwilligungsmanagement: 2.0.2-snapshots` — and run SUSHI again. **The evidence is the error
+count before and after, not the script's exit status**; log both (§10). Measured on Consent:
+**5 errors → 0**, the three `missing a snapshot` errors and the two consequential
+`InstanceOf … not found` errors all gone, no new error, and the three previously blocked artefacts
+(`MII_PR_Consent_DocumentReference`, `MII_PR_Consent_Provenance` and their instances) now export.
+Expect *more* warnings, not fewer: rules that were silently dropped now resolve and get evaluated.
+
+**Carrying it upstream is a Gate-A decision, and this is where a migration can quietly break CI.**
+The rebuilt package exists **only in the local FHIR cache**. A `sushi-config.yaml` pinning
+`2.0.2-snapshots` fails to resolve on a clean checkout, in CI, and on every other developer's
+machine. Name the option chosen in the report and record it at Gate A:
+
+| Option | What it costs |
+| --- | --- |
+| a **CI prebuild step** running `parent-snapshots.sh build --install` | the 187 MB generator download per run (cacheable); keeps the rebuild reproducible from source |
+| **vendoring** the snapshot-bearing package into the repository | a locally built artefact in version control, which must be labelled as such and re-generated on every parent release |
+| publishing it to an **internal registry** | governance: it is a derived artefact of someone else's package, not a release of it |
+| **not repinning** — keep the upstream pin, leave the profiles blocked | the migration stays at §5.1b.4's escalation, with the blocked artefacts named |
+
+**The real fix is upstream.** A package published without snapshots is a defect in the publication,
+and the durable resolution is the parent's maintainers publishing snapshot-bearing releases. The
+procedure above unblocks a migration; it does not make the local rebuild an authority.
 
 ### 5.2 Create the skeleton
 
