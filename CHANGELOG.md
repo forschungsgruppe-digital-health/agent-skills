@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.10.1...v0.11.0) (2026-08-06)
+
+
+### Skills and capabilities
+
+* **mii-ig-migration:** migrate Forge/Simplifier-only modules, with a run log ([#50](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/50)) ([024bf2c](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/024bf2c5a5c94e530146c7b0eb380cb12b00305d))
+
 ## [0.10.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.10.0...v0.10.1) (2026-08-05)
 
 
