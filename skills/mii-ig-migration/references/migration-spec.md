@@ -1068,11 +1068,58 @@ from the project page and generalized to the platform, which is why §5.1 still 
 up on the rendered IG and work from the repository. That fallback remains correct **when this chain
 genuinely yields nothing**; it is not the starting position.
 
-This is the same failure the §5.1b "the repository carries no narrative" overclaim was: **a negative
-capability finding is measured on the exact artefact it is claimed about, and stated about that
-artefact only.** "Page X is client-rendered" is a measurement; "the platform cannot be read" is an
-inference from one page, and it cost this specification a working procedure. Where a run finds an
-endpoint empty, record *which URL* returned *what* — never the generalisation.
+##### 5.1c.2a One instance is not the class — in BOTH directions
+
+The rule this restates was written down here in one direction only, and the other direction has cost
+this specification more. Stated whole:
+
+**A measurement licenses a claim about the artefact it was taken on. Encoding it as normative for a
+CLASS of artefacts is a separate act and needs its own evidence.**
+
+- **Negative** — "X cannot be done", measured on one artefact and stated about the platform, the
+  format or the tool. It removes a capability, and a claim of impossibility is never re-checked.
+- **Positive** — "X has shape S", measured on one instance and encoded as the shape every instance
+  has. It keeps running and looks green, which is why it is the more expensive of the two.
+
+Three shipped defects, all of them found by an operator rather than by review:
+
+| # | The claim | Sample it rested on | What a second instance showed |
+| --- | --- | --- | --- |
+| **a** | how IG page titles localize (§5.5) | first a constant in the publisher's source with **no build at all**, read as "page titles cannot be localized"; then **one** build, of one guide, on one publisher version (2.2.11) | the HL7 `multi-lang-test-ig` on publisher **2.0.13**, with `/fr/` declared in `i18n-lang` but deliberately left out of `translation-sources` as a controlled negative. The impossibility was false; §5.5 now states the mechanism bullet by bullet, each with its own basis, and lends none of them to another |
+| **b** | "Simplifier is client-rendered, so nothing is extractable" (§2.1.3) | the **project** page: HTTP 200, ~56 KB, 52 script markers, no identity metadata in the DOM — a real measurement, still true of that URL | the **guide** pages are server-rendered and carry the whole narrative. The generalisation cost this specification the procedure that is now §5.1c |
+| **c** | the guide-key attribute shape `data-url="/guide/<key>"` (hop 3) | the Consent guide listing, where **every** key happens to be bare, so an extractor anchored on the closing quote read 3 of 3 | preview and archived guides carry `?version=current` inside that attribute. Measured across all **23** MII modules: consent 3 of 3, **mikrobiologie 2 of 3, person 0 of 3** — keys dropped silently, at exit 0 |
+
+**In every case the single sample was the benign one, and that is the normal case rather than bad
+luck.** The first instance to hand is the reference module — the best-maintained, most regular member
+of its class, and therefore the one *least* likely to exhibit a variant. **b** and **c** were measured
+on the same module on the same day, one in each direction, so the direction is not the diagnosis; the
+sample size is.
+
+→ **The operational test, before encoding a shape or a capability as normative here:**
+
+1. **Name the class** the claim is about — this guide, this project, Simplifier, every MII module.
+   A claim whose class is left implicit gets generalised by its reader instead of by its author.
+2. **Measure it on more than one instance.** One is a hypothesis.
+3. **Choose the second instance as the one most likely to differ** — the irregular one (an archived
+   or preview guide, the oldest release, the module nobody maintains), never a second page of the
+   same artefact. Where the class is small and enumerable, take **all** of it: the 23 MII modules are
+   a `for` loop, and running it is what turned **c** from "works" into "drops 1 of 3 keys on two
+   modules". Best of all, try a **controlled negative** — an instance where the mechanism should
+   *not* work; if it works there too, the mechanism is not the one you think it is.
+4. **Record the sample beside the claim**: which instances, which versions, which date, which
+   numbers. Every measured statement in this specification carries one, and that is what lets a
+   later run re-scope it instead of re-deriving it.
+5. **With only one instance available, bound the claim to it and say the generalisation is
+   unverified** — a `TODO:REVIEW` or a gate item. Never widen it silently because widening reads
+   better. Where a run finds an endpoint empty, record *which URL* returned *what*, never the
+   inference; `repo-identity.sh` reports `client-rendered-page:` scoped to the URL it probed for
+   exactly this reason.
+6. **Claim completeness from counts, never from an exit code.** Defect **c** exited 0 on all 23
+   modules; what exposed it was comparing keys extracted against keys present (§10.4).
+
+The general, skill-independent form of this rule — it is an authoring rule, not a FHIR one — is
+carried by the catalog's `skill-authoring` skill in its `references/measurement-rule.md`. Changing
+one without the other leaves the catalog saying two things.
 
 #### 5.1c.3 Reproducibility — pin a published version, never `current`
 
