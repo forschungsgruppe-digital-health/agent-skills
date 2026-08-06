@@ -112,6 +112,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    `implementation-guides/` holds **several guide trees** (versions × languages + shared assets — a
    real module ships six), apply spec §5.1a: pick the authoritative tree, mark parallel-language
    trees as harvest seeds, retain the rest.
+   **No rendered-IG URL? Discover it — spec §5.1c.** `bash "$SKILL_DIR/scripts/simplifier-discover.sh" --org ORG --module SLUG` walks org project list → package → project → **`/<project>/filterprojectguides`** (no tilde; the `~` variants return 200 and yield nothing) → `/published-guide/<key>/versions` → the server-rendered guide root, WARNing at any hop that yields nothing. **Pin a PUBLISHED, read-only version and record it like the source commit SHA — never `?version=current`, the live editable project.** Keys and page slugs are **discovered, never constructed** (a constructed key 404s; the renderer de-punctuates slugs). The PROJECT page is client-rendered and yields nothing while the GUIDE pages yield everything — generalizing the first measurement to the platform is what once cost this skill the procedure, so measure a negative on the exact artefact you claim it about.
 
 2. **Read the module's identity — do not ask for it, and do not invent it.** From the source's
    `sushi-config.yaml` and `package.json` (absent a `sushi-config.yaml`: `package.json` plus the

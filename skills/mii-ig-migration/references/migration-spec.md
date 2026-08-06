@@ -250,6 +250,12 @@ So tier H is **a reference for a human, not a scrape target**:
 - Where a rendered page **does** carry identity markers, the script says so and still extracts
   nothing; a human reads and records them.
 
+**This is a statement about the PROJECT page, not about Simplifier.** The package page, the project's
+guide listing, the version listing and the guide pages are all server-rendered and are read
+mechanically by §5.1c — which is how the guide gets found in the first place when no URL was handed
+over. What tier H does not yield is *identity*, and that is unchanged: a `title` or a `publisher`
+read off a rendering is still a human's reading, recorded with the URL as evidence.
+
 ### 2.1.4 Recording the evidence: the identity ledger and contradictions
 
 **Every recovered field is recorded with its tier and its source**, through the run-log helper:
@@ -390,10 +396,15 @@ difference between working and not:
 Extract from `SOURCE_RENDERED_IG_URL` and `SOURCE_REPO_URL` the artefact list (profiles,
 extensions, value sets, code systems, capability statements, examples) and the narrative structure.
 
-**If the rendered IG cannot be mechanically extracted** — Simplifier project pages and their
-guide listings render client-side, so a non-browser agent may find no guide content even at a
-URL that returns 200 — derive the narrative structure from the repository instead
-(`implementation-guides/**/toc.yaml` and `*.page.md`), mark the rendered-IG cross-check
+**A rendered IG nobody handed over is still discoverable — run §5.1c first.** From an organization
+key and a module name it recovers the package, the project, the guide keys, the published versions
+and the page tree, without a credential. The **project page** is client-rendered and yields nothing;
+the **guide pages** are server-rendered and yield everything, and treating the first measurement as a
+statement about the platform is what once removed this procedure from the specification (§5.1c.2).
+
+**If §5.1c genuinely yields nothing** — every hop WARNs rather than guessing, so "nothing" is a
+recorded URL and status, not an impression — derive the narrative structure from the repository
+instead (`implementation-guides/**/toc.yaml` and `*.page.md`), mark the rendered-IG cross-check
 `TODO:REVIEW` in the inventory, and have Gate B verify against the rendering by hand.
 
 → Output: `migration-log/source-inventory.json`.
@@ -1015,6 +1026,133 @@ machine. Name the option chosen in the report and record it at Gate A:
 **The real fix is upstream.** A package published without snapshots is a defect in the publication,
 and the durable resolution is the parent's maintainers publishing snapshot-bearing releases. The
 procedure above unblocks a migration; it does not make the local rebuild an authority.
+
+### 5.1c Discovering the rendered guide — from a module name to pinned guide pages
+
+**The problem this solves.** §5.1 needs the rendered guide's page structure, and §2 lists
+`SOURCE_RENDERED_IG_URL` as human-provided. That is fine when somebody hands over a URL, and useless
+when nobody does: the module name is known, the guide key is not, and a guide key does not follow
+from anything a human can spell. This section is the **normative procedure that recovers the whole
+address from an organization key and a module name**, with no credential at any point.
+
+**Measured 2026-08-06, anonymous, every hop verified against the reference module.** Do not extend
+these statements beyond what they say; re-measure before widening any of them.
+
+#### 5.1c.1 The chain — five hops
+
+| Hop | Endpoint | Yields | Measured on the reference |
+| --- | --- | --- | --- |
+| **1** | `/organization/<org-key>/~projects` | the **authoritative package-id list**, via the `/packages/<packageId>/` hrefs | MII org key `koordinationsstellemii`: HTTP 200, ~142 KB, **23** package ids — base, bildgebung, biobank, consent, diagnose, dokument, fall, icu, kardiologie, laborbefund, medikation, meta, mikrobiologie, molgen, mtb, onkologie, patho, person, pros, prozedur, seltene, studie, symptom |
+| **2** | `/packages/<packageId>/latest` | the **project slug**, from the page's `Project <a href="/…">` item | `de.medizininformatikinitiative.kerndatensatz.consent` → `medizininformatikinitiative-modulconsent` |
+| **3** | `/<project-slug>/filterprojectguides` — **no tilde** | the project's **guide keys**, as `data-url="/guide/<key>"` | HTTP 200, ~4.7 KB, **3** keys: `mii-ig-modul-consent-2025`, `mii-ig-modul-consent-2026`, `miiigmodulconsent` |
+| **4** | `/published-guide/<guide-key>/versions` | the **published versions** with dates and status, and separately the **"Current preview"** | `miiigmodulconsent` → 2026.0.0 (Default, Read-only, Public, 2025-12-18) plus a preview row; `mii-ig-modul-consent-2025` → 2025.0.0 … 2025.0.4 |
+| **5** | `/guide/<key>?version=<v>` (root) and `/guide/<key>/<GuideRoot>/<Page-Slug>?version=<v>` (leaf) | the **page tree** — the root is server-rendered and carries every `href="/guide/<key>/…"`; the leaf carries the narrative | root `MIIIGModulConsent` @ 2026.0.0: 18 page links; leaf `Beschreibung-Modul-Consent`: HTTP 200, real German narrative in `div.ig-view-content` |
+
+Hop 1 yields **only** package ids: it exposes neither project slugs nor guide keys, which is why
+hops 2 and 3 exist rather than being an optimisation.
+
+**Variants that do NOT work, and are named so nobody re-derives them:** `~filterprojectguides` and
+`~guides` both return **200 and yield nothing**, and so does the project page itself. A 200 is not
+evidence that an endpoint answered; the extracted count is.
+
+#### 5.1c.2 The project page yields nothing, the guide pages do
+
+**§2.1.3's measurement stands and is narrower than it reads.** The Simplifier **project page** is
+client-rendered — HTTP 200, ~56 KB, 52 script markers, no metadata in the DOM — and it is the one
+genuine application shell in this chain. Everything else above is **server-rendered** and hands its
+content to `curl`: the package page, the guide listing, the version listing, the guide root, the
+leaf pages.
+
+**Conflating the two produced an earlier false negative** — "Simplifier is not scrapeable", concluded
+from the project page and generalized to the platform, which is why §5.1 still tells a reader to give
+up on the rendered IG and work from the repository. That fallback remains correct **when this chain
+genuinely yields nothing**; it is not the starting position.
+
+This is the same failure the §5.1b "the repository carries no narrative" overclaim was: **a negative
+capability finding is measured on the exact artefact it is claimed about, and stated about that
+artefact only.** "Page X is client-rendered" is a measurement; "the platform cannot be read" is an
+inference from one page, and it cost this specification a working procedure. Where a run finds an
+endpoint empty, record *which URL* returned *what* — never the generalisation.
+
+#### 5.1c.3 Reproducibility — pin a published version, never `current`
+
+**A migration MUST pin a PUBLISHED, READ-ONLY version and record it in the migration report, exactly
+as it records the source commit SHA.** Hop 4 distinguishes the two kinds of row for precisely this
+reason: **`?version=current` is the live, editable project**, so two runs of the same migration could
+harvest different text with nothing in either report showing that they differ.
+
+- Pin the version the listing flags `Default` + `Read-only`, or the one a human chose from it. Record
+  the key, the version, its publication date and the URLs harvested.
+- A guide that lists **only** a preview cannot be pinned. That is a Gate-B item — a human decides
+  whether a version is published first — not a licence to harvest `current`.
+- **A guide's version is NOT the module's version, and is never claimed into the identity ledger**
+  (§2.1.4). They are different sequences: measured, guide `mii-ig-modul-consent-2025` version
+  **2025.0.1** carries package version **2025.0.0**. A version row naming a package pin is reported;
+  claiming it would manufacture an `identity-contradiction:` out of two correct numbers.
+
+#### 5.1c.4 Keys and slugs are DISCOVERED, never constructed
+
+Guide keys do not follow from the project name, the package id or the module name, and page slugs do
+not follow from the page titles.
+
+- **Measured:** `miiigmodulconsent` exists; the analogously built `miiigmodulperson` **404s**. A key
+  is read from hop 3 or it is not used.
+- **Measured:** the renderer de-punctuates slugs — *Anwendungsfälle / Informationsmodell* becomes
+  `AnwendungsflleInformationsmodell`, *Datensätze inkl. Beschreibungen* becomes
+  `Datenstzeinkl.Beschreibungen`. Read every slug from the guide root.
+- **The GuideRoot is read too, not derived from the key:** measured, key `miiigmodulconsent` has root
+  `MIIIGModulConsent` while key `mii-ig-modul-consent-2025` has root `MII-IG-Modul-Consent`.
+
+A constructed path is a 404 at best and the **wrong page** at worst, and the wrong page is the one
+that reaches a report unnoticed.
+
+#### 5.1c.5 The gated alternative — unchanged, opt-in, human
+
+The project download `<project-slug>/$actions/downloading` requires a Simplifier login. **Verified:
+all four query variants — none, `?format=zip`, `?scope=project`, `?download=true` — redirect to
+`/login?ReturnUrl=…`.** Its status is unchanged by this section: it is an **opt-in human step** a
+maintainer may perform and hand over, never a credential mechanism the skill invents, asks for or
+stores. The chain above needs no account, so nothing in a normal run depends on it.
+
+#### 5.1c.6 Running it — `scripts/simplifier-discover.sh`
+
+The chain is bundled, so that a discovery is logged rather than performed in a browser and
+remembered. It sources the run-log helper as a library — **call it directly, never through
+`run --emits-runlog`** (§10.5).
+
+```bash
+bash "$SKILL_DIR/scripts/simplifier-discover.sh" \
+  --org koordinationsstellemii --module consent
+```
+
+It walks hops 1 → 5, **WARNs at whichever hop yields nothing rather than guessing past it**, and
+writes `migration-log/simplifier-guides.tsv` (key, version, flags, date, package pin) plus one
+`migration-log/simplifier-pages-<key>-<version>.tsv` per guide (depth, slug path, URL). Options:
+`--package`/`--project`/`--guide` enter the chain further down, `--version` pins explicitly.
+
+Measured end to end on Consent (2026-08-06): 23 packages → 1 module match → project
+`medizininformatikinitiative-modulconsent` → **3** guide keys → 3 pinned versions (2025.0.4,
+2026.0.0, 2026.0.0) → **52** page URLs across the three guides, 18 of them under
+`miiigmodulconsent` @ 2026.0.0. Exit 0.
+
+Every refusal is its own greppable WARN token, and each one exits 1 rather than continuing on a
+guess — verified by running each branch:
+
+| Token | Fires when | Verified with |
+| --- | --- | --- |
+| `org-project-list-empty:` / `org-project-list-unreachable:` | hop 1 returned nothing readable | a nonexistent org key → HTTP 404 |
+| `module-not-in-org-list:` | no package id matches the module | `--module nichtvorhanden` |
+| `module-ambiguous:` | several do — **never** resolved by taking the first or the shortest | `--module kerndatensatz` → 23 candidates listed |
+| `package-project-link-absent:` | hop 2 found no project link | — (a package published outside a project) |
+| `project-guides-empty:` | hop 3 yielded no key — check the **missing tilde** first | — |
+| `guide-key-not-published:` | hop 4 returned 404 — the key was constructed, not discovered | `--guide miiigmodulperson` → 404 |
+| `no-published-version:` | hop 4 lists only a preview; nothing is pinned | — |
+| `pinned-version-not-published:` | `--version` is absent from the listing — **not** silently replaced | `--version 9.9.9` |
+| `guide-pages-empty:` / `guide-root-not-unanimous:` | hop 5 yielded no page, or several roots | — |
+
+→ **Acceptance:** for each guide key carried forward, the report names the key, the **published,
+read-only** version, its date, and the page list harvested from it. A report that cites a page
+without naming the pinned version it came from does not meet this criterion.
 
 ### 5.2 Create the skeleton
 
