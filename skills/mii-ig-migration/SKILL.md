@@ -331,7 +331,11 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    verification** with `fhir-ig-analysis` (measure the unmigrated source, then the migrated tree — an
    equal `packageId` triggers the comparison; the SOURCE is the first input): identity, published
    artifact set and canonical URLs must all read **IDENTISCH** and a DIVERGIERT is a stop; the
-   narrative per-language table goes into the report's QA triage.
+   narrative per-language table goes into the report's QA triage. **That sibling skill is a checked
+   precondition, not an assumption** — `bash "$SKILL_DIR/scripts/sibling-skill-check.sh" --skill-dir
+   "$SKILL_DIR"` finds it or WARNs `sibling-skill-unavailable:` with the exact **pinned**
+   `npx skills add` command, and **never installs it**: a tool grant is permission, not a dependency,
+   and an unrelated run must not write into the operator's skills directory (spec §5.6a).
 
 8. **Report.** Write `migration-log/migration-report.md` **from
    [the report template](references/migration-report-template.md)** — built around three reviewer

@@ -214,6 +214,16 @@ with a verification criterion. A glossary or a link collection is not a skill, h
 untrusted code until reviewed, and this pattern makes review meaningless because the content
 reviewed is not the content that runs.
 
+**Installing another skill.** A skill that hands off to a sibling states that as a **checked
+precondition**: detect whether the sibling is present, and when it is not, emit the exact pinned
+install command and stop. Do not install it. `allowed-tools` is a permission grant, not a dependency
+declaration, and the two get confused precisely because a grant broad enough to run a skill's own
+tooling — `Bash(npx:*)`, say — is usually broad enough to install something with. Installing writes
+to the consumer's project as a side effect of an unrelated run, makes that run non-hermetic (the
+version that executes is not the version anybody reviewed or recorded), and turns the consumer's
+deliberate pin into a run-time resolution, which is the opposite of what `docs/consuming-skills.md`
+and `skills-lock.json` exist for.
+
 **Generalising one measurement into a rule.** The claim a skill encodes is only as wide as the
 sample it was measured on — in *both* directions. "It cannot be done" measured on one artefact
 removes a capability that nobody re-checks; "it has this shape" measured on one instance keeps

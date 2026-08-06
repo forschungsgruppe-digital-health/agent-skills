@@ -1436,6 +1436,74 @@ set and canonical URLs, and its narrative per-language table is carried into the
 The IDENTISCH criteria are **not** qualified by shape: they are identity checks, and a DIVERGIERT is
 a stop in either shape.
 
+### 5.6a The same-module verification needs a SIBLING SKILL — a checked precondition
+
+§5.6's acceptance criterion and §7's Definition of Done both require the same-module comparison of
+the catalog's **`fhir-ig-analysis`** skill. Until now this specification named that skill and never
+said how to obtain it, which leaves an operator whose installation does not carry it with three bad
+options: skip the check, hand-wave it, or improvise a comparison. All three end with a migration
+reported as done on evidence nobody produced.
+
+So the dependency is **detected, and its absence is a loud, actionable WARN**:
+
+```bash
+bash "$SKILL_DIR/scripts/sibling-skill-check.sh" --skill-dir "$SKILL_DIR"
+```
+
+It resolves the installed-skills root from `--skill-dir` (and, failing that, from the conventional
+project- and user-level agent directories), confirms a candidate by reading `name:` out of its
+`SKILL.md` rather than trusting the directory name, and reports:
+
+| Outcome | Emits | Exit |
+| --- | --- | --- |
+| found | INFO naming the resolved path and, where a `skills-lock.json` records one, the ref this project pinned it to | 0 |
+| not found | WARN `sibling-skill-unavailable:` carrying **the exact install command, pinned** | 1 |
+| pinned ref reads `main`/`master` | additionally WARN `pin-not-taken:` — the lock file is the second, independent way to see that a pin did not apply | 0 or 1 |
+| no `--skill-dir` and nothing in any conventional root | WARN `skill-root-undetermined:` naming the roots it examined — reported as *unread*, never as *absent* | 1 |
+
+The command it emits is the pinning form, with the ref taken from this project's own
+`skills-lock.json` so the sibling arrives at the version the rest of the installation is on:
+
+```text
+npx skills add "https://github.com/forschungsgruppe-digital-health/agent-skills/tree/<ref>" \
+  --skill fhir-ig-analysis --agent claude-code codex --yes
+```
+
+`<owner>/<repo>@<tag>` is **not** the pinning form — in that CLI `@` introduces a skill *name* and the
+install silently comes from the default branch — so the script never emits it.
+
+#### 5.6a.1 Why it does NOT install it
+
+**A tool grant is not a dependency declaration.** `allowed-tools` answers "may the agent run this
+command", never "does this skill need that skill". This skill's own frontmatter is the proof: it
+grants `Bash(npx:*)` for the pinned SUSHI and goFSH invocations, and that grant would equally permit
+`npx skills add`. Permission without intent is exactly the confusion to avoid — a dependency has to
+be stated where it is *checked*, in the procedure, with an observable outcome.
+
+Three further reasons, each of which stands on its own:
+
+- **It would write to the operator's project as a side effect of an unrelated run.** A migration
+  touches a working branch of the module repository (guardrail 6) and nothing else. Installing a
+  skill mutates `.claude/skills/` or `.agents/skills/` and `skills-lock.json` — files that are not
+  this migration's to change, and that a reviewer of the migration's pull request will never see.
+- **It would make the run non-hermetic.** A sibling resolved from the network at run time is not the
+  version anybody reviewed, and — unless the install is also committed — not a version the run log
+  can name. The run's own reproducibility rule (§5.1c.3: pin a published version, record it like the
+  source commit SHA) would then hold for the guide and not for the tooling.
+- **It cuts against the catalog's static-by-design stance.** The catalog is a Git repository with a
+  generated index, no server and no runtime; installation is an explicit, reviewed act by the
+  consumer, recorded in `skills-lock.json`. A skill that installs another skill turns the consumer's
+  deliberate pin into a run-time resolution. The catalog's own authoring guidance names fetching and
+  executing remote content on the agent's initiative as an anti-pattern for the same reason.
+
+**What the operator does instead is one command, and it is in the WARN.** That is the whole trade:
+one copy-paste, in exchange for the install staying visible, pinned, reviewed and theirs.
+
+→ **Acceptance:** the check ran and is in the run log. Either it exited 0 and the same-module
+verification's IDENTISCH lines are in the log behind it, or it exited 1 and the missing sibling is in
+the report's ① decision queue — a Definition-of-Done item that has not been met, never a step quietly
+dropped. The check itself installs nothing and modifies nothing.
+
 ### 5.7 Report
 
 Write `migration-log/migration-report.md`: mapping table, assumptions, the `TODO:REVIEW` list, the QA
@@ -1472,7 +1540,9 @@ Gate D is organizational. Nothing publishes before it.
 SUSHI and the IG Publisher build cleanly (`Errors: 0`) — **for source shape B read that through the
 shape-B qualifier of §5.1b.4, never flatly**; the Manteldokument crosswalk is complete; the
 `fhir-ig-analysis` same-module verification reads IDENTISCH (identity, published artifact set,
-canonical URLs); the language configuration is English-default with a German translation; every
+canonical URLs) — that sibling skill being a **checked precondition**, §5.6a, so an installation
+without it produces an open decision-queue item and never a silently skipped criterion; the
+language configuration is English-default with a German translation; every
 placeholder is replaced; template examples are removed; the default branch is unchanged; a pull
 request carries `migration-report.md`; all review gates are signed off.
 
@@ -1760,10 +1830,12 @@ block-buffered when it is a pipe while stderr is not: measured before the fix, a
 appeared *first* in the captured log, ahead of INFO lines emitted seconds earlier. A log that claims
 to read as one chronological stream has to actually be one.
 
-**Two bundled scripts take the other route: they `source` this helper as a library** —
-`gofsh-results.sh` (§5.1b.2) and `package-identity.sh` (§2.1.1, §5.1b.1a) — so their lines are
-emitted by the same code that emits everyone else's rather than hand-assembled. **Call those two
-directly, never through `run --emits-runlog`:** they already write `run.log` themselves, and the
+**Six bundled scripts take the other route: they `source` this helper as a library** —
+`gofsh-results.sh` (§5.1b.2), `package-identity.sh` (§2.1.1, §5.1b.1a), `repo-identity.sh` (§2.1.2),
+`parent-snapshots.sh` (§5.1b.5), `simplifier-discover.sh` (§5.1c.6) and `sibling-skill-check.sh`
+(§5.6a) — so their lines are emitted by the same code that emits everyone else's rather than
+hand-assembled. **Call those six directly, never through `run --emits-runlog`:** they already write
+`run.log` themselves, and the
 wrapper's `tee` into it would duplicate every line. The distinction to remember is not which
 language a script is written in but where its lines come from: a script that *prints* §10.2 lines is
 wrapped with `--emits-runlog`; a script that *calls* the helper is not wrapped at all.

@@ -90,6 +90,17 @@ checklist and state that you did.
     unverified. The rule, the three shipped defects it is made of, and the checklist are in
     [the measurement rule](references/measurement-rule.md).
 
+4b. **State a dependency on another skill as a checked precondition, never as an install.**
+    `allowed-tools` grants permission; it does not express a dependency, and the two are
+    routinely confused because a grant broad enough to run the skill's own tooling is usually
+    broad enough to install something. If your procedure hands off to a sibling skill, detect
+    whether it is present and, when it is not, **emit the exact pinned install command and
+    stop** — the consumer installs it. Installing it yourself writes to the user's project as
+    a side effect of an unrelated run, makes that run non-hermetic (the version that executes
+    is not the version anybody reviewed or recorded), and contradicts the catalog's
+    static-by-design stance: installation is an explicit, reviewed act, recorded in
+    `skills-lock.json`.
+
 5. **Set the metadata.** `fgdh.tier`, `fgdh.domain` and `fgdh.owner` are required;
    `fgdh.language` and `fgdh.status` default to `en` and `stable`. All values are strings —
    quote anything YAML would coerce, and quote `"@handle"` because `@` is a reserved YAML
@@ -166,6 +177,8 @@ Outside the catalog repository, or if the validator is unavailable, confirm by h
 - [ ] every normative claim about a class of artefacts was measured on more than one instance,
       or is explicitly bounded to the single one it was measured on; the sample is recorded
       beside the claim — see [the measurement rule](references/measurement-rule.md)
+- [ ] a dependency on another skill is a detected precondition that emits the pinned install
+      command, not an install the skill performs
 - [ ] `SKILL.md` is under 500 lines
 - [ ] no absolute path, no upward `..` traversal, every relative reference exists and is one level deep
 - [ ] bundled scripts are *referenced* relatively but *invoked* through a resolved `$SKILL_DIR`
