@@ -321,6 +321,11 @@ if other_absent:
 
 # --- dependencies ------------------------------------------------------------
 deps = man.get("dependencies") or {}
+for k, v in sorted(deps.items()):
+    # One ledger row per dependency, so that a pin read anywhere else -- goFSH's
+    # derived config, the registry's dist-tags.latest -- collides with THIS one
+    # visibly instead of quietly replacing it.
+    claim("dependency:%s" % k, v, "package/package.json (source pin)")
 if deps:
     rec("INFO",
         "dependency pins from the SOURCE package  %s"
