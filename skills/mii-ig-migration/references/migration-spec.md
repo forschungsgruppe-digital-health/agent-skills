@@ -49,7 +49,7 @@ must supply everything" after reading one place and finding nothing.
 | **J** | repo `package.json` | `name`, `version`, `canonical`, `title`, `license` where present | §2.1 |
 | **I** | the generated `ImplementationGuide` resource | fields absent from C/J | §2.1 |
 | **R** | the **source GitHub repository**: README, LICENSE, tags, repo metadata | `license` (real evidence), a `title` candidate, a `description` candidate, release-tag evidence for `version` | §2.1.2 |
-| **H** | the **Simplifier project / rendered IG** | nothing mechanically — a **human reference** for what no machine source carries | §2.1.3 |
+| **H** | the **Simplifier project page** | nothing mechanically — a **human reference** for what no machine source carries. The **guide** pages are a different URL space, are server-rendered, and are the narrative harvest source | §2.1.3, §5.1c |
 | **T** | the template's own literals and patterns | last resort, and a Gate-A note every time | §2.2 |
 | **G** | goFSH's derived `sushi-config.yaml` | **never identity** — recorded only so its disagreement becomes visible | §5.1b.2 |
 
@@ -230,25 +230,43 @@ bash "$SKILL_DIR/scripts/repo-identity.sh" \
 - A rate-limited or unreachable API is reported (`github-api-rate-limited:`) and **never recorded as
   "the repository carries no identity"**; re-run against a local checkout.
 
-### 2.1.3 Tier H — the Simplifier project and the rendered IG (a human reference)
+### 2.1.3 Tier H — Simplifier: two URL spaces, two different answers
 
-State plainly what is and is not mechanically extractable here.
+**Read this section before concluding that anything on Simplifier is unreadable.** An earlier
+edition of this spec said the platform renders client-side and is therefore not a scrape target.
+That was measured on the PROJECT page and generalised to the GUIDE pages, which are a different URL
+space and are server-rendered. The generalisation was wrong, and it cost a real migration its
+narrative — see §5.1c and the correction entry in `references/provenance.md`.
 
-**The Simplifier project page is CLIENT-RENDERED.** Measured on the reference guide's project page
-(2026-08-06): HTTP 200, ~56 KB of HTML, 52 `<script` markers, and **no identity metadata in the
-DOM** — the delivered document carries the application, and the metadata arrives later by script.
-`repo-identity.sh --rendered URL` measures exactly that and reports `client-rendered-page:`.
+| URL space | Example | Measured 2026-08-06 | Verdict |
+| --- | --- | --- | --- |
+| **Project page** | `https://simplifier.net/MedizininformatikInitiative-ModulConsent/` | HTTP 200, ~56 KB, 52 `<script` markers, **no identity metadata in the DOM** | client-rendered application shell — **a human reference, not a scrape target** |
+| **Guide root** | `https://simplifier.net/guide/miiigmodulconsent/MIIIGModulConsent?version=2026.0.0` | HTTP 200, **24509 bytes**, **~3.4 k characters of visible text** after stripping script/style, carrying the complete page tree (Release Notes, Beschreibung Modul Consent, Kontext im Gesamtprojekt / Bezüge zu anderen Modulen, Referenzen, Anwendungsfälle / Informationsmodell, …); **23 `href="/guide/…"` links, 18 of them pages** | **SERVER-RENDERED — a real harvest source** (§5.1c) |
+| **Guide leaf page** | `…/MIIIGModulConsent/Beschreibung-Modul-Consent?version=2026.0.0` | HTTP 200, **20481 bytes**, **~1.4 k characters of visible text**, `<h1 id="page-title">Beschreibung Modul Consent</h1>` and the real German narrative ("Das MII KDS Modul Consent ist ein Basismodul des Kerndatensatzes (KDS) der Medizininformatik-Initiative (MII). Es setzt auf den publizierten Vorarbeiten der MII Taskforce Consent Umsetzung auf. …") | **SERVER-RENDERED — a real harvest source** (§5.1c) |
 
-So tier H is **a reference for a human, not a scrape target**:
+**URL shape:** `https://simplifier.net/guide/<guide-key>/<GuideRoot>[/<Page-Slug>]?version=<version>`.
+Slugs are de-punctuated — "Anwendungsfälle / Informationsmodell" becomes `AnwendungsflleInformationsmodell`
+— so **discover them from the root page's links; never construct them from a title**. A constructed
+slug does not 404 loudly; it returns a plausible page.
 
-- A human reads the rendered guide at Gate A for the fields no machine source carries — `title` as
-  the guide displays it, and `publisher` — and records what they read, with the URL as the evidence.
-- An agent extracting a value "from the guide" would be fabricating with a URL attached
-  (guardrail 3): a page that renders differently tomorrow leaves no way to re-derive what was read
-  today. The rendered IG's legitimate mechanical uses are elsewhere and unchanged — the page
-  STRUCTURE for step 5.1, and the artefact list for the inventory.
-- Where a rendered page **does** carry identity markers, the script says so and still extracts
-  nothing; a human reads and records them.
+So, for identity:
+
+- The **project page** yields nothing mechanically. A human reads it at Gate A for the fields no
+  machine source carries — `title` as the guide displays it, and `publisher` — and records what they
+  read, with the URL as the evidence. `repo-identity.sh --rendered URL` measures that and reports
+  `client-rendered-page:` when the page really is one; pointed at a `/guide/` URL it reports
+  `server-rendered-guide:` instead and names `guide-harvest.sh`. It still extracts no identity from
+  either: a value read out of a rendering that changes tomorrow cannot be re-derived, so an agent
+  extracting one would be fabricating with a URL attached (guardrail 3).
+- The **guide pages** yield the NARRATIVE, mechanically and verifiably (§5.1c). That is a different
+  question from identity, and the answer to it is yes.
+
+**The general rule this section now carries** (see also §4, guardrail 9): a negative capability
+finding — "this cannot be read", "this is not available", "this is not possible" — is only valid for
+**the exact artefact it was measured on**. Never generalise one from a sibling URL, a sibling
+endpoint or a sibling mechanism, and re-measure before reusing one. This is the second such error in
+this skill's history; the first was the claim that the IG Publisher cannot localize page titles,
+which §5.5 now disproves with a working recipe.
 
 ### 2.1.4 Recording the evidence: the identity ledger and contradictions
 
@@ -367,6 +385,16 @@ varies between agents, so **this list is the normative statement** of what the s
    as far as the report is concerned.
 8. **Template examples are deleted before migrating** — not merged with the module's real examples.
 9. **The default branch is not modified.** Work on a branch; deliver a pull request.
+10. **A negative capability finding is only valid for the artefact it was measured on.** "This
+    cannot be read", "there is no API for this", "the publisher does not support this" — such a
+    claim is recorded **with the exact URL, endpoint or command it was measured against, the date,
+    and the numbers**, and it is **never generalised to a sibling** URL, endpoint or mechanism. Before
+    acting on a recorded one, re-measure it; before writing one down, ask what *adjacent* thing was
+    actually tested. A "not possible" is the most expensive kind of error in this skill, because
+    nothing downstream re-checks it: it silently converts a missing capability into a missing
+    deliverable. Twice now it has done exactly that — page-title localization, which §5.5 disproves
+    with a working recipe, and the Simplifier guide, which §2.1.3 and §5.1c disprove with a working
+    harvest after the false claim shipped a migration with the template's starter pages.
 
 ### 4.1 The conditional `de-DE` warning
 
@@ -390,11 +418,20 @@ difference between working and not:
 Extract from `SOURCE_RENDERED_IG_URL` and `SOURCE_REPO_URL` the artefact list (profiles,
 extensions, value sets, code systems, capability statements, examples) and the narrative structure.
 
-**If the rendered IG cannot be mechanically extracted** — Simplifier project pages and their
-guide listings render client-side, so a non-browser agent may find no guide content even at a
-URL that returns 200 — derive the narrative structure from the repository instead
-(`implementation-guides/**/toc.yaml` and `*.page.md`), mark the rendered-IG cross-check
-`TODO:REVIEW` in the inventory, and have Gate B verify against the rendering by hand.
+**The rendered guide IS mechanically extractable — harvest it (§5.1c).** Simplifier's `/guide/`
+URL space is server-rendered: the guide root delivers the whole page tree and each page delivers its
+narrative, both without a browser. Only the **project** page (`simplifier.net/<Project>/`) is a
+client-rendered shell, and pointing a harvest at it is a setup error the script names as such.
+
+**Where a repository does carry the narrative** — a Simplifier project checked into git, with
+`implementation-guides/**/toc.yaml` and `*.page.md` — that is the better source: it is the author's
+markdown rather than a rendering of it. Take the structure from there, and use the harvest as the
+cross-check. Where the repository carries none (source shape B), the harvest **is** the source, and
+the fallback below applies only when both are unavailable.
+
+**If neither can be read**, mark the narrative structure `TODO:REVIEW` in the inventory and have
+Gate B supply it by hand — but record WHICH of the two was tried and what it returned. "No narrative
+found" is a measurement, not a default.
 
 → Output: `migration-log/source-inventory.json`.
 → **Acceptance:** the inventory is complete and every entry carries its source path.
@@ -460,6 +497,9 @@ directory names finds them.
 Consequence for §5.1: **the rendered guide's narrative lives on the Simplifier platform, not in
 git.** There is no `implementation-guides/**` tree, so the page structure comes from the rendered IG,
 and `fql-scan.sh` correctly exits 2 with an empty target set when run on the unmigrated repository.
+**That platform narrative is retrievable — §5.1c** (the project download when credentials exist,
+otherwise the verified guide harvest). "Not in git" was once read as "not obtainable", and a shape-B
+migration shipped the template's starter pages because of it.
 
 **That is not the same as "the repository carries no narrative", and the earlier wording of this
 section overclaimed it.** Measured on the reference module: a **43-line German `README.md`** (module
@@ -1016,6 +1056,135 @@ machine. Name the option chosen in the report and record it at Gate A:
 and the durable resolution is the parent's maintainers publishing snapshot-bearing releases. The
 procedure above unblocks a migration; it does not make the local rebuild an authority.
 
+### 5.1c Harvest the narrative from the rendered guide
+
+**Applies whenever the module's narrative is not in its repository** — source shape B above all,
+and any shape A whose pages live on the platform rather than in `implementation-guides/**`. It
+produces the Markdown that §5.4 maps onto the template's page set. It does **not** decide where the
+pages end up: §9's mapping and the language direction (SKILL.md *Language*) do that.
+
+#### The order of sources — most trustworthy first
+
+1. **The authenticated project download (§5.1c.1)** — the project *including its narrative markdown*,
+   as the author wrote it. Gated behind a Simplifier login, so a human supplies it. **Prefer it
+   whenever credentials exist.**
+2. **The guide harvest (§5.1c.2)** — anonymous, verified, and a *rendering*: directives are already
+   expanded, `{{tree}}`/`{{render}}` blocks arrive as their output, and a rendered artefact view is
+   not the resource it renders.
+3. **Nothing** — which in practice means shipping the template's starter pages under the module's
+   name. That is what happened once and what this section exists to prevent. It is never an outcome;
+   an unreachable source is reported, escalated to Gate B, and named in the report.
+
+**The registry package is not on this list and has not changed its role.** It carries resources and
+identity (§2.1.1) and **no narrative**. Its job here is the opposite one: it is what the harvested
+set is **VERIFIED AGAINST** — every profile, extension, value set and code system in the package
+either has a harvested page or is recorded as having none.
+
+#### 5.1c.1 The authenticated project download (preferred, gated)
+
+`https://simplifier.net/<project-slug>/$actions/downloading` offers a download of the whole project,
+narrative markdown included.
+
+**It requires a Simplifier login.** Measured 2026-08-06: anonymous access returns the login page
+(HTTP 200, ~22 KB, redirected to `/login?ReturnUrl=…`), not an archive. Probed alternatives —
+`$downloads/project.zip` (404), `/ui/packagedownload/downloadfile` (404),
+`/packages/<id>/<v>/download` and `/guide/<key>/$download` (both HTML, not archives) — **there is no
+verified anonymous project download.** Do not go looking for one on the strength of a URL that looks
+plausible; record what you probed and what it returned.
+
+**How a human supplies it — the manual, opt-in path.** Do not invent a credential mechanism, do not
+ask for a password, do not store a token anywhere in the repository or the run log:
+
+1. The agent asks for the archive by name, giving the URL above and the project slug, and says why
+   (it is the authored markdown rather than a rendering).
+2. A human with a Simplifier account signs in **in their own browser**, downloads the archive, and
+   places it at a path they name — outside the module repository, like every other scratch input.
+3. The agent reads that path, logs `narrative-source=project-download path=<path>` with the
+   archive's size and file count, and proceeds. The provenance recorded on each page is the archive
+   and the date, not a URL the agent fetched.
+4. If no human is available, say so once and fall through to §5.1c.2. **Waiting is not a stop, and a
+   gate is not an impossibility** — record `project-download-unavailable: no credentials offered`
+   and name it in the report so a later run can do better.
+
+An account is personal, so nothing about it is automated: no stored cookie, no `curl -u`, no
+credential in an environment variable, no session replay. The gate is the point.
+
+#### 5.1c.2 The guide harvest (anonymous, verified)
+
+```bash
+bash "$SKILL_DIR/scripts/guide-harvest.sh" \
+  --guide-url "https://simplifier.net/guide/<guide-key>/<GuideRoot>?version=<version>" \
+  --out migration-log/guide-harvest/pagecontent \
+  --keep-html migration-log/guide-harvest/html
+```
+
+Call it directly — it emits its own run-log lines (like `package-identity.sh`), so wrapping it in
+`migration-log.sh run --emits-runlog` duplicates every line.
+
+The procedure it performs, and which an agent without the script performs by hand in the same order:
+
+1. **Fetch the guide root** and record `http=` and `bytes=`. A non-200 is `guide-root-unreachable:`
+   and a stop — never "the guide has no pages".
+2. **Discover the page tree from the root's own `href` values.** Page links are told from asset
+   links by shape, measured: a page is `/guide/<key>/<Root>…`, an asset is
+   `/guide/<key>/<version>/files/static/…`. **Slugs are read, never constructed** (§2.1.3). The
+   `?version=` from the input URL is carried onto every page URL, so the harvest is pinned; a URL
+   with no version raises `unpinned-guide-version:`.
+3. **Fetch each discovered page** and isolate its content region: `<div id="preview-content">`,
+   found by **depth-scanning `<div>`/`</div>` until the depth returns to zero** — not by a regex to
+   the next `</div>`, which truncates at the first nested one and reads as a short page rather than
+   as a parse failure. Everything outside that region is chrome: the tree panel, header, footer,
+   version picker. **A page without the region is recorded as skipped**, never converted whole —
+   chrome mixed into narrative is indistinguishable from narrative downstream.
+4. **Convert the region to Markdown** and write it to `--out` with a provenance header naming the
+   source URL and the harvest date, plus `TODO:REVIEW`. `--out` has **no default**: the harvested
+   tree is §5.4's input, not the template's page set (§9). The header is a plain HTML comment
+   carrying no Liquid — Jekyll evaluates `{% … %}` and `{{ … }}` inside comments too (guardrail 8).
+5. **Classify each page.** A guide's tree also contains Simplifier's **rendered artefact views** —
+   a StructureDefinition's element tree, a CodeSystem's concept table. They are a *rendering of a
+   resource the target IG already ships*, and the IG Publisher regenerates them; pasting one into
+   `pagecontent` duplicates a generated artefact as hand-maintained prose. They are counted by their
+   markup markers inside the region, marked `kind=artefact-view`, and still harvested — the prose
+   above the tree is real narrative.
+6. **Verify.** Every discovered page is in `migration-log/guide-harvest.tsv` as `harvested` with its
+   counts or as `skipped` with a reason; `log_ratio` reconciles discovered against harvested and
+   raises the mandatory `silent-partial-success:` WARN when the second is smaller (§10.4).
+   Per page, every source text run of ≥ 40 characters is looked for in the produced Markdown and the
+   count that did not survive is `missing_runs=` — a WARN, because a hand-rolled converter drops
+   content quietly. Losses on an `artefact-view` page use a separate `generated-view-lossy:` token
+   so they cannot bury the narrative losses that the `silent-partial-success:` grep is for.
+
+**Exit status:** 0 = every discovered page harvested with no narrative loss; 1 = something was
+skipped or came up short — a real result, recorded per page, and a usable CI gate; 2 = setup error.
+
+**Measured end to end on the MII KDS Consent guide, version 2026.0.0 (2026-08-06):** 18 pages
+discovered from the root's links, **18 harvested, 0 skipped**, 14 `narrative` and 4 `artefact-view`
+(`FHIRProfile/Consent` 239875 characters of visible text, `Provenance` 73477, `DocumentReference`
+74149, `Terminologien` 30045, against a narrative page's 81–3662), **0 narrative pages short**,
+3 referenced assets recorded for transfer. Page titles come back as the guide displays them —
+`Kontext im Gesamtprojekt / Bezüge zu anderen Modulen`, `Anwendungsfälle / Informationsmodell` — and
+`beschreibung-modul-consent.md` opens with the module's real first paragraph, "Das MII KDS Modul
+Consent ist ein Basismodul des Kerndatensatzes (KDS) der Medizininformatik-Initiative (MII)…".
+
+#### 5.1c.3 After the harvest
+
+- **Verify the harvested set against the published package** (§2.1.1): every packaged conformance
+  resource either has a page or is recorded as having none. A module whose guide documents fewer
+  artefacts than it ships is a real finding for the report, not a harvest defect.
+- **Links and images stay absolute** to `simplifier.net` and the module's own asset hosts, and the
+  image URLs are collected in `migration-log/guide-harvest-assets.tsv`. Retargeting the links and
+  transferring the assets is part of §5.4's mapping; a link silently pointed at a page that does not
+  exist yet is a broken build.
+- **The pages are not yet the target's pages.** §9's mapping folds them into the template's **fixed**
+  page set — several harvested pages routinely become sections of one template page, and a
+  per-profile narrative goes to `input/intro-notes/` (§5.4). One new page per harvested page is the
+  failure mode §9 exists to prevent: an extra page is an orphan the menu cannot reach.
+- **Language.** A German guide's harvest is the German text. Under the template's English default it
+  becomes the *translation* — `input/translations/de/pagecontent/` — with `input/pagecontent/*.md`
+  produced as machine translations marked `TODO:REVIEW` and reviewed at Gate C (SKILL.md *Language*).
+- **Gate B reviews the harvest**, page by page, against the rendering — including every
+  `generated-view-lossy:` page and every `TODO:REVIEW` header.
+
 ### 5.2 Create the skeleton
 
 Create the skeleton **in place**: on a working branch of the module's existing repository, vendor
@@ -1046,6 +1215,11 @@ none, which are confirmed at Gate A rather than re-minted here.
 source is empty.**
 
 ### 5.4 Migrate the narrative
+
+**Where the narrative comes from is §5.1c** — the repository's own pages where it has them, the
+authenticated project download where credentials exist, otherwise the verified guide harvest. This
+section maps whatever that produced onto the template's **fixed** page set (§9); it never invents a
+page, and never creates one page per harvested page.
 
 Move the Manteldokument content into the page set — **which language goes where is decided by
 §4.2**: when the source narrative is not in the target's default language (the normal KDS case:
@@ -1615,3 +1789,8 @@ same lines. Where the report and the log disagree, the log is right.
 > report it and stop rather than normalizing. Invent no domain content; mark uncertainty
 > `TODO:REVIEW`. Do not publish. Delete the template's example artefacts before migrating. Replace
 > every `{{...}}` placeholder and verify none remain. Do not modify the default branch.
+> **Where the module's narrative is not in its repository, get it (§5.1c) — the authenticated
+> project download if credentials are offered, otherwise the guide harvest — and account for every
+> discovered page. Shipping the template's starter pages is a failed migration, not a short one.
+> Any "this cannot be read" you record must name the exact URL, the date and the numbers, and must
+> not be generalised to a sibling URL or mechanism (§4 guardrail 10).**
