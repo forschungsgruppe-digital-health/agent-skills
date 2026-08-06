@@ -65,6 +65,25 @@ Nothing is published until Gate D (a human merge decision); everything here is r
 |---|---|---|
 | id / packageId / canonical / version / status / licence / publisher / dependencies | {…} | {yes \| DIVERGES → D{n}} |
 
+### Where each value came from (generated — do not retype)
+
+<!-- `bash "$ML" claims --markdown` (spec §2.1.4) prints this from
+     migration-log/identity-claims.tsv: one row per field PER SOURCE, with the tier letter, and
+     contradictions flagged. A field carrying two distinct values is a ① decision, never a pick
+     made here. Tiers: C sushi-config · P published package · J package.json · I generated IG ·
+     R source repository · H rendered guide (human-read) · T template default · G goFSH (never
+     identity). Recovered is not applied: nothing in the repository was rewritten from these. -->
+
+| Field | Tier | Source | Value | Contradiction |
+|---|---|---|---|---|
+| {field} | {P} | {package/package.json} | {value} | {— \| YES — Gate A} |
+
+**Still unrecovered after every tier (a human supplies these):** {list, e.g. publisher | none}.
+**Parent packages missing snapshots (spec §5.1b.5):** {package@version — n of m SDs carry none,
+rebuilt as `{id}#{version}-snapshots`, SUSHI {before} → {after} errors | none}; **how the rebuild
+reaches CI:** {CI prebuild step | vendored | internal registry | not repinned, profiles stay
+blocked} → D{n}.
+
 ## Protocol (what was executed — for auditors; keep last)
 
 <!-- GENERATED FROM `migration-log/run.log` (spec §10.6). Do NOT write this from recollection:
@@ -88,7 +107,11 @@ report the LAST run's numbers and say the earlier ones exist.
 (`grep -F 'silent-partial-success:' migration-log/run.log`).
 **Other WARN classes, each with its queue:** `anticipated-nonzero-exit:` (the shape-B `sushi-after`
 escalation → ①, one entry per residual error), `exit-status-truncated:` / `exit-status-disagrees:`
-(believe the printed error count, not the status), `stale-raw-log:`, `count-above-expected:`.
+(believe the printed error count, not the status), `stale-raw-log:`, `count-above-expected:`,
+`identity-contradiction:` (→ ①, one row per contradicting field, §2.1.4),
+`not-in-a-package-manifest:` / `not-recoverable-from-a-repository:` / `license-text-unrecognized:`
+(→ ①, the fields a human still supplies), `client-rendered-page:` (→ ②, read the guide by hand),
+`parent-without-snapshots:` / `generator-refused:` / `snapshot-implausible:` (→ ①, §5.1b.5).
 **Deviations from the skill or the template, with justification:** {list | none}.
 
 ## Mini-glossary (novices start here)

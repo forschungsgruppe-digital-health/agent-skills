@@ -36,6 +36,31 @@
 #       two counts is the CALLER's job; this helper is what makes the comparison
 #       visible instead of happening in someone's head.
 #
+#   claim STEP ACTION FIELD VALUE TIER SOURCE [CONT ...]
+#   log_claim  (same signature)
+#       Record ONE identity field recovered from ONE source, with the evidence
+#       (spec §2.1). Appends to the per-field ledger
+#       `migration-log/identity-claims.tsv` and emits an INFO naming the field,
+#       the value, the tier and the source it was read from.
+#
+#       Its real job is the SECOND claim for the same field. When an earlier
+#       claim carries a DIFFERENT value, it emits a WARN beginning
+#       `identity-contradiction:` naming both values with their tiers -- and
+#       resolves nothing. Two sources disagreeing about a published module's
+#       version or licence is a finding for Gate A, not a precedence puzzle to
+#       settle in a script: measured on the reference module, goFSH's derived
+#       config says `version: 1.0.8` where the published package says
+#       `2026.0.0`, and a pipeline that silently preferred either one would have
+#       re-versioned a published module without anybody seeing it happen.
+#       TIER is the §2.1 rank letter (C, P, J, I, R, H, G, T), used for the
+#       report, never to suppress the WARN.
+#
+#   claims [--markdown]
+#       Read the ledger back: one row per field per source, contradictions
+#       marked. `--markdown` prints the table the migration report's identity
+#       section takes verbatim. Reads only; exits 1 when the ledger holds a
+#       contradiction, so it doubles as a CI gate.
+#
 #   begin [LABEL]
 #   log_begin  (same signature)
 #       A run-boundary line. run.log is append-only across invocations, so a
@@ -127,6 +152,7 @@
 # --- configuration ----------------------------------------------------------
 : "${MIGRATION_LOG_DIR:=migration-log}"
 : "${MIGRATION_LOG_FILE:=$MIGRATION_LOG_DIR/run.log}"
+: "${MIGRATION_CLAIMS_FILE:=$MIGRATION_LOG_DIR/identity-claims.tsv}"
 
 _ml_ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
@@ -261,6 +287,95 @@ log_ratio() {
       "foreign resources before treating the surplus as this module's."
   fi
   return 0
+}
+
+# log_claim STEP ACTION FIELD VALUE TIER SOURCE [CONT ...]
+#
+# One identity field, from one source, with its evidence (spec §2.1). The ledger
+# is a TSV so it can be read back mechanically:
+#
+#   <ts> <TAB> <field> <TAB> <tier> <TAB> <source> <TAB> <value> <TAB> <step> <TAB> <action>
+#
+# Tabs and newlines are the only characters this format cannot carry, so they are
+# folded to spaces in the VALUE rather than allowed to corrupt a row silently.
+# Always returns 0: like `ratio`, the WARN is the signal, and a non-zero here
+# would abort a `set -e` caller in the middle of reporting its evidence.
+log_claim() {
+  if [ $# -lt 6 ]; then
+    printf 'migration-log: claim needs STEP ACTION FIELD VALUE TIER SOURCE  exit=2\n' >&2
+    return 2
+  fi
+  local step="$1" action="$2" field="$3" value="$4" tier="$5" source="$6"; shift 6
+  _ml_ensure_dir || return 2
+  field=$(printf '%s' "$field" | tr -d '\t\n ')
+  value=$(printf '%s' "$value" | tr '\t\n' '  ')
+  tier=$(printf '%s' "$tier" | tr -d '\t\n ')
+  source=$(printf '%s' "$source" | tr '\t\n' '  ')
+  if [ -z "$field" ] || [ -z "$value" ]; then
+    printf 'migration-log: claim FIELD and VALUE must be non-empty  exit=2\n' >&2
+    return 2
+  fi
+
+  # Every earlier claim for this field whose value differs. A missing ledger is
+  # not an empty one by accident: the file is created on the first claim.
+  local prior=""
+  if [ -f "$MIGRATION_CLAIMS_FILE" ]; then
+    prior=$(awk -F'\t' -v f="$field" -v v="$value" \
+      '$2==f && $5!=v { printf "%s=%s (tier %s, %s) ", $2, $5, $3, $4 }' \
+      "$MIGRATION_CLAIMS_FILE" 2>/dev/null)
+  fi
+
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$(_ml_ts)" "$field" "$tier" "$source" "$value" "$step" "$action" \
+    >>"$MIGRATION_CLAIMS_FILE" 2>/dev/null || {
+      _ml_emit ERROR "$step" "$action" \
+        "setup: cannot write the identity ledger  file=$MIGRATION_CLAIMS_FILE exit=2"
+      return 2; }
+
+  _ml_emit INFO "$step" "$action" \
+    "identity-claim  field=$field value=$value tier=$tier source=$source" "$@"
+
+  if [ -n "$prior" ]; then
+    _ml_emit WARN "$step" "$action" \
+      "identity-contradiction: field=$field  now=$value (tier $tier, $source)  vs  ${prior% }" \
+      "Two sources disagree about the same identity field. This is REPORTED, not" \
+      "resolved: the tier ranking (spec §2.1) says which value a human should" \
+      "probably adopt, and adopting one here would silently rename, re-license or" \
+      "re-version a published module. Both readings stand in the ledger; Gate A" \
+      "decides, and nothing in the repository is rewritten either way."
+  fi
+  return 0
+}
+
+# log_claims [--markdown] -- read the ledger back.
+# Exits 1 when any field carries more than one distinct value, so the same call
+# is both the report's input and a CI gate.
+log_claims() {
+  local md=0
+  [ "${1:-}" = "--markdown" ] && md=1
+  if [ ! -s "$MIGRATION_CLAIMS_FILE" ]; then
+    printf 'migration-log: no identity claims recorded  file=%s\n' "$MIGRATION_CLAIMS_FILE" >&2
+    return 2
+  fi
+  awk -F'\t' -v md="$md" '
+    { key=$2; seen[key]++; vals[key,$5]=1
+      row[NR]=$2 "\t" $3 "\t" $4 "\t" $5 }
+    END {
+      for (k in vals) { split(k, p, SUBSEP); distinct[p[1]]++ }
+      if (md) { print "| Field | Tier | Source | Value | Contradiction |"
+                print "| --- | --- | --- | --- | --- |" }
+      for (i = 1; i <= NR; i++) {
+        if (!row[i]) continue
+        split(row[i], c, "\t")
+        flag = (distinct[c[1]] > 1) ? "YES -- Gate A" : ""
+        if (md) printf "| %s | %s | %s | %s | %s |\n", c[1], c[2], c[3], c[4], flag
+        else    printf "%-14s tier=%-2s %-34s %s%s\n", c[1], c[2], c[3], c[4],
+                       (flag == "" ? "" : "   <- " flag)
+      }
+      bad = 0
+      for (f in distinct) if (distinct[f] > 1) bad++
+      exit (bad > 0) ? 1 : 0
+    }' "$MIGRATION_CLAIMS_FILE"
 }
 
 # _ml_parsed_errors FILE -- the error count a FSH tool printed in its own summary
@@ -410,11 +525,13 @@ _ml_main() {
     warn)  log_warn  "$@" ;;
     error) log_error "$@" ;;
     ratio) log_ratio "$@" ;;
+    claim) log_claim "$@" ;;
+    claims) log_claims "$@" ;;
     begin) log_begin "$@" ;;
     run)   run_step  "$@" ;;
     -h|--help|help) _ml_help; return 0 ;;
     *) printf 'migration-log: unknown subcommand %s  exit=2\n' "$sub" >&2
-       printf 'usage: migration-log.sh {begin|info|warn|error|ratio|run|--help} …\n' >&2
+       printf 'usage: migration-log.sh {begin|info|warn|error|ratio|claim|claims|run|--help} …\n' >&2
        return 2 ;;
   esac
 }
