@@ -129,14 +129,23 @@ the language you actually derived.
    `input/includes/menu.xml` only as a wording seed, and emit an **empty `msgstr`** plus a review
    flag for every title left untranslated.
 
-   The sibling `mii-ig-migration` skill bundles a generator for exactly this file. Invoke it
-   through a resolved path — never a bare `scripts/…`, which the project's own `scripts/` would
-   shadow — and fall back to writing the units by hand if that skill is not installed alongside
-   this one:
+   The sibling `mii-ig-migration` skill bundles a generator for exactly this file. It is a
+   **precondition, not an assumption**: a consumer may have installed this skill alone, in which
+   case the sibling path does not exist. Check first, and when it is absent either install it with
+   the pinned command below or write the units by hand — never proceed on a path that does not
+   resolve. Invoke it through a resolved `$SKILL_DIR`, never a bare `scripts/…`, which the
+   project's own `scripts/` would shadow:
 
    ```bash
-   python3 "$SKILL_DIR/../mii-ig-migration/scripts/gen-page-title-po.py" --help
+   GEN="$SKILL_DIR/../mii-ig-migration/scripts/gen-page-title-po.py"
+   if [ -f "$GEN" ]; then python3 "$GEN" --help; else
+     echo "gen-page-title-po.py not installed — install the sibling skill, or write the units by hand:"
+     echo 'npx skills add "https://github.com/forschungsgruppe-digital-health/agent-skills/tree/v0.12.0" --skill mii-ig-migration --agent claude-code codex --yes'
+   fi
    ```
+
+   The `/tree/<ref>` form is what pins; `owner/repo@<ref>` does **not** — in that CLI `@`
+   introduces a skill name and the command silently installs from the default branch.
 
    Read that script's header before regenerating an existing catalogue: the same file also carries
    hand-added units (the guide's `title`, per-artifact names) that the generator does not own, and
