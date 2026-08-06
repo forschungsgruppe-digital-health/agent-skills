@@ -484,6 +484,8 @@ Derived from `skills/mii-ig-migration` in
 measurement that forced it — is [references/provenance.md](references/provenance.md)**; it is
 history, and nothing in it changes what to do on a run.
 
+**2026-08-06 — identity recovered from the published package.** The Consent run stopped at Gate A claiming identity had *no* authoritative source. Measured against `de.medizininformatikinitiative.kerndatensatz.consent@2026.0.0`, the package tarball yields `packageId`, `version` **2026.0.0**, description, `fhirVersions`, `jurisdiction` and the dependency pins, and its 13 resource urls agree unanimously on the canonical — so the genuine Gate-A remainder is three fields (`title`, `license`, `publisher`), not all of them. Spec §2.1.1 ranks that tier (below a repo-local `sushi-config.yaml`, above the goFSH config and every inference), `scripts/package-identity.sh` performs it, and §5.1b.2's version rule now consults the source package **before** `dist-tags.latest` — which had put the parent at `de.einwilligungsmanagement@2.0.3` where the source pins **2.0.2**.
+
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill; `scripts/` is
 Apache-2.0, matching this repository's code licence. Promoted to `stable` on 2026-08-05 after two full
 real-task migrations (Dokument, Person), both passing the same-module verification (identity, artifact
