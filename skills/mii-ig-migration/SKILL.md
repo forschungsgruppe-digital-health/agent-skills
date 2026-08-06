@@ -118,8 +118,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    `sushi-config.yaml` wins — it is what the build reads; record it. A field in neither file comes
    from the generated `ImplementationGuide`; absent everywhere it takes the template default, at
    Gate A. Resolve floating pins (`1.5.x`) per spec §2.1, recording the pick and its evidence.
-   **Shape B often has none of the three files** — identity then comes from the published package
-   manifest and the resources' own canonicals (spec §2.1, fourth tier); goFSH's config is never it.
+   **Shape B often has none of the three files — but a PUBLISHED module is not identity-less: its package tarball carries the manifest.** `bash "$SKILL_DIR/scripts/package-identity.sh" --package ID --version V` fetches it and logs `packageId`, `version`, `description`, `fhirVersions`, `jurisdiction` and the **dependency pins** — source evidence, outranking any `dist-tags.latest` — plus the `canonical` derived from the resources' own urls by common prefix, **unanimous or a WARN, never a majority vote**. It reports; it overwrites nothing. A manifest has no field for `title`, `license` or `publisher`, so those three — not "everything" — stay Gate A, and `author` is a registry account, not a publisher. Spec §2.1.1; goFSH's config is never identity.
 
    Log each value read, and each divergence as a WARN. The **target version** is the only identity
    value that is a human decision: MII CalVer `YYYY.n.n`, not SemVer, defaulting to the source's.
@@ -197,8 +196,9 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
      differ (12 mappings / 14 aliases without, 0 / 8 with). A Forge repo names neither package nor
      version: resolve it against the FHIR package registry (spec §5.1b.2); no hit is a Gate-A stop.
    - **goFSH writes the `sushi-config.yaml` itself but it is a STARTING POINT, NOT IDENTITY**: no
-     `id`/`name`/`title`/`publisher`/`packageId`/`license`, and an **untrusted `version`** (measured
-     `1.0.8` — one arbitrary profile's — against a published `2026.0.1-rc-3`).
+     `id`/`name`/`title`/`publisher`/`packageId`/`license`, an **untrusted `version`** (measured
+     `1.0.8` — one profile's — against the module's published `2026.0.0`), and `dependencies` that
+     are only whatever `-d` set you passed. Recover identity per step 2 instead.
    - **The script's two passes are mechanical:** `fhir_comments` rules and unquoted code-reference
      systems whose name carries whitespace, repaired with the name goFSH itself reports. It classifies
      before writing, writes nothing on a shape it does not model, and is idempotent. Give it the
@@ -487,6 +487,8 @@ exit-status cross-check, `--expected-nonzero` for the anticipated shape-B `sushi
 run-boundary; wrapped scripts log `params`/`result`, not a second `start`/`done`; the step-2b block logs
 both SUSHI error counts. Measured: 20 of 20 converted with `-t json-and-xml` (no WARN), 1 of 20 without
 (WARN), 41 → 5 across the repair, identical on a second run in place.
+
+**2026-08-06 — identity recovered from the published package.** The Consent run stopped at Gate A claiming identity had *no* authoritative source. Measured against `de.medizininformatikinitiative.kerndatensatz.consent@2026.0.0`, the package tarball yields `packageId`, `version` **2026.0.0**, description, `fhirVersions`, `jurisdiction` and the dependency pins, and its 13 resource urls agree unanimously on the canonical — so the genuine Gate-A remainder is three fields (`title`, `license`, `publisher`), not all of them. Spec §2.1.1 ranks that tier (below a repo-local `sushi-config.yaml`, above the goFSH config and every inference), `scripts/package-identity.sh` performs it, and §5.1b.2's version rule now consults the source package **before** `dist-tags.latest` — which had put the parent at `de.einwilligungsmanagement@2.0.3` where the source pins **2.0.2**.
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill; `scripts/` is
 Apache-2.0, matching this repository's code licence. Promoted to `stable` on 2026-08-05 after two full

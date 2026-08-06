@@ -64,15 +64,105 @@ read it from the generated `ImplementationGuide` resource
 also carries no canonical). A value absent everywhere takes the **template default** and is
 recorded as a Gate-A note — never adopted silently.
 
-**Fourth tier — source shape B (§5.1b).** A Forge-authored repository commonly has neither a
-`sushi-config.yaml` nor a `package.json` nor a generated `ImplementationGuide` resource
-(`kerndatensatzmodul-consent` has none of the three). Identity then comes from the module's
-**published package manifest** on the registry it was published to and from the **canonical URLs the
-conformance resources themselves carry**, cross-checked against the rendered Simplifier IG. **The
-`sushi-config.yaml` goFSH writes is not a source of identity** — it carries no `id`, `name`, `title`,
-`publisher`, `packageId` or `license`, and its `version` is one arbitrary artefact's version
-(measured: `1.0.8`, while the published package was `2026.0.1-rc-3`). Reading identity out of it
-would silently rename and re-version a published module.
+**Fourth tier — source shape B (§5.1b): the published package.** A Forge-authored repository
+commonly has neither a `sushi-config.yaml` nor a `package.json` nor a generated
+`ImplementationGuide` resource (`kerndatensatzmodul-consent` has none of the three). The identity
+chain above is then empty — but the module is not identity-less, because **a module that was
+PUBLISHED ships its identity inside its package tarball**. Read it with §2.1.1 before concluding
+that a human must supply everything; that conclusion is right for exactly three fields, not for all
+of them. **The `sushi-config.yaml` goFSH writes is not a source of identity** — it carries no `id`,
+`name`, `title`, `publisher`, `packageId` or `license`, and its `version` is one arbitrary
+artefact's version (measured: `1.0.8` — the `DocumentReference` profile's — while the module's
+published version is `2026.0.0`). Reading identity out of it would silently rename and re-version a
+published module.
+
+### 2.1.1 Tier P — the published package (authoritative for a published module)
+
+Fetch the package and read its manifest. Two commands, no tooling:
+
+```bash
+curl -sfL "https://packages.simplifier.net/<packageId>/<version>" -o pkg.tgz && tar xzf pkg.tgz
+cat package/package.json          # the manifest; the resources sit beside it in package/
+```
+
+`https://packages.fhir.org/<packageId>/<version>` serves the same packages. Do not run this by
+hand: **`scripts/package-identity.sh` performs it and reports every field into the run log**,
+including the derivation and the refusals below.
+
+```bash
+bash "$SKILL_DIR/scripts/package-identity.sh" \
+  --package de.medizininformatikinitiative.kerndatensatz.consent --version 2026.0.0
+```
+
+**Where tier P ranks.** It is authoritative for the module's *published identity*, and it is a
+**snapshot of one release** — not of the commit being migrated. So:
+
+1. **A repo-local `sushi-config.yaml` still wins** where one exists. It is what the build reads and
+   it may legitimately be *ahead* of the last release. Tier P then serves as a **cross-check**, and
+   a divergence between the two is reported at Gate A (§2.2) rather than resolved here.
+2. **Absent a `sushi-config.yaml`, tier P outranks the repo `package.json` and the generated
+   `ImplementationGuide`** for the fields it carries: those are build inputs or build outputs of one
+   commit, while the manifest is what consumers actually resolve.
+3. **Within the package, the manifest outranks the packaged `ImplementationGuide` resource** for
+   every field the manifest carries.
+4. **It always outranks goFSH's derived config, the package id's shape, and the rendered guide's
+   URL** — none of which is evidence (see the tier-four paragraph above, and §5.1b.2).
+
+**Which version to read.** The one the migrated **source commit** corresponds to, verified against
+the resources' own `version` values — *not* `dist-tags.latest` by reflex, and not the highest
+version string. The two differ: measured on Consent (2026-08-06), `dist-tags.latest` is `2026.0.0`
+while the highest string published is `2026.0.1-rc-3`, a prerelease with a *different* dependency
+pin and a *different* `Consent.category` slicing. `package-identity.sh` WARNs `version-above-latest:`
+when versions sort above `latest`; resolve it with evidence, and record which release you read.
+
+**What the manifest yields** — measured on
+`de.medizininformatikinitiative.kerndatensatz.consent@2026.0.0`:
+
+| Field | Value read | Maps onto |
+| --- | --- | --- |
+| `name` | `de.medizininformatikinitiative.kerndatensatz.consent` | `packageId` |
+| `version` | `2026.0.0` | the module `version` (the default the human confirms, §2) |
+| `description` | `KDS Modul Consent Release 2026.0.0` | description / release note |
+| `fhirVersions` | `["4.0.1"]` | `fhirVersion` |
+| `jurisdiction` | `urn:iso:std:iso:3166#DE` | `jurisdiction` |
+| `dependencies` | `hl7.fhir.r4.core@4.0.1`, `de.einwilligungsmanagement@2.0.2` | `dependencies`, and goFSH's `-d` set (§5.1b.2) |
+| `author` | `sebastianstubert` | **nothing.** A registry account, not a `publisher` |
+
+A manifest **may** also carry `canonical`, `title`, `license` or `homepage`; MII KDS manifests
+measured so far do not. Read what is there, report what is not.
+
+**The canonical, by common prefix.** The manifest above declares none, so derive it from the
+**packaged resources' own `url` values**: take each `url`, remove the trailing
+`/<ResourceType>/<id>`, and require the remainders to be **unanimous**. Measured on Consent:
+**13 of 13** absolute URLs agree on
+`https://www.medizininformatik-initiative.de/fhir/modul-consent`.
+
+- **A non-unanimous prefix is a FINDING, not a majority vote.** Report every candidate with its
+  count and an example, and take it to Gate A. Two bases in one package is a real condition (a
+  module that absorbed another's artefacts); adopting the larger set silently re-homes the smaller
+  one, and a changed published canonical breaks every consumer that resolves it — guardrail 1, the
+  one mistake that cannot be quietly fixed later. `package-identity.sh` WARNs
+  `canonical-not-unanimous:` and exits 1 rather than picking.
+- **URLs that are not absolute `http(s)` carry no base** and are excluded *by name*, never
+  reshaped. Measured on Consent: two CodeSystems published under
+  `urn:oid:2.16.840.1.113883.3.1937.777.24.5.2/.3`, and the packaged `ImplementationGuide` whose
+  `url` is the **relative Simplifier guide path** `/guide/mii-ig-modul-consent-2026?version=current`
+  — a rendering address, not a canonical base.
+- Examples and other resources carrying no `url` at all (measured: the six Consent examples) are
+  neither evidence nor a problem; they are reported as not participating.
+
+**What tier P does NOT yield — the genuine Gate-A remainder.** `title`, `license` and `publisher`.
+A FHIR package manifest has no field for them, so their absence is a property of the format rather
+than of the package, and **no adjacent field substitutes**: `author` is the registry account that
+pushed the release. The packaged `ImplementationGuide`, where one exists, may narrow this — on
+Consent it yields `name: "MII IG Consent v2026"` (a computer name, not a title) and leaves `title`,
+`publisher` and `license` null. Narrow the Gate-A item to what is genuinely missing; do not widen it
+back to "everything", and do not fill it from the template's literals (§2.2 — `license` above all).
+
+**Recovered is not applied.** Everything above is *evidence for a human decision*. Existing
+metadata — in the module repository, in the FSH, in a manifest — is **never overwritten from a
+recovered value**, not even where the recovery shows it to be inconsistent. Report the
+inconsistency; let Gate A decide.
 
 **Resolving floating pins** (`1.5.x`, `2025.0.x`): query the FHIR package registry
 (`https://packages.fhir.org/<packageId>` or `packages.simplifier.net`) and pick the **highest
@@ -135,7 +225,8 @@ Abstract, so any tool-capable agent can be mapped onto them:
   `npx`, or a bare `sushi`/`gofsh` assumed to be on `PATH`, does not: neither tool is normally
   installed, so a bare invocation is unrunnable on the machine this specification describes.
 - **HTTP GET against the FHIR package registry** — to resolve a canonical to `<package>@<version>`
-  (§5.1b.2) and to resolve floating pins (§2.1).
+  (§5.1b.2), to resolve floating pins (§2.1), and to **fetch and unpack a published package**
+  (`curl` + `tar`) when the repository holds no identity of its own (§2.1.1).
 - **Append-only text output** — write and append `migration-log/run.log` in the format of §10, and
   capture the bundled scripts' stdout and stderr into it.
 - **Resource-format detection** — parse XML and JSON well enough to decide whether a file is a FHIR
@@ -281,6 +372,36 @@ default.
 text, or binary asset; the resource count is recorded in `migration-log/source-inventory.json`;
 every narrative-bearing file has a disposition; and the source shape (A or B) is recorded in the
 migration report.
+
+#### 5.1b.1a Recover the identity from the published package — before goFSH
+
+Shape B has no identity in the repository (§2.1, fourth tier), and the conversion below needs one of
+its values: the **dependency pins**, which become goFSH's `-d` set. So this runs first, not at
+Gate A:
+
+```bash
+ML="$SKILL_DIR/scripts/migration-log.sh"
+bash "$ML" begin "step 2 — identity from the published package"
+bash "$SKILL_DIR/scripts/package-identity.sh" \
+  --package <packageId> --version <the release the source commit corresponds to>
+```
+
+Call it directly — it emits its own run-log lines through the helper as a library, so
+`run --emits-runlog` would duplicate every one of them (same as `gofsh-results.sh`).
+
+- The `packageId` is not always known in advance. Resolve it the same way a foreign parent is
+  resolved (§5.1b.2, *Resolving a canonical to `<package>@<version>`*): query the registry for a
+  canonical the module's own resources carry. No hit, or more than one, is a Gate-A escalation.
+- **Confirm the version against the resources.** The manifest of the *wrong* release yields wrong
+  pins. Measured on Consent: release `2026.0.0` and prerelease `2026.0.1-rc-3` differ in their
+  parent pin (`2.0.2` vs `2.0.3`) *and* in the `Consent.category` slicing (`:loinc` vs
+  `:consentCategory`), so one profile read from the source tells you which you are holding.
+- Exit 1 means the package was read but the canonical was **not** unanimous — a Gate-A item, and a
+  usable CI gate. Exit 2 means nothing was read; an unfetchable package is not an empty identity.
+
+→ **Acceptance:** the recovered fields, the derived canonical with its `agree=N of N`, and the
+fields tier P cannot supply are all in `run.log`; the `-d` set below is taken from the recovered
+pins; and **no existing metadata was changed by any of it** (§2.1.1).
 
 #### 5.1b.2 Convert with goFSH
 
@@ -477,14 +598,28 @@ the trimmed IG canonical `http://fhir.de/ConsentManagement` returns the same sin
 registry once **per distinct canonical host+path prefix**, not once per resource.
 
 Picking the version is a judgement, so record it and its evidence (§2.1's floating-pin rule applies
-unchanged):
+unchanged). **Work the list in order — step 1 is not optional, and `dist-tags.latest` is the
+LAST resort, not the first:**
 
-1. If the source repository, its CI logs or a committed package cache name a concrete version, that
-   evidence wins — it is what the module was actually authored against.
-2. Otherwise take `dist-tags.latest` and say so. For the reference module that is `2.0.3`, and the
-   registry's own description string ("Einwilligungsmanagement Release 2.0.3") corroborates it.
-3. A canonical that resolves to **no** package, or to more than one, is a Gate-A escalation — name
+1. **Read the module's own published package first (§2.1.1).** Its manifest declares the pins the
+   module was actually published against, and **that is source evidence** — it outranks the parent's
+   `dist-tags.latest` under rule 2 below. Until this step existed, a shape-B run reached rule 2 with
+   no source evidence *available*, and picked `latest` by default. Measured on Consent: the parent
+   pin in `…consent@2026.0.0` is **`de.einwilligungsmanagement@2.0.2`**, while the parent's
+   `dist-tags.latest` is **`2.0.3`** — so the reflex answer is the wrong one, by one patch release,
+   on the reference module itself. Run:
+   `bash "$SKILL_DIR/scripts/package-identity.sh" --package <module-packageId> --version <release>`.
+2. Otherwise, if the source repository, its CI logs or a committed package cache name a concrete
+   version, that evidence wins — it is what the module was actually authored against.
+3. Otherwise take `dist-tags.latest` and **say that that is what you did**. For the reference
+   parent that is `2.0.3`, and the registry's own description string ("Einwilligungsmanagement
+   Release 2.0.3") corroborates only that `2.0.3` exists — never that this module used it.
+4. A canonical that resolves to **no** package, or to more than one, is a Gate-A escalation — name
    it in the report and stop guessing. Never invent a package id from the canonical's shape.
+
+A pin picked under rule 3 and later contradicted by rule 1 is **corrected in the run log and the
+report**, with both values and the evidence, and re-run: the `-d` set changes what goFSH resolves.
+Nothing in the module's own metadata is rewritten to match (§2.1.1, *Recovered is not applied*).
 
 Re-run goFSH after every change to the `-d` set, and check the unresolved-parent warnings are gone;
 that warning, and not the exit code, is the acceptance signal.
@@ -493,9 +628,12 @@ that warning, and not the exit code, is the acceptance signal.
 never identity.** Measured output for Consent: `canonical`, `fhirVersion: 4.0.1`, `FSHOnly: true`,
 `applyExtensionMetadataToRoot: false`, `status: active`, `version: 1.0.8`, plus the declared
 dependencies. It carries **no** `id`, `name`, `title`, `publisher`, `packageId` or `license`, and its
-`version` is one arbitrary profile's version — `1.0.8` against the module's published package
-`2026.0.1-rc-3`. Identity is read per §2.1 from the authoritative sources; goFSH's guess is used only
-to run SUSHI in the scratch directory and is never carried into the module.
+`version` is one arbitrary profile's version — `1.0.8`, the `DocumentReference` profile's, against
+the module's published `2026.0.0`. Identity is read per §2.1 from the authoritative sources —
+for a Forge repository that means the **published package**, §2.1.1 — and goFSH's guess is used only
+to run SUSHI in the scratch directory, never carried into the module. Its `dependencies` are a
+guess too: they are whatever `-d` set the operator passed, so a wrong pin propagates into the file
+that looks most like configuration.
 
 → **Acceptance:** the run's artefact counts reconcile against the §5.1 inventory; no unresolved-parent
 warning remains; the goFSH version, the `-d` set and the count difference between the dependency-less
@@ -908,7 +1046,7 @@ request description and at Gate D: there, merging publishes.
 
 | Gate | After | Reviewed |
 | --- | --- | --- |
-| **A** | §5.3 | Canonical URL and ID preservation; artefact completeness; any identity divergence per §2.2; for source shape B additionally the ids goFSH minted (§5.1b.4) and the decision on any unresolvable parent |
+| **A** | §5.3 | Canonical URL and ID preservation; artefact completeness; any identity divergence per §2.2; for source shape B additionally the ids goFSH minted (§5.1b.4), the decision on any unresolvable parent, and — **narrowed to what tier P could not supply** (§2.1.1) — the identity fields a published package has no field for: `title`, `license`, `publisher` |
 | **B** | §5.4 | The narrative, especially sections added to satisfy the Manteldokument, and section completeness by hand while §9 is open |
 | **C** | §5.5 | Language handling and translation |
 | **D** | before merge | Release per KDS governance (TF KDS / AG IOP / NSG) |
@@ -1207,6 +1345,14 @@ INFO/WARN-to-stdout, ERROR-to-stderr split — but they now **flush every line**
 block-buffered when it is a pipe while stderr is not: measured before the fix, an ERROR written last
 appeared *first* in the captured log, ahead of INFO lines emitted seconds earlier. A log that claims
 to read as one chronological stream has to actually be one.
+
+**Two bundled scripts take the other route: they `source` this helper as a library** —
+`gofsh-results.sh` (§5.1b.2) and `package-identity.sh` (§2.1.1, §5.1b.1a) — so their lines are
+emitted by the same code that emits everyone else's rather than hand-assembled. **Call those two
+directly, never through `run --emits-runlog`:** they already write `run.log` themselves, and the
+wrapper's `tee` into it would duplicate every line. The distinction to remember is not which
+language a script is written in but where its lines come from: a script that *prints* §10.2 lines is
+wrapped with `--emits-runlog`; a script that *calls* the helper is not wrapped at all.
 
 Where the log is written is `$MIGRATION_LOG_DIR/run.log`, default `migration-log/run.log`; set
 `MIGRATION_LOG_DIR` for a repository that still carries `.ai-log/` (§10.1).
