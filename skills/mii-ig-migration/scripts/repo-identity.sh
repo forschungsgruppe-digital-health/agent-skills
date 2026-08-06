@@ -33,14 +33,26 @@
 #   * A LICENSE whose text it does not recognize yields NO spdx id. It WARNs
 #     `license-text-unrecognized:` and leaves the field to a human -- guessing a
 #     licence is the worst possible place to be approximately right.
-#   * The rendered guide is NOT scraped for identity. A Simplifier project page
-#     is client-rendered: the HTML that arrives carries the application, not the
-#     metadata. This script MEASURES that (bytes, script markers, whether any
-#     identity marker is in the DOM at all) and reports the page as a HUMAN
-#     reference for the fields no machine source carries. Measured on the
-#     reference guide: HTTP 200, ~56 KB, 52 script markers, no identity metadata
-#     in the DOM. Reading a number out of a rendered page nobody can re-derive
-#     would be fabrication with a URL attached (guardrail 3).
+#   * No rendered page is scraped for IDENTITY, by either of them. Reading a
+#     number out of a rendering nobody can re-derive tomorrow would be
+#     fabrication with a URL attached (guardrail 3). What this script does is
+#     MEASURE the page (bytes, script markers, whether any identity marker is in
+#     the DOM at all) and report it as a HUMAN reference for the fields no
+#     machine source carries.
+#
+#     SIMPLIFIER HAS TWO URL SPACES AND THEY ANSWER DIFFERENTLY (§2.1.3). The
+#     PROJECT page `simplifier.net/<Project>/` is a client-rendered application
+#     shell -- measured 2026-08-06: HTTP 200, ~56 KB, 52 script markers, no
+#     identity metadata in the DOM -- and is reported as `client-rendered-page:`.
+#     The GUIDE pages `simplifier.net/guide/<key>/<Root>[/<Page>]?version=<v>`
+#     are SERVER-RENDERED and carry the module's NARRATIVE (measured: root 24509
+#     bytes with the whole page tree, leaf 20481 bytes with the real German
+#     text), so a `/guide/` URL is reported as `server-rendered-guide:` and
+#     pointed at `guide-harvest.sh`, which harvests it (spec §5.1d).
+#
+#     Do NOT carry a finding from one of those URL spaces to the other. That
+#     over-generalisation is what shipped a migration with the template's
+#     starter pages in place of the module's narrative.
 #   * Nothing is written into the module. Every recovered value goes to the
 #     run log and the identity ledger as Gate-A evidence (§2.1, "Recovered is
 #     not applied"), and a value that CONTRADICTS another source raises a WARN
@@ -58,8 +70,8 @@
 #                     description, its detected `license.spdx_id`, its tags.
 #                     Rate-limited without a token; a 403 is reported, never
 #                     silently treated as "no evidence".
-#     --rendered URL  the rendered Simplifier guide or project page, probed as
-#                     described above. Optional.
+#     --rendered URL  a rendered Simplifier page -- project OR guide -- probed
+#                     and CLASSIFIED as described above. Optional.
 #     --step S        run-log STEP field   (default 2.1)
 #     --action A      run-log ACTION field (default repo-identity)
 #
@@ -263,26 +275,40 @@ print(" ".join(t.get("name","") for t in d[:8]))' 2>/dev/null)
   rm -f "$BODY"
 fi
 
-# --- tier H, the rendered guide ----------------------------------------------
-# The honest part: measure what the page actually delivers, and say plainly that
-# it is a human reference rather than a source this script reads.
+# --- tier H, the rendered page -----------------------------------------------
+# The honest part: measure what the page actually delivers, say plainly that it
+# is not an identity source -- and say WHICH URL SPACE it is, because the two
+# answer differently and conflating them is what this section got wrong once.
 if [ -n "$RENDERED" ]; then
   PAGE=$(mktemp)
   CODE=$(curl -sL -o "$PAGE" -w '%{http_code}' "$RENDERED" 2>/dev/null)
   BYTES=$(wc -c <"$PAGE" 2>/dev/null | tr -d ' ')
   SCRIPTS=$(grep -o -i '<script' "$PAGE" 2>/dev/null | wc -l | tr -d ' ')
   MARKERS=$(grep -c -i -E 'og:title|"packageId"|canonical"|application/fhir\+json' "$PAGE" 2>/dev/null | tr -d ' ')
+  # Guide page links are what tells the server-rendered guide from the project
+  # shell, and it is MEASURED per run rather than assumed from the URL alone.
+  GUIDE_LINKS=$(grep -o 'href="/guide/[^"]*"' "$PAGE" 2>/dev/null \
+                | grep -v '/files/static/' | sort -u | grep -c . | tr -d ' ')
   log_info "$STEP" "$ACTION" \
-    "rendered guide probed  cmd=\`curl -sL $RENDERED\`  http=$CODE bytes=${BYTES:-0} script_markers=${SCRIPTS:-0} identity_markers=${MARKERS:-0}"
-  if [ "$CODE" = "200" ] && [ "${MARKERS:-0}" -eq 0 ]; then
+    "rendered page probed  cmd=\`curl -sL $RENDERED\`  http=$CODE bytes=${BYTES:-0} script_markers=${SCRIPTS:-0} identity_markers=${MARKERS:-0} guide_page_links=${GUIDE_LINKS:-0}"
+  if [ "$CODE" = "200" ] && [ "${GUIDE_LINKS:-0}" -gt 0 ]; then
+    log_info "$STEP" "$ACTION" \
+      "server-rendered-guide: this URL space DOES deliver content  http=$CODE bytes=${BYTES:-0} guide_page_links=${GUIDE_LINKS:-0} url=$RENDERED" \
+      "It still yields no IDENTITY -- that stays a Gate-A read by a human. What it" \
+      "yields is the NARRATIVE: harvest it with scripts/guide-harvest.sh (spec 5.1d)," \
+      "or supply the authenticated project download, which is the better source." \
+      "Do NOT read the project page's client-rendered finding onto this one."
+  elif [ "$CODE" = "200" ] && [ "${MARKERS:-0}" -eq 0 ]; then
     log_warn "$STEP" "$ACTION" \
-      "client-rendered-page: the guide is a HUMAN reference, not a scrape target  http=$CODE bytes=${BYTES:-0} script_markers=${SCRIPTS:-0} identity_markers=0" \
+      "client-rendered-page: this page is a HUMAN reference, not a scrape target  http=$CODE bytes=${BYTES:-0} script_markers=${SCRIPTS:-0} identity_markers=0 guide_page_links=0" \
       "The delivered HTML carries the application, not the metadata: the identity" \
       "is fetched by scripts after load. Nothing is extracted from it here." \
       "Its legitimate use is the opposite direction -- a HUMAN reads the rendered" \
-      "guide at Gate A for the fields no machine source carries (title, publisher)" \
+      "page at Gate A for the fields no machine source carries (title, publisher)" \
       "and records what they read. An agent inventing a value 'from the guide'" \
-      "would be fabricating with a URL attached (guardrail 3)."
+      "would be fabricating with a URL attached (guardrail 3)." \
+      "THIS FINDING IS ABOUT THIS URL ONLY. The /guide/<key>/<Root> space is" \
+      "server-rendered and IS harvestable -- pass that URL to see it measured."
   elif [ "$CODE" != "200" ]; then
     log_warn "$STEP" "$ACTION" \
       "rendered-guide-unreachable: no tier-H reference was probed  http=$CODE url=$RENDERED"

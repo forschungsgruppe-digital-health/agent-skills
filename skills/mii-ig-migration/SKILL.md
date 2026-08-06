@@ -51,9 +51,11 @@ Discover the context: assume none of it, create nothing that is missing.
      folder names are hand-chosen and often German, so no conventional-name glob finds them.
      **The rendered guide's narrative is on Simplifier, not in the repository** — no
      `implementation-guides/**` tree, so step 1 takes the page structure from the rendered IG and
-     `fql-scan.sh` rightly exits 2 on an empty target set before migration. That is not "no narrative
-     in the repository": the reference module ships a 43-line German `README.md` and a 126-line
-     CodeSystem mirror. Inventory every narrative-bearing text file, with a disposition each.
+     `fql-scan.sh` rightly exits 2 on an empty target set before migration. **Not in git is not
+     unobtainable: step 2c harvests it**, and skipping that ships the template's starter pages under
+     the module's name. Nor is it "no narrative in the repository": the reference module ships a
+     43-line German `README.md` and a 126-line CodeSystem mirror. Inventory every narrative-bearing
+     text file, with a disposition each.
    - **Neither** — no scaffolding **and** no FHIR resources: not a FHIR IG project. Say so and stop.
      **Do not scaffold one.** Path B is no exception: it creates no artefacts, deriving FSH from
      resources that already exist, each tracing to a source file (guardrail 3).
@@ -62,35 +64,18 @@ Discover the context: assume none of it, create nothing that is missing.
    skeleton comes in step 3 of the procedure. In every state, read
    `forschungsgruppe-digital-health/mii-kds-module-template` at the ref you intend to use rather
    than relying on this skill's description of it.
-   - **Already on the module template** — a vendored `ig-template/`, or an `ig.ini` `template` entry
-     pointing at it. A *re-migration*: report what is in place before changing anything.
-   - **Plain Simplifier project** — Simplifier files only (`.simplifier/`, `project.yaml`,
-     `implementation-guides/`), no IG-Publisher scaffolding. The normal starting state.
-   - **Hybrid, or on another template** — IG-Publisher files beside the Simplifier ones: an `ig.ini`
-     naming another template, `_genonce.sh` & co., a committed `fsh-generated/` or rendered output
-     (possibly live GitHub Pages). Still a migration. Inventory them and record which the template
-     replaces (`ig.ini`, `_gen*`/`_update*`), which carry content to transfer (`input/`,
-     `fsh-generated/`), and which retire only after Gate D. List **any unrecognized top-level entry**
-     too (e.g. `validator/`) with a retain/retire proposal — list, do not remove.
+   - **Already on the module template** — a vendored `ig-template/`, or an `ig.ini` `template` entry pointing at it. A *re-migration*: report what is in place before changing anything.
+   - **Plain Simplifier project** — Simplifier files only (`.simplifier/`, `project.yaml`, `implementation-guides/`), no IG-Publisher scaffolding. The normal starting state.
+   - **Hybrid, or on another template** — IG-Publisher files beside the Simplifier ones: an `ig.ini` naming another template, `_genonce.sh` & co., a committed `fsh-generated/` or rendered output (possibly live GitHub Pages). Still a migration. Inventory them and record which the template replaces (`ig.ini`, `_gen*`/`_update*`), which carry content to transfer (`input/`, `fsh-generated/`), and which retire only after Gate D. List **any unrecognized top-level entry** too (e.g. `validator/`) with a retain/retire proposal — list, do not remove.
 
 4. **Unreplaced placeholders.** The template does not build until every `{{...}}` placeholder is
    replaced, and an unreplaced one **ships a bogus artefact** rather than failing loudly. Before and
    after migrating, grep the tree for `{{` and account for every hit — excluding `.github/**`
-   (Actions `${{ … }}` matches the pattern) and counting Simplifier directives in narrative sources
-   as accounted (step-5 material). The template's `sushi-config.yaml` header enumerates the real
+   (Actions `${{ … }}` matches the pattern) and counting Simplifier directives in narrative sources as
+   accounted (step-5 material). The template's `sushi-config.yaml` header enumerates the real
    placeholders and says which are active.
 
-5. **The toolchain — invoke SUSHI and goFSH only as a version-pinned `npx`.** Neither is normally
-   installed (`which gofsh` finds nothing on the reference machine), so **a bare `sushi`/`gofsh` is
-   unrunnable and appears nowhere in this skill**: write `npx --yes fsh-sushi@3.20.0` and
-   `npx --yes gofsh@2.6.1` — the npm package for SUSHI is **`fsh-sushi`**, not `sushi`. What the "no
-   fetching a toolchain" rule protects is an **exact, recorded version**, which the pin supplies and
-   an unpinned `npx` does not; let the pin be the record, carried in the log's `cmd=` token.
-   (`allowed-tools` grants `Bash(npx:*)`; `Bash(gofsh:*)` never matches an `npx` command line.) goFSH
-   is **required for shape B**, for shape A only where the source ships JSON/XML; the IG Publisher is
-   needed from step 7. Missing node/npx → say which and **stop after step 2**. A parent package
-   without snapshots additionally needs **java and a pinned `validator_cli.jar`** — fetched only when
-   that condition is actually detected (spec §5.1b.5), never hand-substituted.
+5. **The toolchain — invoke SUSHI and goFSH only as a version-pinned `npx`.** Neither is normally installed (`which gofsh` finds nothing on the reference machine), so **a bare `sushi`/`gofsh` is unrunnable and appears nowhere in this skill**: write `npx --yes fsh-sushi@3.20.0` and `npx --yes gofsh@2.6.1` — the npm package for SUSHI is **`fsh-sushi`**, not `sushi`. What the "no fetching a toolchain" rule protects is an **exact, recorded version**, which the pin supplies and an unpinned `npx` does not; let the pin be the record, carried in the log's `cmd=` token. (`allowed-tools` grants `Bash(npx:*)`; `Bash(gofsh:*)` never matches an `npx` command line.) goFSH is **required for shape B**, for shape A only where the source ships JSON/XML; the IG Publisher is needed from step 7. Missing node/npx → say which and **stop after step 2**. A parent package without snapshots additionally needs **java and a pinned `validator_cli.jar`** — fetched only when that condition is actually detected (spec §5.1b.5), never hand-substituted.
 
 ## Procedure
 
@@ -126,7 +111,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    field recorded with the source it came from** (spec §2.1; the scripts write the ledger themselves):
    - **P — the published package.** `bash "$SKILL_DIR/scripts/package-identity.sh" --package ID --version V` logs `packageId`, `version`, `description`, `fhirVersions`, `jurisdiction` and the **dependency pins** — source evidence, outranking any `dist-tags.latest` — plus the `canonical` derived from the packaged resources' own urls by common prefix, **unanimous or a WARN, never a majority vote**. No manifest carries `title`, `license` or `publisher`; `author` is a registry account, not a publisher.
    - **R — the source repository.** `bash "$SKILL_DIR/scripts/repo-identity.sh" --dir DIR --repo OWNER/NAME --rendered URL` reads the LICENSE text's **SPDX id — real licence evidence, the field that must never default** (§2.2) — the README's first heading as a `title` candidate, the repo description, and the release tags, whose match with P's version ties that release to the commit. An unrecognized licence text yields nothing (`license-text-unrecognized:`); the GitHub owner is **not** a `publisher`.
-   - **H — the Simplifier project / rendered IG.** Measured client-rendered (HTTP 200, ~56 KB, 52 script markers, **no identity metadata in the DOM**), so it is a **human reference at Gate A** for what no machine source carries — not a scrape target. The same script measures that and extracts nothing.
+   - **H — Simplifier. TWO URL SPACES, TWO ANSWERS — do not carry one to the other** (spec §2.1.3). The **project page** (`simplifier.net/<Project>/`) is measured client-rendered (HTTP 200, ~56 KB, 52 script markers, **no identity metadata in the DOM**): a **human reference at Gate A** for what no machine source carries, not a scrape target, and the script measures that and extracts nothing. The **guide pages** (`simplifier.net/guide/<key>/<Root>[/<Page>]?version=<v>`) are a **different URL space and are SERVER-RENDERED** — measured on Consent 2026.0.0: root 24509 bytes carrying the whole page tree (18 page links), leaf 20481 bytes carrying `<h1 id="page-title">` and the real German narrative. They yield the **narrative**, not identity: harvest them per step 2c.
 
    Whatever no tier yields stays Gate A — measured on the reference module, `publisher` alone.
    Every value is claimed with its evidence (`bash "$ML" claim 2.1 ACTION FIELD VALUE TIER SOURCE`),
@@ -247,6 +232,27 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
      shape B through the **shape-B qualifier**, spec §5.1b.4: no mechanical error left, every residual in
      the ① queue with a Gate-A decision, no parent fabricated. A tolerated error count is not a pass.
 
+2c. **Harvest the narrative when it is not in the repository** — shape B always, and any shape A
+   whose pages live on the platform. **Spec §5.1d is normative** (§5.1c found the guide). Order of sources, most trustworthy
+   first, and "nothing" is not the third one:
+
+   - **① The authenticated project download — preferred whenever credentials exist.** `https://simplifier.net/<project-slug>/$actions/downloading` yields the project **including the narrative markdown as the author wrote it**, behind a Simplifier login: measured, anonymous access returns the login page (`/login?ReturnUrl=…`) and every anonymous alternative probed 404s or returns HTML, so **no verified anonymous project download exists**. A human signs in *in their own browser*, downloads the archive and names a path outside the repository; the agent reads it and logs `narrative-source=project-download`. **Never invent a credential mechanism, ask for a password or store a token** — the gate is the point. Nobody available: log `project-download-unavailable:` and fall through to ②.
+   - **② The guide harvest — anonymous, verified, and a *rendering*** (directives already expanded; a rendered artefact view is not the resource it renders). Call it directly, it emits its own run-log lines:
+
+     ```bash
+     bash "$SKILL_DIR/scripts/guide-harvest.sh" \
+       --guide-url "https://simplifier.net/guide/<key>/<Root>?version=<version>" \
+       --out migration-log/guide-harvest/pagecontent --keep-html migration-log/guide-harvest/html
+     ```
+
+     It **discovers the page tree from the root's own `href` values — slugs are read, never constructed** ("Anwendungsfälle / Informationsmodell" → `AnwendungsflleInformationsmodell`), pins every page to `?version=`, isolates each content region `<div id="preview-content">` by **depth-scanning `<div>`/`</div>`** (a regex to the next `</div>` truncates at the first nested one; a page without the region is **skipped, never converted whole**), writes Markdown with a provenance header + `TODO:REVIEW`, and classifies each page `narrative` or `artefact-view`. `--out` has **no default** — this is step 5's input, not the template's page set.
+     **Verification is the point:** every discovered page is in `migration-log/guide-harvest.tsv` harvested-with-counts or **skipped-with-a-reason**; `ratio` raises the mandatory `silent-partial-success:` WARN when harvested < discovered; per page the source text runs that did not survive the conversion are counted (`missing_runs=`) and WARNed — under a separate `generated-view-lossy:` token on artefact views, so generated tables cannot bury real losses. Measured on Consent 2026.0.0: **18 discovered, 18 harvested, 0 skipped, 0 narrative pages short**, 14 narrative + 4 artefact-view, 3 assets. Exit 0 = clean; 1 = something skipped or short.
+   - **③ Nothing is not the third option.** An unreachable source is reported, escalated to Gate B and named.
+
+   **The registry package has not changed role:** resources and identity (step 2), **no narrative** —
+   it is what the harvested set is **verified against**. Map the pages onto the template's FIXED page
+   set in step 5 (spec §9), never one page per harvested page, and place the language per *Language*.
+
 3. **Create the skeleton** (spec §5.2). The migration happens **in place**: on a working branch of
    the module's existing repository, vendor the template checked out in Preconditions 3 and run its
    first-run bootstrap — do not mint a new repository; history, issues and consumers stay where they
@@ -268,8 +274,9 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    `npx --yes gofsh@2.6.1` where that is all the source has — for shape B that happened in step 2b,
    so what moves here is its post-processed output. IDs and URLs unchanged.
 
-5. **Migrate the narrative.** Move the Manteldokument content into `input/pagecontent/*.md` and
-   translate Simplifier and FQL directives into IG Publisher equivalents:
+5. **Migrate the narrative.** Its **source** is step 2c; this step maps it. Move the Manteldokument
+   content into `input/pagecontent/*.md` and translate Simplifier and FQL directives into IG
+   Publisher equivalents:
 
    ```bash
    bash "$ML" run 5.4 fql-scan --emits-runlog -- bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
@@ -365,30 +372,14 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
 | `bash "$ML" ratio [--exit N] STEP ACTION VERB NOUN EXPECTED ACTUAL [CONT …]` | an INFO naming both counts — plus the mandatory WARN when ACTUAL < EXPECTED |
 | `bash "$ML" run STEP ACTION [--emits-runlog] [--raw-log F] [--expected-nonzero WHY] -- CMD …` | the command actually executed, its output at `migration-log/<ACTION>.log` (**truncated per invocation**), and its **real exit status**, returned rather than swallowed |
 
-**Never `… 2>&1 | tee -a migration-log/run.log`.** A pipeline's status is `tee`'s, and this skill's
-acceptance criteria *are* exit statuses: measured, that pipeline reported **0** where `fsh-sushi`
-exited **41** and `postprocess-gofsh.py` exited **1**, so failed steps read as passed. `run` takes
-the status from `PIPESTATUS[0]`; `--emits-runlog` folds in the bundled scripts' own lines (wrapped,
-they log `params`/`result` rather than a second `start`/`done`). **An exit status is eight bits** —
-256 SUSHI errors report as `exit=0` — so `run` cross-checks it against the raw log's error count and
-WARNs (`exit-status-truncated:`) on disagreement. `--expected-nonzero WHY` marks the one step whose
-non-zero exit is the documented outcome (shape-B `sushi-after`), logging a WARN naming the
-escalation rather than an ERROR calling the expected result a failure.
+**Never `… 2>&1 | tee -a migration-log/run.log`.** A pipeline's status is `tee`'s, and this skill's acceptance criteria *are* exit statuses: measured, that pipeline reported **0** where `fsh-sushi` exited **41** and `postprocess-gofsh.py` exited **1**, so failed steps read as passed. `run` takes the status from `PIPESTATUS[0]`; `--emits-runlog` folds in the bundled scripts' own lines (wrapped, they log `params`/`result` rather than a second `start`/`done`). **An exit status is eight bits** — 256 SUSHI errors report as `exit=0` — so `run` cross-checks it against the raw log's error count and WARNs (`exit-status-truncated:`) on disagreement. `--expected-nonzero WHY` marks the one step whose non-zero exit is the documented outcome (shape-B `sushi-after`), logging a WARN naming the escalation rather than an ERROR calling the expected result a failure.
 
 ```text
 2026-08-05T22:29:04Z  INFO   5.1b.2  gofsh-convert  converted 1 of 20 inputs  expected=20 actual=1 exit=0
 2026-08-05T22:29:04Z  WARN   5.1b.2  gofsh-convert  silent-partial-success: converted 1 of 20 inputs at exit 0
 ```
 
-`<UTC ISO-8601>  <LEVEL>  <STEP>  <ACTION>  <DETAIL>`, two spaces between fields; `LEVEL` is
-`INFO `/`WARN `/`ERROR` padded to five, `STEP` the spec section (`5.1b.3`, `5.4`, `pre.5`), `ACTION`
-a stable slug, `DETAIL` the command **actually executed** as ``cmd=`…` `` plus measured `key=value`
-outcomes. Continuations are indented four spaces; every step emits at least one INFO line.
-**WARN is mandatory for silent partial success**: when a tool reports success while producing less
-than its input implies, name **both** numbers in a WARN beginning `silent-partial-success:`. Use
-`ratio`, never do it by hand — on that run every other signal is green (postprocess "nothing to
-repair", SUSHI 0 errors) while 19 of 20 resources are missing. Read the log back with
-`grep -E '  (WARN |ERROR)  '`.
+`<UTC ISO-8601>  <LEVEL>  <STEP>  <ACTION>  <DETAIL>`, two spaces between fields; `LEVEL` is `INFO `/`WARN `/`ERROR` padded to five, `STEP` the spec section (`5.1b.3`, `5.4`, `pre.5`), `ACTION` a stable slug, `DETAIL` the command **actually executed** as ``cmd=`…` `` plus measured `key=value` outcomes. Continuations are indented four spaces; every step emits at least one INFO line. **WARN is mandatory for silent partial success**: when a tool reports success while producing less than its input implies, name **both** numbers in a WARN beginning `silent-partial-success:`. Use `ratio`, never do it by hand — on that run every other signal is green (postprocess "nothing to repair", SUSHI 0 errors) while 19 of 20 resources are missing. Read the log back with `grep -E '  (WARN |ERROR)  '`.
 
 ## Guardrails
 
@@ -408,6 +399,13 @@ Binding — a migration that violates one is wrong even if it builds.
 8. **No Liquid literals in `pagecontent`, including inside HTML comments.** Jekyll evaluates `{% … %}`
    and `{{ … }}` everywhere: an invalid `{% … %}` **breaks the build hard**, an unknown `{{ … }}`
    silently empties and leaks into the HTML. Describe such mechanisms in prose.
+9. **A negative capability finding is only valid for the artefact it was measured on.** Record every
+   "cannot be read / not available / not possible" **with the exact URL, endpoint or command, the date
+   and the numbers**; **never generalise one to a sibling** URL, endpoint or mechanism; re-measure
+   before acting on one. Nothing downstream re-checks such a claim, so it silently turns a missing
+   capability into a missing deliverable — twice already: page-title localization (step 6 now does it)
+   and the Simplifier guide (step 2c now harvests it, after the false claim shipped a migration with
+   the template's starter pages). Spec §2.1.3 and §4 guardrail 10.
 
 ## Language
 
@@ -446,6 +444,7 @@ bash "$ML" run 5.4 fql-scan --emits-runlog -- bash "$SKILL_DIR/scripts/fql-scan.
   divergence is reported and human-decided.
 - `fql-scan.sh --strict` exits 0 **and reports a non-zero scanned-file count**, or every finding is a
   deliberate `TODO:REVIEW`. An empty target set exits 2 and is not a pass. No `[UNKNOWN]` findings.
+- **Narrative source (step 2c):** the run log names which of ①/②/③ supplied it; `migration-log/guide-harvest.tsv` accounts for **every** discovered page — harvested or skipped **with a reason** — harvested equals discovered or the `silent-partial-success:` WARN is in a report queue, every `missing_runs=` hit is Gate-B reviewed, and the harvested set is reconciled against the published package's artefact list. **No page of the target's set is a template starter page**: each traces to a harvested page, the project download, or a recorded gap.
 - **Identity:** every field in `migration-log/identity-claims.tsv` names the source it was read from;
   `bash "$ML" claims` lists each contradiction as a ① decision (it exits 1 while one is open); the
   fields no tier yielded are named at Gate A; **no existing metadata was rewritten** from a recovered
@@ -489,7 +488,7 @@ Derived from `skills/mii-ig-migration` in
 measurement that forced it — is [references/provenance.md](references/provenance.md)**; it is
 history, and nothing in it changes what to do on a run.
 
-**2026-08-06 — identity recovered from the published package.** The Consent run stopped at Gate A claiming identity had *no* authoritative source. Measured against `de.medizininformatikinitiative.kerndatensatz.consent@2026.0.0`, the package tarball yields `packageId`, `version` **2026.0.0**, description, `fhirVersions`, `jurisdiction` and the dependency pins, and its 13 resource urls agree unanimously on the canonical — so the genuine Gate-A remainder is three fields (`title`, `license`, `publisher`), not all of them. Spec §2.1.1 ranks that tier (below a repo-local `sushi-config.yaml`, above the goFSH config and every inference), `scripts/package-identity.sh` performs it, and §5.1b.2's version rule now consults the source package **before** `dist-tags.latest` — which had put the parent at `de.einwilligungsmanagement@2.0.3` where the source pins **2.0.2**.
+**2026-08-06 — the false "Simplifier is not a scrape target" claim, corrected.** This skill said the guide was client-rendered and therefore a human reference only. That was **measured on the PROJECT page and wrongly generalised to the GUIDE pages**, which are a different URL space and **are server-rendered** — and because of it the KDS Consent migration shipped the **template's starter pages** instead of the module's narrative. Re-measured 2026-08-06: guide root **24509 bytes / 18 page links**, leaf page **20481 bytes** with `<h1 id="page-title">` and the real German narrative; the gated project download (`$actions/downloading`, login required) is the more trustworthy alternative. Step 2c, spec §2.1.3 and §5.1d, and `scripts/guide-harvest.sh` + `guide-page-to-md.py` replace the claim with a verified procedure — measured 18 of 18 pages harvested. Guardrail 9 generalises the lesson: a negative capability finding is only valid for the artefact it was measured on. **The same day, step 1 gained the discovery chain that finds the guide in the first place** (spec §5.1c; the harvest moved to §5.1d), and §5.1c.2a states the rule in both directions — a *shape* measured on one instance is a hypothesis too.
 
 Original licence: CC-BY-4.0, as declared by the source repository and the source skill; `scripts/` is
 Apache-2.0, matching this repository's code licence. Promoted to `stable` on 2026-08-05 after two full
