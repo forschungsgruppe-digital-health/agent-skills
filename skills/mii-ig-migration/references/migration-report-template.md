@@ -52,9 +52,17 @@ Nothing is published until Gate D (a human merge decision); everything here is r
 <!-- "Anything lost?" is the honest column: name RENDERING losses (e.g. a live query table
      that became a static pointer) even when the underlying data survives in the resources. -->
 
+**Narrative source (spec §5.1c):** {the repository's own pages | the authenticated project download
+| the guide harvest | none — escalated}. For a harvest, take the numbers from
+`migration-log/guide-harvest.tsv`, not from memory: **{n} discovered, {n} harvested, {n} skipped**
+({n} narrative, {n} artefact-view), guide version `{version}`. Every skipped page is a row below
+with its reason. **A template page whose content is still the template's starter text is a GAP, not
+a migrated page** — say so here rather than letting the build's green tick imply otherwise.
+
 | Source page | Target page | Anything lost? |
 |---|---|---|
 | {page} | {page or "— retired: {reason}"} | {none \| description} |
+| {harvested page, skipped} | — | **not harvested: {reason from the manifest}** |
 
 **Template pages without source content (kept as stubs — gaps, not errors):** {list | none}.
 **Source files retained for Gate-D retirement (listed, not removed):** {list}.
@@ -110,7 +118,11 @@ escalation → ①, one entry per residual error), `exit-status-truncated:` / `e
 (believe the printed error count, not the status), `stale-raw-log:`, `count-above-expected:`,
 `identity-contradiction:` (→ ①, one row per contradicting field, §2.1.4),
 `not-in-a-package-manifest:` / `not-recoverable-from-a-repository:` / `license-text-unrecognized:`
-(→ ①, the fields a human still supplies), `client-rendered-page:` (→ ②, read the guide by hand),
+(→ ①, the fields a human still supplies), `client-rendered-page:` (→ ②, read **that** page by hand —
+it is the PROJECT page; the `/guide/` space is server-rendered and is harvested, §5.1c),
+`unpinned-guide-version:` / `page-unreachable:` / `content-region-absent:` /
+`project-download-unavailable:` (→ ②, the narrative harvest's own gaps — one entry per skipped page),
+`generated-view-lossy:` (→ ③, a rendered artefact view the IG Publisher regenerates anyway),
 `parent-without-snapshots:` / `generator-refused:` / `snapshot-implausible:` (→ ①, §5.1b.5).
 **Deviations from the skill or the template, with justification:** {list | none}.
 
