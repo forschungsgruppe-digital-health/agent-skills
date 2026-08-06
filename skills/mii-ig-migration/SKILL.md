@@ -228,9 +228,9 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    - **A parent package that ships no snapshots blocks import** — SUSHI cannot read such a parent at
      all, blocking those profiles and every instance declaring `InstanceOf` them. **Detect it, then
      generate the snapshots with a real generator; never hand-roll one** (spec §5.1b.5):
-     `parent-snapshots.sh detect --package ID --version V` counts them (measured: 21 SDs, **0**
+     `bash "$SKILL_DIR/scripts/parent-snapshots.sh" detect --package ID --version V` counts them (measured: 21 SDs, **0**
      snapshots, in *both* candidate versions — another version does not fix it), and
-     `parent-snapshots.sh build … --validator validator_cli.jar --install --require <parent-url>…`
+     `… build … --validator validator_cli.jar --install --require <parent-url>…`
      drives the **official HL7 generator** (`java -jar validator_cli.jar snapshot`, ProfileUtilities),
      verifies every result (**a snapshot whose element count matches only the differential is WRONG**
      and is refused), and installs a **new** cache entry `<id>#<version>-snapshots` — upstream is
