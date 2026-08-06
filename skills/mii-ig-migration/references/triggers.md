@@ -40,7 +40,7 @@ irreversible damage.
 1. "Add a new profile for medication statements to this module." — authoring, not migration. The
    module template ships its own recipe.
 2. "Translate the German pages of our IG into English." — the module template ships an
-   `ig-translate` skill. This skill only sets translation up as part of a migration; if it activates
+   `fhir-ig-translation` skill. This skill only sets translation up as part of a migration; if it activates
    here, its description is matching on *translation* and needs sharpening.
 3. "Create a new KDS module from scratch." — the template's create-a-new-module recipe. Included
    because it is the nearest neighbour by vocabulary and the likeliest false positive.

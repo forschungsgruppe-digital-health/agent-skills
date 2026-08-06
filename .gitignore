@@ -27,3 +27,8 @@ Thumbs.db
 # skills/index.json and CATALOG.md are generated AND committed on purpose.
 scratch/
 tmp/
+
+# Run artefacts produced by exercising a skill. They belong to the run, not the
+# catalog: they name one operator, one module and one moment, and a stale copy
+# on main reads as though it described the current state.
+migration-log/

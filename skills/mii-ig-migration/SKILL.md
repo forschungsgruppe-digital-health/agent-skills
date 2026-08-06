@@ -10,7 +10,7 @@ description: Migrates a Simplifier-published MII KDS module Implementation Guide
   the user mentions Kerndatensatz, KDS-Modul, Implementierungsleitfaden, Manteldokument,
   sushi-config, ig.ini, gofsh, StructureDefinition XML or the IG Publisher in the context of moving
   a guide. Not for authoring new profiles, creating a module from scratch, or translating a guide
-  already on the template — the template ships recipes and an ig-translate skill for those.
+  already on the template — the catalog ships fhir-ig-translation for that.
 license: CC-BY-4.0
 allowed-tools: Read Grep Glob WebFetch Bash(npx:*) Bash(bash:*) Bash(python3:*) Bash(curl:*) Bash(find:*) Bash(grep:*) Bash(sed:*) Bash(awk:*) Bash(paste:*) Bash(wc:*) Bash(git clone:*) Bash(git status:*) Bash(git diff:*)
 metadata:
@@ -477,7 +477,7 @@ Covers **moving an existing guide onto the template**: identity preservation, ar
 directive translation, bilingual setup, and the QA that proves it. Does not cover, deliberately:
 **authoring new profiles or remodelling content** (migration never changes normative decisions);
 **creating a module from scratch** (the module template ships its own recipe); **translating a guide
-already on the template** (the template's `ig-translate` skill); **publishing** (no release, no registry
+already on the template** (the catalog's `fhir-ig-translation`); **publishing** (no release, no registry
 entry, no package push); and **filling in missing domain content** (a gap in the source is a
 `TODO:REVIEW`, not a writing task). If the catalog and a local copy both provide this skill, local wins.
 
