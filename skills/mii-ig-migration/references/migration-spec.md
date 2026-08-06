@@ -2093,7 +2093,7 @@ Consent, Labor) passed that checklist with a green build, and every defect below
 
 | Defect, as measured | Why the build and the checklist both missed it |
 | --- | --- |
-| Consent renders SearchParameter pages that `artifacts.html` does not list | The artefact SET comparison passes — they are *present*. **Reachable** is a different property, and nothing checked it. |
+| Artefact pages a rendered variant's `artifacts.html` does not list | The artefact SET comparison passes — they are *present*. **Reachable** is a different property, and nothing checked it. |
 | A rendered IG whose header names one template version while the tree carries another | Nothing compared the RENDERED output against the tree it was built from. Same class as a `demo/v0.5.1` directory whose pages read "Preview v0.5.0". |
 | Dokument renders `Unknown region code '276'` in `<div id="ig-status">` | `qa.txt` reports zero errors for it; no human reads every page header. |
 | An FSH parse error stopped SUSHI reading a file while it still EXPORTED the instance (nested provisions 1/1/1 before repair, 6/27/3 after) | Zero errors reported for those files. |
@@ -2103,6 +2103,16 @@ Consent, Labor) passed that checklist with a green build, and every defect below
 
 So: `scripts/verify-migration.py` **runs the checks and exits non-zero**, and §7 is met by its exit
 status rather than by assertion.
+
+**What the row above does NOT say — measured 2026-08-07, and corrected here rather than quietly.**
+The reachability row states a *class*, not a finding against the four migrations. On all four, every
+per-language `artifacts.html` lists every generated artefact, Consent's six SearchParameters
+included (Consent renders 30 `SearchParameter-*.html` files: 6 artefacts × 5 publisher views —
+bare, `-testing`, `.change.history`, `.json`, `.xml` — and only the bare page belongs in an index).
+A first version of the checker read the multi-language build's ROOT as a rendered variant and
+reported the opposite on all four; §11.5a says why that is wrong and what the rule now is. The class
+is real and C2's negative control fires on it (remove one link, one DIVERGIERT row); the four
+migrations simply do not exhibit it.
 
 ```bash
 bash "$ML" run 11 verify-migration --emits-runlog \
@@ -2131,8 +2141,8 @@ built. Each NICHT PRÜFBAR row carries **why** it could not be mechanised and **
 
 | Check | What it compares | Fails when |
 | --- | --- | --- |
-| **C1** artefact presence | source artefact set (source tree by content, or `source-inventory.json`) against `fsh-generated/resources` | a source artefact is absent from the target |
-| **C2** artefact **reachability** | every generated resource against each rendered variant's `artifacts.html` | a page is rendered but **not listed**, or a resource has no page. *This is the Consent defect.* |
+| **C1** artefact presence | source artefact set (source tree by content, or `source-inventory.json`) against `fsh-generated/resources`, matched **by id OR by canonical url** | a source artefact is absent from the target under both identities |
+| **C2** artefact **reachability** | every generated resource against each rendered **variant's** `artifacts.html` (§11.5a — the site root is not a variant) | a page is rendered but **not listed**, or a resource has no page |
 | **C3** guide-page accounting | every source page against `migration-log/page-map.tsv` | a page is in no row (MISSING), mapped to a page that does not exist, or "retired" with no reason |
 | **C4** narrative text runs | every ≥40-character text run of each source page against the target's corpus **in the source's language** | a run survives nowhere |
 | **C5** navigation and the reverse page question | every `menu.xml` entry against the pages that exist; every narrative page against the menus; every target page against the source set and [`references/template-pages.tsv`](template-pages.tsv) | a menu entry leads nowhere; a page renders but is in **no menu** (reachable only by typing its URL — the C2 defect one level up); a target page traces to neither a source page nor the template; the template's demo page survived step 3 |
@@ -2148,6 +2158,17 @@ comparison proves the first and says nothing about the second. And C4 uses **the
 the same normalisation as `guide-page-to-md.py`'s `missing_runs=`**, so the harvest's loss count and
 the migration's loss count are comparable numbers rather than two different definitions.
 
+**C1 NAMES AN ARTEFACT BY WHAT IT ACTUALLY HAS.** A canonical resource does not need an `id`
+element: six of Consent's SearchParameters carry only a `url`, and the migration legitimately gives
+the generated resource a new id (`mii-sp-consent-policyuri` → `MII-SP-Consent-PolicyUri`). So the
+key is `Type/id` where there is an id and the **canonical url** where there is not, and the two
+sides are matched on whichever the source supplied. A reader that required both a resourceType and
+an id silently checked 14 of Consent's 20 entries and reported the result as a pass — proven by a
+negative control in which **deleting a real artefact did not make C1 fire**. Whatever the reader
+still cannot key (neither id nor url) is **counted and reported NICHT PRÜFBAR by name**, stating the
+fraction it did cover. A check may narrow its subject; it may never narrow its subject silently and
+call the remainder green.
+
 **`migration-log/page-map.tsv` is a required artefact of step 5** — `source_page`, `target_page` (or
 `RETIRED`), `reason`. Without it C3 is NICHT PRÜFBAR: a migration that cannot say where each page
 went has not proved conservation, it has only not been contradicted. Any of the page's names may be
@@ -2158,9 +2179,19 @@ used as the key (harvested file, guide title, URL slug); the checker resolves al
 | Check | Fails when |
 | --- | --- |
 | **F1** identity, field by field (`id`, `packageId`, `canonical`, `version`, `status`, `title`, `license`, `publisher`, `fhirVersion`) | a field differs from the source's. `version` is the one human decision (§2.1) and is reported NICHT PRÜFBAR for confirmation, never as a defect. An unresolved contradiction in the ledger is **not** a source value: it is reported as one, pointing at L3. |
-| **F2** dependency pins | a source pin is missing or carries a different version. A target-only dependency (the template's CRMI requirement is the legitimate case) is NICHT PRÜFBAR — named for Gate A, never silent. |
+| **F2** dependency pins | a source pin is missing or carries a different version. The source's pins are read from the source tree where `--source` is given and otherwise **from the claims ledger** (`dependency:<name>` rows, or an aggregate `dependencies` row) — see below. A target-only dependency (the template's CRMI requirement is the legitimate case) is NICHT PRÜFBAR; contradicting readings of one pin are NICHT PRÜFBAR too, never resolved by precedence, because an adopted-by-machine pin is the very defect F2 exists to catch. `hl7.fhir.r4.core` is declared through `fhirVersion`, which F1 compares, so it is not expected as a dependency. |
 | **F3** `license` explicitly asserted | the declared licence has **no tier evidence** behind it in `identity-claims.tsv`, or the tiers assert something else. Relicensing by default is the quietest defect in this specification: the template's `CC-BY-4.0` is a literal, so no placeholder check flags it. |
 | **F4** FSH residue | `.fhir_comments` rules, or a code reference whose system name carries whitespace, remain in `input/fsh` — the two shapes `postprocess-gofsh.py` models. Auto-fixable (§12). |
+
+**F2 MUST NOT DEPEND ON AN INPUT NOBODY SUPPLIES.** It originally read the source's pins only from
+an unmigrated source tree, and none of the four real migrations passed `--source` — so the wrong-pin
+class was NICHT PRÜFBAR everywhere and F2 had never returned a verdict on real data. A check that has
+never returned a verdict is unproven, whatever its code says. Step 2 already records the source pins
+(`dependency:<name>`, tier P, source `package/package.json (source pin)`), so F2 reads them from
+there when there is no `--source`, and the finding names which of the two it used. Run of record
+2026-08-07: 12 IDENTISCH pin comparisons across the four modules and one DIVERGIERT — Consent's
+`de.einwilligungsmanagement`, target `2.0.3-snapshots` against the source pin `2.0.3`, which is
+exactly the class the table at the head of §11 describes.
 
 ### 11.4 Layer 3 — provenance, read out of the RENDERED output
 
@@ -2183,11 +2214,32 @@ of the rendered site and of nothing else.
 
 | Check | Fails when |
 | --- | --- |
-| **R1** structure views | a `<table>` renders with no rows; a tab strip with no tabs; an image resolvable in neither the variant directory nor the site root — **and**, comparatively where the harvest kept the source HTML, a target page with no tables/tabs/images where the source page had them. Only the zero/non-zero transition is reported: two renderers never produce comparable counts. |
-| **R2** header/footer metadata | a defect marker appears inside `id="ig-status"`, `id="publish-box"`, `id="segment-header"` or `id="segment-footer"` — `Unknown region code`, an unexpanded `{{`/`{%`, `[object Object]`, `#ERROR`. The regions are isolated by **depth-scanning** `<div>`, because a regex to the next `</div>` truncates at the first nested one and a truncated header region is exactly where the defect hides. |
+| **R1** structure views | a `<table>` renders with no rows; a tab strip with no tabs; an image resolvable in neither the variant directory nor the site root — **and**, comparatively where the harvest kept the source HTML, a target page with no tables/tabs/images where the source page had them. Only the zero/non-zero transition is reported: two renderers never produce comparable counts. The comparative summary counts **the pages that compared clean, out of the pages compared**, and a comparison over **zero** pages is NICHT PRÜFBAR: a blanket IDENTISCH beside its own DIVERGIERT rows, or over nothing at all, is the shape of a false pass. |
+| **R2** header/footer metadata | a defect marker appears inside `id="ig-status"`, `id="publish-box"`, `id="segment-header"` or `id="segment-footer"` — `Unknown region code`, an unexpanded `{{`/`{%`, `[object Object]`, `#ERROR`. The regions are isolated by **depth-scanning** `<div>`, because a regex to the next `</div>` truncates at the first nested one and a truncated header region is exactly where the defect hides. **The regions nest, so one marker is attributed to exactly one of them: the INNERMOST region containing it.** Reporting every enclosing region turned one `Unknown region code '276'` into two rows and two queue items (`#ig-status` and its parent `#segment-header`) on 119 Dokument pages per language. |
 | **R3** language parity | a narrative page renders in the default language but not in the translation, or its translated text is **byte-identical** to the default — a fallback, not a translation. Checked on **narrative pages only**: artefact pages are generated and legitimately near-identical across languages (measured: Consent `en/artifacts.html` 29608 B vs `de/` 29644 B), so including them would bury the real finding. |
-| **R4** template-example links | a page or menu still links to a template example artefact that step 3 deletes. Auto-fixable (§12). |
+| **R4** template-example links | a page or menu still links to a template example artefact that step 3 deletes. The artefacts are named in [`references/template-artifacts.tsv`](template-artifacts.tsv) — **one file, read by both the check and its fixer**, each row carrying the ig-template PACKAGE version it was verified against. A bare literal duplicated in the two programs would let a renamed template example leave them silently disagreeing about what a template example is. Unreadable manifest ⇒ NICHT PRÜFBAR, and the fixer refuses: "found none" must not be able to mean "looked for nothing". Auto-fixable (§12). |
 | **R5** page-title catalogue | a title in the `pages:` tree has **no unit** in the `.po` (auto-fixable); a unit with an **empty msgstr** is NICHT PRÜFBAR — a translation is a human act. An empty title set is NICHT PRÜFBAR too: a catalogue with nothing to compare against passes trivially, which is the shape of a false pass. |
+
+### 11.5a What counts as a rendered VARIANT (normative)
+
+**A variant is a directory that actually renders pages. The site root of a multi-language build is
+not one.** The IG Publisher writes each language into its own directory (`en/`, `de/`) and leaves at
+the root, for every page name, a ~520-byte **language-redirect stub**: a document that declares
+`langs=[…]` and hands over to `assets/js/lang-redirects.js`. The root `artifacts.html` therefore
+lists no artefact — not because artefacts are unreachable, but because it is not an index.
+
+Every check that walks the rendered output (C2, R1, R2, R3, L4's artifact count) reads variants
+only. A candidate directory is a variant when its `artifacts.html` is **not** a redirect stub, which
+is decided by two conditions together — it carries a redirect marker **and** it links to no page at
+all — so a real page that merely references the redirect script is not mistaken for one. Skipped
+stubs are **named** in the NICHT PRÜFBAR text where no variant is found, never silently dropped.
+
+Measured 2026-08-07, this is not a hypothetical: reading the root as a variant made the tool report
+"the artifact index lists NO artefact at all" as a BLOCKER on all four real migrations, while the
+per-language indexes were fully populated (Dokument `en`/`de` 15 artefact links each, Person 12,
+Consent 15 including all 6 SearchParameters). **A false BLOCKER is not a safe failure mode**: it
+costs exactly the attention the real findings needed, and it is why §11.5a is normative rather than
+an implementation detail.
 
 ### 11.6 The run log as a SECOND ORACLE
 
@@ -2203,6 +2255,17 @@ cannot produce (19 files, no reference point).
 | **L2** | **a step that emitted no line at all.** A step that did not run is invisible everywhere else: the tree looks the same as if it had run and found nothing. The expected set is [`references/expected-steps.tsv`](expected-steps.tsv) — hand-editable, shape-aware; a conditional step's absence is NICHT PRÜFBAR (only a human knows whether the condition held), a required step's absence is DIVERGIERT. |
 | **L3** | an `identity-contradiction:` still open at verification time — one row per **field**, not per WARN, because a field read from five tiers is four WARNs and one decision. Closed by a `decision:` line naming the field. |
 | **L4** | **log-versus-artefact cross-checks:** conversion count (log `actual=` vs generated resources), page count (log vs `guide-harvest.tsv`), artifact count (`artifacts.html` vs `fsh-generated`). Direction matters: fewer in the target than the log claims is a loss and a divergence; more is legitimate (SUSHI generates the IG resource itself) and is reported as a count, not a defect. |
+
+**A MISSING INPUT MAY NEVER DELETE A CHECK.** When there is no `run.log`, L0 is DIVERGIERT and
+**L1–L4 each emit an explicit NICHT PRÜFBAR row naming the missing input** — they are not skipped.
+The first version returned after L0, so on the two real migrations that shipped without a log,
+L1–L4 produced no row at all: not "unverifiable", simply absent from the findings table and from the
+report. That is the silent-gap failure this whole phase exists to prevent, committed by the phase
+itself. The same rule holds inside a check: a scan that ran and found nothing (no
+`silent-partial-success:` WARN, no open contradiction) emits an **IDENTISCH** row saying so, because
+an empty result and a check that never ran are indistinguishable in a findings table otherwise. The
+sub-checks that do not read the log — the identity ledger's existence, the artifact count — still
+run and still report.
 
 Every step therefore **must** emit its measured outcome through `scripts/migration-log.sh` (§10.5),
 including the steps that run no bundled script — L2 is what makes that a checked requirement rather
@@ -2281,6 +2344,19 @@ the one class that may touch a page file must leave its text byte-identical.
   immediately.
 - **Hard ceiling of three iterations**, unconditional — `--max-iterations` cannot raise it. Whatever
   remains is escalated to the report's ① queue, named individually.
+- **Four stops can end the loop, and the run always names which one did** —
+  `stop=clean|no-fixable|nothing-applied|no-progress|ceiling` in the `done` line, plus a WARN
+  whenever findings are left open. A run that halted with work outstanding used to log nothing about
+  why unless it was the ceiling, which is the same silent gap the verifier exists to close.
+- **The ceiling is the OUTERMOST stop, and it is nearly unreachable — deliberately so.** One
+  iteration applies *every* fixable finding it can see, so a second iteration has work only if the
+  first one's fixes (or the rebuild between them) created NEW fixable findings, and a third needs
+  that to happen twice running with the total strictly shrinking each time. Measured: across the
+  four real migrations it has never fired — every run ends at `clean` or `no-fixable`. It is kept
+  because it is the one stop that does not depend on the loop's own bookkeeping being correct: if
+  the shrink test or the fixable-set test were ever wrong, the ceiling is what still bounds the run.
+  That is a **backstop**, not dead code — but describing it as *the* stop, as this section
+  previously did, described a path almost no run takes.
 - **Every fix is audited** in `migration-log/autofix.tsv`: iteration, finding, class, status
   (`applied` / `confirmed` / `reverted` / `refused` / `no-change`), files, why, cleared — with its
   snapshot beside it, so a reviewer can revert that one fix alone.

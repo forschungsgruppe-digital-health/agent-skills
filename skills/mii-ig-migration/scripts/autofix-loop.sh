@@ -248,11 +248,28 @@ fi
 COUNT=$(_count_divergent)
 log_info "$STEP" "$ACTION" "baseline  divergiert=$COUNT findings=$FINDINGS"
 
+# WHICH STOP FIRED, ALWAYS SAID OUT LOUD. Four stops can end this loop and only
+# one of them used to announce itself, so a run that halted with findings still
+# open logged nothing about WHY -- the same silent gap the verifier exists to
+# close, committed by its own repair loop.
+#
+# THE CEILING IS THE OUTERMOST OF THE FOUR, AND IT IS NEARLY UNREACHABLE. One
+# iteration applies EVERY fixable finding it can see, so a second iteration has
+# work only if the first one's fixes (or the rebuild between them) created NEW
+# fixable findings; a third needs that to happen twice running, with the total
+# strictly shrinking each time. Measured: across the four real migrations it has
+# never fired -- every run ends at `clean` or at `no-fixable`. It is kept because
+# it is the one stop that does not depend on the loop's own bookkeeping being
+# right: if the shrink test or the fixable-set test were ever wrong, this is what
+# still bounds the run. That is a backstop, not dead code -- but calling it "the"
+# stop, as the prose used to, described a path almost no run takes.
 PREV=""
 IT=0
+STOP_REASON=clean
 while [ "$IT" -lt "$MAXIT" ]; do
-  [ "$COUNT" -gt 0 ] || break
+  [ "$COUNT" -gt 0 ] || { STOP_REASON=clean; break; }
   if [ -n "$PREV" ] && [ "$COUNT" -ge "$PREV" ]; then
+    STOP_REASON=no-progress
     log_warn "$STEP" "$ACTION" \
       "autofix-no-progress: the finding set did not shrink  before=$PREV after=$COUNT" \
       "Stopping immediately rather than iterating. A loop that keeps applying fixes" \
@@ -262,9 +279,11 @@ while [ "$IT" -lt "$MAXIT" ]; do
   fi
   PREV="$COUNT"
   IT=$((IT + 1))
+  STOP_REASON=ceiling          # overwritten by whichever stop actually fires
 
   FIXES=$(_fixable_ids)
   if [ -z "$FIXES" ]; then
+    STOP_REASON=no-fixable
     log_info "$STEP" "$ACTION" \
       "iteration $IT: no fixable findings  divergiert=$COUNT fixable=0" \
       "Every remaining finding is outside the allowlist by design -- identity," \
@@ -333,6 +352,7 @@ $FIXES
 EOF
 
   if [ -z "$APPLIED" ]; then
+    STOP_REASON=nothing-applied
     log_info "$STEP" "$ACTION" "iteration $IT applied nothing -- stopping"
     break
   fi
@@ -379,17 +399,25 @@ EOF
   fi
 done
 
-if [ "$IT" -ge "$MAXIT" ] && [ "$COUNT" -gt 0 ]; then
+[ "$COUNT" -gt 0 ] || STOP_REASON=clean
+if [ "$STOP_REASON" = ceiling ] && [ "$COUNT" -gt 0 ]; then
   log_warn "$STEP" "$ACTION" \
     "autofix-ceiling: stopped after $IT iterations with $COUNT finding(s) open" \
-    "The ceiling is unconditional (spec §12.3). Whatever is left is a human's:" \
-    "it goes to the report's ① decision queue, named individually."
+    "The ceiling is unconditional (spec §12.3) and is the OUTERMOST of four" \
+    "stops -- reaching it means every iteration shrank the set and still found" \
+    "new fixable findings, which no real migration has done. Whatever is left" \
+    "is a human's: it goes to the report's ① decision queue, named individually."
+elif [ "$COUNT" -gt 0 ]; then
+  log_warn "$STEP" "$ACTION" \
+    "autofix-stopped: reason=$STOP_REASON  iterations=$IT open=$COUNT" \
+    "Named so the run's end is never inferred from the absence of a line." \
+    "The $COUNT open finding(s) go to the report's ① decision queue."
 fi
 
 CONFIRMED=$(awk -F'\t' '$4=="confirmed" {n++} END {print n+0}' "$AUDIT")
 REVERTED=$(awk -F'\t' '$4=="reverted" {n++} END {print n+0}' "$AUDIT")
 log_info "$STEP" "$ACTION" \
-  "done  iterations=$IT divergiert=$COUNT confirmed=$CONFIRMED reverted=$REVERTED audit=$AUDIT" \
+  "done  iterations=$IT stop=$STOP_REASON divergiert=$COUNT confirmed=$CONFIRMED reverted=$REVERTED audit=$AUDIT" \
   "Every row of $AUDIT names what changed, why, which finding it targeted and" \
   "whether that finding cleared -- and the snapshot beside it reverts that one" \
   "fix alone."

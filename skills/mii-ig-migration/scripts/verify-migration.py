@@ -10,10 +10,14 @@ prose checklist, and every one of the following defects survived it -- because a
 passing build does not surface any of them and a human reading a checklist does
 not either:
 
-  * UNREACHABLE CONTENT. Consent renders SearchParameter pages that
-    `artifacts.html` does not list. The artifact SET comparison passes: the
-    artefacts are all present. They are simply unreachable from the index, which
-    is a different property and was checked by nothing.
+  * UNREACHABLE CONTENT. An artefact page a rendered variant's `artifacts.html`
+    does not list. The artifact SET comparison passes: the artefacts are all
+    present. Reachable from the index is a different property and was checked by
+    nothing. (Measured 2026-08-07: none of the four migrations exhibits it --
+    every per-language index lists every generated artefact, Consent's six
+    SearchParameters included. C2's negative control fires when one link is
+    removed. See `variant_dirs`: reading the multi-language build's ROOT as a
+    variant produced the opposite conclusion on all four, as a BLOCKER.)
   * STALE PROVENANCE. A rendered IG whose header reports one template version
     while the tree carries another -- the same class as a published `demo/v0.5.1`
     directory whose pages read "Preview v0.5.0". Nothing compared the RENDERED
@@ -355,12 +359,13 @@ def reduce_text(s):
     return ALNUM.sub("", s).lower()
 
 
-def div_region(html, marker):
-    """The <div> whose opening tag carries `marker`, by DEPTH-SCANNING div tags.
+def div_region_span(html, marker):
+    """(start, end) of the <div> whose opening tag carries `marker`, or None.
 
-    A regex to the next `</div>` truncates at the first NESTED one -- the defect
-    `guide-harvest.sh` documents for the Simplifier content region -- and a
-    truncated header region is exactly where a header defect hides.
+    Found by DEPTH-SCANNING div tags: a regex to the next `</div>` truncates at
+    the first NESTED one -- the defect `guide-harvest.sh` documents for the
+    Simplifier content region -- and a truncated header region is exactly where a
+    header defect hides.
     """
     i = html.find(marker)
     if i < 0:
@@ -372,8 +377,14 @@ def div_region(html, marker):
     for m in re.finditer(r"<div\b|</div>", html[start:]):
         depth += 1 if m.group(0).startswith("<div") else -1
         if depth == 0:
-            return html[start:start + m.end()]
-    return html[start:]
+            return start, start + m.end()
+    return start, len(html)
+
+
+def div_region(html, marker):
+    """The text of that <div>."""
+    span = div_region_span(html, marker)
+    return html[span[0]:span[1]] if span else None
 
 
 # --- artefact collection ----------------------------------------------------
@@ -419,11 +430,18 @@ def collect_source_artifacts(root):
                         "input-cache", "migration-log", ".ai-log")]
         for name in filenames:
             path = os.path.join(dirpath, name)
+            # Keyed by `Type/id` where there is an id, by the canonical url where
+            # there is not -- see `artefact_key`. Requiring an id here dropped
+            # every id-less SearchParameter on the floor, which is the same
+            # defect the inventory reader carried.
             if name.endswith(".json"):
                 data = read_json(path)
-                if isinstance(data, dict) and data.get("resourceType") and data.get("id") \
+                if isinstance(data, dict) and data.get("resourceType") \
                         and data["resourceType"] not in NON_ARTEFACT_TYPES:
-                    out["%s/%s" % (data["resourceType"], data["id"])] = data.get("url") or ""
+                    key = artefact_key(data["resourceType"], data.get("id"),
+                                       data.get("url") or "")
+                    if key:
+                        out[key] = data.get("url") or ""
             elif name.endswith(".xml"):
                 txt = read_text(path) or ""
                 if FHIR_XML_NS not in txt:
@@ -431,58 +449,152 @@ def collect_source_artifacts(root):
                 mt = re.search(r"<([A-Za-z]+)\s[^>]*xmlns=\"%s\"" % re.escape(FHIR_XML_NS), txt)
                 mi = re.search(r"<id\s+value=\"([^\"]+)\"", txt)
                 mu = re.search(r"<url\s+value=\"([^\"]+)\"", txt)
-                if mt and mi and mt.group(1) not in NON_ARTEFACT_TYPES:
-                    out["%s/%s" % (mt.group(1), mi.group(1))] = mu.group(1) if mu else ""
+                if mt and mt.group(1) not in NON_ARTEFACT_TYPES:
+                    key = artefact_key(mt.group(1), mi.group(1) if mi else None,
+                                       mu.group(1) if mu else "")
+                    if key:
+                        out[key] = mu.group(1) if mu else ""
     return out, "source tree, by content (resourceType / FHIR xmlns)"
 
 
-def load_source_inventory(path):
-    """`migration-log/source-inventory.json` from step 1, read tolerantly.
+def artefact_key(rtype, rid, url):
+    """The key an artefact is NAMED by, which is not always `Type/id`.
 
-    Its shape is not fixed by the specification and two real migrations wrote
-    two different ones, so this accepts a list of objects, or a dict with an
-    `artifacts`/`resources`/`items` key, and takes whatever carries a
-    resourceType+id or an id+url. A shape it cannot read yields None, which the
-    caller reports as NICHT PRUEFBAR -- never as an empty inventory.
+    A canonical resource does not need an `id` element at all: six of Consent's
+    SearchParameters carry only a `url`, and the migration legitimately gives the
+    generated resource a NEW id (`mii-sp-consent-policyuri` -> the FSH-derived
+    `MII-SP-Consent-PolicyUri`). Keying such an artefact by `Type/id` is
+    impossible on the source side and WRONG on the target side, so where there is
+    no id the canonical url is the name -- and it is the url the two sides are
+    then matched on.
+    """
+    if rid:
+        return "%s/%s" % (rtype, rid)
+    if url:
+        return "%s (canonical %s)" % (rtype, url)
+    return None
+
+
+def load_source_inventory(path):
+    """(`{key: url}`, unkeyable entries, total entries) from step 1's inventory.
+
+    Its shape is not fixed by the specification and two real migrations wrote two
+    different ones, so this accepts a list of objects, or a dict with an
+    `artifacts`/`resources`/`items` key.
+
+    IT KEEPS EVERY ARTEFACT ENTRY, and reports the ones it could not key rather
+    than dropping them. The previous version required BOTH a resourceType and an
+    id, which silently discarded Consent's six SearchParameters (they have no
+    id) and left C1 checking 14 of 20 entries while reporting a clean pass --
+    proven by a negative control in which DELETING a real artefact did not make
+    C1 fire. A check that narrows its own subject and calls the remainder a pass
+    is worse than no check, so what cannot be read is now counted and returned.
+
+    Returns `(None, 0, 0)` for a shape it cannot read at all.
     """
     data = read_json(path)
     if data is None:
-        return None
-    items = None
+        return None, 0, 0
+    candidates = []
     if isinstance(data, list):
-        items = data
+        candidates = [data]
     elif isinstance(data, dict):
-        for key in ("artifacts", "resources", "items", "inventory"):
-            if isinstance(data.get(key), list):
-                items = data[key]
-                break
-    if not items:
-        return None
-    out = {}
-    for it in items:
-        if not isinstance(it, dict):
-            continue
-        rt = it.get("resourceType") or it.get("type")
-        rid = it.get("id") or it.get("name")
-        if rt and rid and rt not in NON_ARTEFACT_TYPES:
-            out["%s/%s" % (rt, rid)] = it.get("url") or ""
-    return out or None
+        # Every list a real migration has used for this, in preference order.
+        # `artefacts` (the -ae- spelling) is Labor's; `generated_resources` is
+        # Dokument's, and it holds bare FILE NAMES rather than objects. The first
+        # list that yields an artefact wins, so a module whose `artefacts` key
+        # holds FSH ENTITIES (aliases, rule sets -- Dokument again) falls through
+        # to the one that holds resources instead of reporting zero.
+        for key in ("resources", "artifacts", "artefacts", "generated_resources",
+                    "items", "inventory"):
+            if isinstance(data.get(key), list) and data[key]:
+                candidates.append(data[key])
+    for items in candidates:
+        out, unkeyable, total = {}, [], 0
+        for it in items:
+            if isinstance(it, str):
+                # `<Type>-<id>.json`, the fsh-generated naming convention -- the
+                # same one `collect_generated` keys the target by.
+                stem = it[:-5] if it.endswith(".json") else it
+                stem = os.path.basename(stem)
+                if "-" not in stem:
+                    continue
+                rt, rid = stem.split("-", 1)
+                if not rt[:1].isupper() or rt in NON_ARTEFACT_TYPES:
+                    continue
+                total += 1
+                out["%s/%s" % (rt, rid)] = ""
+                continue
+            if not isinstance(it, dict):
+                continue
+            rt = it.get("resourceType") or it.get("type")
+            if not rt or rt in NON_ARTEFACT_TYPES:
+                continue
+            total += 1
+            rid = it.get("id")
+            url = it.get("url") or it.get("canonical") or ""
+            key = artefact_key(rt, rid, url)
+            if key is None:
+                unkeyable.append(it.get("path") or it.get("file") or it.get("name") or rt)
+                continue
+            out[key] = url
+        if out or unkeyable:
+            return out, unkeyable, total
+    return None, 0, 0
 
 
 # --- layer 1: conservation --------------------------------------------------
 
+# A multi-language build writes a REDIRECT STUB at the site root for every page:
+# a ~520-byte document that declares `langs=[…]` and hands over to
+# `assets/js/lang-redirects.js`, which sends the browser into `en/` or `de/`.
+# The stub is not a rendering of anything -- its `artifacts.html` lists no
+# artefact because there is no artefact list to render, and every real page sits
+# one directory down.
+#
+# Reading the root as a variant is how this tool produced its own worst false
+# finding: "every module renders an artifacts.html that lists NO artefact at
+# all", reported as a BLOCKER on all four real migrations, while the per-language
+# indexes were fully populated (measured 2026-08-07: dokument en/de 15 artefact
+# links each, person 12, consent 15 including all 6 SearchParameters). A variant
+# is a directory that ACTUALLY RENDERS PAGES; the redirect stub renders none.
+LANG_REDIRECT_MARKS = ("lang-redirects.js", "langRedirect", "langs=[")
+
+
+def is_lang_redirect_stub(path):
+    """True where `path` is a language-redirect stub rather than a rendered page.
+
+    Both conditions are required, so a real page that merely LINKS to the
+    redirect script is not mistaken for one: it carries a redirect marker AND it
+    links to no page at all.
+    """
+    txt = read_text(path)
+    if txt is None:
+        return False
+    if not any(m in txt for m in LANG_REDIRECT_MARKS):
+        return False
+    return not re.search(r'href="[^"]+\.html"', txt)
+
+
 def variant_dirs(rendered):
-    """Rendered per-language variants: every directory carrying an artifacts.html."""
-    out = []
+    """(rendered variants, redirect stubs skipped).
+
+    A variant is a directory whose `artifacts.html` is a RENDERED index, not a
+    language-redirect stub. The stubs are returned alongside so a caller can say
+    WHY the root was skipped instead of silently dropping it.
+    """
+    out, stubs = [], []
     if not rendered or not os.path.isdir(rendered):
-        return out
-    if os.path.isfile(os.path.join(rendered, "artifacts.html")):
-        out.append(rendered)
-    for name in sorted(os.listdir(rendered)):
-        sub = os.path.join(rendered, name)
-        if os.path.isdir(sub) and os.path.isfile(os.path.join(sub, "artifacts.html")):
-            out.append(sub)
-    return out
+        return out, stubs
+    candidates = [rendered] + [os.path.join(rendered, n) for n in sorted(os.listdir(rendered))]
+    for cand in candidates:
+        if not os.path.isdir(cand):
+            continue
+        index = os.path.join(cand, "artifacts.html")
+        if not os.path.isfile(index):
+            continue
+        (stubs if is_lang_redirect_stub(index) else out).append(cand)
+    return out, stubs
 
 
 # FHIR R4 canonical (conformance/terminology) resource types. A rendered page
@@ -502,6 +614,16 @@ CANONICAL_TYPES = (
 # as the artefact; the views are reachable from it, not from the index.
 VIEW_SUFFIXES = ("-testing", "-mappings", "-examples", "-definitions", "-changes",
                  "-diff", "-json", "-xml", "-ttl")
+
+
+def _stub_note(ctx):
+    """A parenthetical naming the redirect stubs that were NOT read as variants."""
+    stubs = ctx.get("redirect_stubs") or []
+    if not stubs:
+        return ""
+    return (" (%d language-redirect stub(s) skipped: %s -- a stub lists no artefact "
+            "because it renders none)"
+            % (len(stubs), ", ".join(label_path(s, ctx["target"]) or "." for s in stubs)))
 
 
 def label_path(path, target):
@@ -541,13 +663,20 @@ def layer_conservation(f, a, ctx):
 
     # C1 -- every source artefact present in the target.
     src_arts, src_src = (None, None)
+    unkeyable, total_entries = [], 0
     if a.source:
         src_arts, src_src = collect_source_artifacts(a.source)
+        total_entries = len(src_arts or {})
     if not src_arts:
-        inv = load_source_inventory(os.path.join(ctx["logdir"], "source-inventory.json"))
+        inv, unkeyable, total_entries = load_source_inventory(
+            os.path.join(ctx["logdir"], "source-inventory.json"))
         if inv:
             src_arts, src_src = inv, "migration-log/source-inventory.json"
     tgt_arts = ctx["generated"]
+    # The target side of the match. An artefact whose SOURCE has no id is matched
+    # on its canonical url, because the migration legitimately assigns a new id
+    # (measured on Consent: `mii-sp-consent-policyuri` -> `MII-SP-Consent-PolicyUri`).
+    tgt_urls = set(u for u in tgt_arts.values() if u)
     if not src_arts:
         f.unmechanisable("conservation", "C1", "source artefact set",
                          "no source tree (--source) and no readable source-inventory.json",
@@ -557,14 +686,29 @@ def layer_conservation(f, a, ctx):
                          "target carries no fsh-generated/resources -- SUSHI has not run",
                          "run SUSHI (step 3/7), then re-run verification")
     else:
-        missing = [k for k in sorted(src_arts) if k not in tgt_arts]
+        missing = [k for k, url in sorted(src_arts.items())
+                   if k not in tgt_arts and not (url and url in tgt_urls)]
         for key in missing:
             f.diverges("conservation", "C1", key,
-                       "in the source (%s), absent from the target's fsh-generated" % src_src,
+                       "in the source (%s), absent from the target's fsh-generated "
+                       "by both id and canonical url" % src_src,
                        action="transfer the artefact (step 4) or record it as deliberately retired")
         if not missing:
             f.ok("conservation", "C1", "%d source artefacts" % len(src_arts),
-                 "all present in fsh-generated (source: %s)" % src_src)
+                 "all present in fsh-generated, matched by id or canonical url "
+                 "(source: %s)" % src_src)
+    # What the reader could NOT key is named, counted and NOT counted as passed.
+    # Silently narrowing the subject and reporting the remainder green is the
+    # exact failure the negative control caught.
+    if unkeyable:
+        f.unmechanisable("conservation", "C1", "%d of %d inventory entries"
+                         % (len(unkeyable), total_entries),
+                         "the entry carries neither an id nor a canonical url, so it cannot "
+                         "be matched against the target at all (%s)"
+                         % ", ".join(str(u) for u in unkeyable[:4]),
+                         "add the id or the canonical url to migration-log/source-inventory.json "
+                         "(step 1) and re-run -- until then C1 covers %d of %d entries, "
+                         "not all of them" % (total_entries - len(unkeyable), total_entries))
 
     # C2 -- every artefact REACHABLE from the artifact index. THE consent defect:
     # present is not the same property as listed, and the set comparison of the
@@ -572,7 +716,8 @@ def layer_conservation(f, a, ctx):
     variants = ctx["variants"]
     if not variants:
         f.unmechanisable("conservation", "C2", "artifact index",
-                         "no rendered output with an artifacts.html under %s" % ctx["rendered_label"],
+                         "no rendered output with an artifacts.html under %s%s"
+                         % (ctx["rendered_label"], _stub_note(ctx)),
                          "build the IG (step 7), then re-run verification")
     elif not tgt_arts:
         f.unmechanisable("conservation", "C2", "artifact index",
@@ -1156,6 +1301,55 @@ def read_claims(path):
     return out or None
 
 
+def source_deps_from_claims(claims):
+    """({name: version}, {name: [contested versions]}, evidence label).
+
+    THE SOURCE'S PINS WITHOUT `--source`. F2 originally read them only from an
+    unmigrated source tree, and no real migration ever supplied one -- so the
+    wrong-pin class was NICHT PRUEFBAR on all four, i.e. a check that had never
+    returned a verdict. But step 2 already records the source pins in the claims
+    ledger, one row per dependency (`dependency:<name>`, tier P, source
+    "package/package.json (source pin)"), and some runs additionally write an
+    aggregate `dependencies` row as `name@version,name@version`. Both are read
+    here, so F2 runs on every migration that did step 2.
+
+    Contradicting readings of one pin are NOT resolved by precedence: an
+    adopted-by-machine pin is exactly the defect F2 exists to catch.
+    """
+    pins, contested = {}, {}
+    if not claims:
+        return pins, contested, None
+    tiers = set()
+
+    def _record(name, value, tier):
+        name, value = name.strip(), value.strip()
+        if not name or not value:
+            return
+        tiers.add(tier)
+        prev = pins.get(name)
+        if prev is not None and prev != value:
+            contested.setdefault(name, sorted({prev, value}))
+        else:
+            pins[name] = value
+
+    for field, rows in sorted(claims.items()):
+        if field.startswith("dependency:"):
+            for tier, _src, value in rows:
+                _record(field.split(":", 1)[1], value, tier)
+        elif field == "dependencies":
+            for tier, _src, value in rows:
+                for token in value.split(","):
+                    if "@" in token:
+                        name, _sep, ver = token.rpartition("@")
+                        _record(name, ver, tier)
+    for name in contested:
+        pins.pop(name, None)
+    if not pins and not contested:
+        return pins, contested, None
+    return pins, contested, ("migration-log/identity-claims.tsv, tier(s) %s"
+                             % "/".join(sorted(tiers)))
+
+
 def layer_fidelity(f, a, ctx):
     tgt_ident, tgt_deps = ctx["identity"]
     src_ident, src_deps = ctx["source_identity"]
@@ -1213,25 +1407,48 @@ def layer_fidelity(f, a, ctx):
     # F2 -- dependency pins. A wrong pin is invisible in a green build: measured,
     # a run resolved a parent from dist-tags.latest 2.0.3 where the source pinned
     # 2.0.2, and everything built.
+    dep_src = "the source tree (--source)"
+    contested_deps = {}
     if not src_deps:
+        src_deps, contested_deps, dep_src = source_deps_from_claims(claims)
+    for name, vals in sorted(contested_deps.items()):
+        f.unmechanisable("fidelity", "F2", name,
+                         "the claims ledger holds contradicting pins for it (%s)"
+                         % ", ".join(vals),
+                         "decide the pin at Gate A -- adopting one mechanically is the "
+                         "wrong-pin defect F2 exists to catch")
+    if not src_deps and not contested_deps:
         f.unmechanisable("fidelity", "F2", "dependency pins",
-                         "no source dependency block to compare against",
-                         "read the source's pins (sushi-config or the published package "
-                         "manifest) and compare by hand at Gate A")
-    else:
+                         "no source dependency block: no --source, and no `dependency:<name>` "
+                         "or `dependencies` claim in migration-log/identity-claims.tsv",
+                         "record the source's pins at step 2 (repo-identity/package-identity "
+                         "write them), or re-run with --source; until then the wrong-pin class "
+                         "is unchecked")
+    elif src_deps:
         for name, sver in sorted(src_deps.items()):
             tver = tgt_deps.get(name)
             if tver is None:
+                # hl7.fhir.r4.core is the FHIR version itself: SUSHI takes it
+                # from `fhirVersion` and it is never a sushi-config dependency.
+                # F1 already compares fhirVersion, so a row here would be a
+                # guaranteed false positive on every module.
+                if name == "hl7.fhir.r4.core":
+                    f.ok("fidelity", "F2", name,
+                         "declared through `fhirVersion` (%s), not as a dependency -- F1 "
+                         "compares it" % (tgt_ident.get("fhirVersion") or "?"))
+                    continue
                 f.diverges("fidelity", "F2", name,
-                           "pinned %s in the source, ABSENT from the target" % sver,
+                           "pinned %s in the source (%s), ABSENT from the target"
+                           % (sver, dep_src),
                            action="carry the dependency over")
             elif tver != sver:
                 f.diverges("fidelity", "F2", name,
-                           "target %s  vs  source pin %s" % (tver, sver),
+                           "target %s  vs  source pin %s (%s)" % (tver, sver, dep_src),
                            action="the source pin is the evidence; a registry dist-tag is not. "
                                   "Restore the pin or make the bump a Gate-A decision")
             else:
-                f.ok("fidelity", "F2", name, "pinned %s, identical to the source" % sver)
+                f.ok("fidelity", "F2", name,
+                     "pinned %s, identical to the source pin (%s)" % (sver, dep_src))
         for name, tver in sorted(tgt_deps.items()):
             if name not in src_deps:
                 # Legitimate: the template's CRMI meta.profile claims REQUIRE
@@ -1459,7 +1676,8 @@ def layer_rendering(f, a, ctx):
     if not variants:
         for check in ("R1", "R2", "R3"):
             f.unmechanisable("rendering", check, "rendered output",
-                             "no built site under %s" % ctx["rendered_label"],
+                             "no built site under %s%s"
+                             % (ctx["rendered_label"], _stub_note(ctx)),
                              "build the IG (step 7); rendering integrity is not a property of "
                              "the sources")
     else:
@@ -1524,14 +1742,36 @@ def layer_rendering(f, a, ctx):
             hits = []
             for path in sorted(glob.glob(os.path.join(vdir, "*.html"))):
                 html = read_text(path) or ""
+                spans = []
                 for region_id in HEADER_REGIONS:
-                    region = div_region(html, region_id)
-                    if not region:
-                        continue
-                    for marker in HEADER_MARKERS:
-                        if marker in region:
-                            hits.append((os.path.basename(path), region_id, marker,
-                                         _snip(html_text(region), 90)))
+                    span = div_region_span(html, region_id)
+                    if span:
+                        spans.append((region_id, span[0], span[1]))
+                for marker in HEADER_MARKERS:
+                    for m in re.finditer(re.escape(marker), html):
+                        # ONE defect, attributed to ONE region. The header
+                        # regions NEST -- `#segment-header` contains `#ig-status`
+                        # -- so a marker inside the inner one is inside the outer
+                        # one too, and reporting both produced two rows and two
+                        # queue items for a single `Unknown region code '276'`
+                        # (measured on Dokument, 119 pages, twice per language).
+                        # The INNERMOST containing region is the one that renders
+                        # it, so that is the one named.
+                        inner = None
+                        for region_id, s, e in spans:
+                            if s <= m.start() < e and (inner is None or s > inner[1]):
+                                inner = (region_id, s, e)
+                        if inner is None:
+                            continue
+                        # The snippet is cut from the region's TEXT, not from its
+                        # markup: slicing raw HTML around the marker lands
+                        # mid-tag and quotes a fragment of a style attribute.
+                        rtext = html_text(html[inner[1]:inner[2]])
+                        at = rtext.find(marker)
+                        window = rtext[max(0, at - 40):] if at >= 0 else rtext
+                        hits.append((os.path.basename(path), inner[0], marker,
+                                     _snip(window, 90)))
+                        break                  # one hit per marker per page
             seen_marker = set()
             for name, region_id, marker, snippet in hits:
                 key = (region_id, marker)
@@ -1562,7 +1802,7 @@ def layer_rendering(f, a, ctx):
                              "rendering, 'non-empty where non-empty in the source' has no "
                              "reference")
         else:
-            compared = 0
+            compared, lost_pages = 0, 0
             for sp in src_pages:
                 hits = sorted(glob.glob(os.path.join(src_html_dir, "*%s.html" % sp["stem"])))
                 entry = _map_lookup(pmap, sp)
@@ -1585,16 +1825,33 @@ def layer_rendering(f, a, ctx):
                 compared += 1
                 lost = [k for k in ("tables", "tabs", "images") if s[k] > 0 and t[k] == 0]
                 if lost:
+                    lost_pages += 1
                     f.diverges("rendering", "R1", "%s -> %s" % (sp["key"], tpage),
                                "source rendering had %s; the target page has none"
                                % ", ".join("%d %s" % (s[k], k) for k in lost),
                                action="a live table or figure that vanished in migration is a "
                                       "CONTENT loss the build cannot see -- restore it or record "
                                       "the substitution in the report's content map")
-            if compared:
-                f.ok("rendering", "R1", "%d source pages compared to their target pages" % compared,
+            # THE SUMMARY MUST COUNT WHAT WAS COMPARED, and never claim a page it
+            # just reported as divergent. The first version emitted one blanket
+            # IDENTISCH whenever `compared > 0` -- including alongside its own
+            # DIVERGIERT rows -- and emitted NOTHING when the harvest and the map
+            # were both present but no page pair matched, which reads in the
+            # findings table exactly like a check that passed.
+            if compared - lost_pages > 0:
+                f.ok("rendering", "R1",
+                     "%d of %d source pages compared to their target pages"
+                     % (compared - lost_pages, compared),
                      "tables, tabs and images non-empty in the target wherever they were "
                      "non-empty in the source")
+            if compared == 0:
+                f.unmechanisable("rendering", "R1", "source-versus-target rendering",
+                                 "the harvest and the page map are both present, but NO source "
+                                 "page resolved to a rendered target page -- nothing was "
+                                 "compared",
+                                 "check that --source-html holds the harvested HTML and that "
+                                 "the page map's target column names pages the build renders; "
+                                 "a comparison over zero pages is not a pass")
 
         # R3 -- language parity, on the NARRATIVE pages only. Artefact pages are
         # generated and legitimately near-identical across languages (measured:
@@ -1646,23 +1903,39 @@ def layer_rendering(f, a, ctx):
     # Such a link can only have come from the template: the module's own
     # narrative predates the template and cannot reference its examples. That
     # provenance argument is what makes this class auto-fixable at all.
-    dangling = []
-    for path in sorted(glob.glob(os.path.join(ctx["target"], "input", "**", "*.md"),
-                                 recursive=True)) + \
-            sorted(glob.glob(os.path.join(ctx["target"], "input", "**", "menu.xml"),
-                             recursive=True)):
-        txt = read_text(path) or ""
-        rel = os.path.relpath(path, ctx["target"])
-        for m in re.finditer(r"(?:\]\(|href=\")([^\")\s]*example-patient[^\")\s]*)", txt):
-            dangling.append((rel, m.group(1)))
-    for rel, href in dangling:
-        f.diverges("rendering", "R4", "%s -> %s" % (rel, href),
-                   "link to a TEMPLATE example artefact that step 3 deletes",
-                   autofix="template-example-link",
-                   action="remove the link, keep its text -- the fixer refuses unless the "
-                          "file's text is byte-identical afterwards")
-    if not dangling:
-        f.ok("rendering", "R4", "template example links", "none")
+    #
+    # The tokens come from references/template-artifacts.tsv -- the SAME file
+    # `autofix-fix.py` reads -- so the check and its fixer cannot drift apart.
+    tpl_arts = ctx["template_artifacts"]
+    if tpl_arts is None:
+        f.unmechanisable("rendering", "R4", "template example links",
+                         "no template-artifacts manifest at %s" % a.template_artifacts,
+                         "supply --template-artifacts; without the manifest there is no "
+                         "definition of a template example to look for, and 'found none' "
+                         "would mean 'looked for nothing'")
+    else:
+        dangling = []
+        for path in sorted(glob.glob(os.path.join(ctx["target"], "input", "**", "*.md"),
+                                     recursive=True)) + \
+                sorted(glob.glob(os.path.join(ctx["target"], "input", "**", "menu.xml"),
+                                 recursive=True)):
+            txt = read_text(path) or ""
+            rel = os.path.relpath(path, ctx["target"])
+            for token, _ver, _on, _why in tpl_arts:
+                for m in re.finditer(r"(?:\]\(|href=\")([^\")\s]*%s[^\")\s]*)"
+                                     % re.escape(token), txt):
+                    dangling.append((rel, m.group(1), token))
+        for rel, href, token in dangling:
+            f.diverges("rendering", "R4", "%s -> %s" % (rel, href),
+                       "link to a TEMPLATE example artefact (`%s`) that step 3 deletes" % token,
+                       autofix="template-example-link",
+                       action="remove the link, keep its text -- the fixer refuses unless the "
+                              "file's text is byte-identical afterwards")
+        if not dangling:
+            f.ok("rendering", "R4", "template example links",
+                 "none, over %d token(s) from %s (verified against template package %s)"
+                 % (len(tpl_arts), os.path.basename(a.template_artifacts),
+                    "/".join(sorted(set(r[1] for r in tpl_arts)))))
 
     # R5 -- a page-title unit per page. Missing unit -> the title renders in the
     # default language; empty msgstr -> untranslated, which no machine can fix.
@@ -1725,6 +1998,27 @@ def parse_log(path):
     return out
 
 
+def read_template_artifacts(path):
+    """references/template-artifacts.tsv -> [(token, template_version, verified_on, why)].
+
+    The ONE definition of "a link into template scaffolding", shared with
+    `autofix-fix.py`. Returns None when the file cannot be read, which R4 reports
+    as NICHT PRUEFBAR -- a detector whose subject list is missing has not passed.
+    """
+    txt = read_text(path)
+    if txt is None:
+        return None
+    rows = []
+    for line in txt.splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        cols = [c.strip() for c in line.split("\t")]
+        if len(cols) < 4 or cols[0] == "token":
+            continue
+        rows.append(tuple(cols[:4]))
+    return rows or None
+
+
 def read_expected_steps(path):
     """references/expected-steps.tsv -> [(step, action, applies, condition, why)]."""
     txt = read_text(path)
@@ -1743,17 +2037,34 @@ def read_expected_steps(path):
 
 def layer_log(f, a, ctx):
     entries = ctx["log"]
-    if entries is None:
+    # A MISSING LOG MUST NOT DELETE THE CHECKS THAT READ IT. The first version
+    # emitted L0 DIVERGIERT and RETURNED, so on the two real migrations that
+    # shipped without a run.log, L1-L4 produced no row at all -- not NICHT
+    # PRUEFBAR, simply absent from the findings table and the report. That is
+    # precisely the silent-gap failure this phase exists to prevent, committed by
+    # the phase itself. So every log-dependent check below emits an explicit
+    # NICHT PRUEFBAR row NAMING the missing input, and the checks that do not
+    # need the log (the identity ledger, the artifact count) still run.
+    have_log = entries is not None
+    no_log_reason = "there is no run log at %s" % a.log
+    no_log_action = ("write the log as the migration runs (spec 10.1); until it exists this "
+                     "check has no second oracle to read and is NOT passed")
+    if not have_log:
+        entries = []
         f.diverges("log", "L0", a.log,
                    "there is NO run log -- the migration's primary record is absent",
                    action="a report written from recollection cannot be audited (spec 10.6). "
                           "Two of the four real migrations shipped without one; this is that "
                           "finding, made loud")
-        return
-    f.ok("log", "L0", a.log, "%d parsed lines, %d runs" % (
-        len(entries), sum(1 for e in entries if e["action"] == "run-boundary")))
+    else:
+        f.ok("log", "L0", a.log, "%d parsed lines, %d runs" % (
+            len(entries), sum(1 for e in entries if e["action"] == "run-boundary")))
 
     # L1 -- a silent-partial-success WARN that was emitted and never acted on.
+    if not have_log:
+        f.unmechanisable("log", "L1", "silent-partial-success WARNs", no_log_reason,
+                         no_log_action)
+    seen_l1 = False
     for i, e in enumerate(entries):
         if e["level"] != "WARN" or not e["detail"].startswith("silent-partial-success:"):
             continue
@@ -1763,6 +2074,7 @@ def layer_log(f, a, ctx):
                 l["detail"].startswith("resolved:")
                 or re.search(r"\bexpected=(\d+) actual=\1\b", l["detail"]))
             for l in later)
+        seen_l1 = True
         if resolved:
             f.ok("log", "L1", "%s/%s @ %s" % (e["step"], e["action"], e["ts"]),
                  "silent-partial-success WARN, later resolved in the log")
@@ -1772,11 +2084,20 @@ def layer_log(f, a, ctx):
                        action="the WARN this whole convention exists for was emitted and "
                               "NOTHING acted on it. Re-run the step, or record the resolution "
                               "with a `resolved:` line naming this action")
+    if have_log and not seen_l1:
+        # A scan that ran and found nothing is a RESULT. Emitting no row for it
+        # is indistinguishable in the findings table from a check that never ran.
+        f.ok("log", "L1", "silent-partial-success WARNs",
+             "the log carries none across %d lines" % len(entries))
 
     # L2 -- a step that emitted NO line. A step that did not run is invisible
     # otherwise: nothing else in the tree records its absence.
     expected = ctx["expected_steps"]
-    if expected is None:
+    if not have_log:
+        f.unmechanisable("log", "L2", "step coverage", no_log_reason,
+                         "%s -- with no log, EVERY step is unrecorded, which is one finding "
+                         "(L0), not one per step" % no_log_action)
+    elif expected is None:
         f.unmechanisable("log", "L2", "step coverage",
                          "no expected-steps manifest at %s" % a.expected_steps,
                          "supply --expected-steps; without the manifest a missing step cannot "
@@ -1821,10 +2142,16 @@ def layer_log(f, a, ctx):
     # is still one decision, and a queue with four rows for it invites three of
     # them to be closed as duplicates.
     contradictions = {}
+    if not have_log:
+        f.unmechanisable("log", "L3", "open identity contradictions", no_log_reason,
+                         no_log_action)
     for e in entries:
         if e["level"] == "WARN" and e["detail"].startswith("identity-contradiction:"):
             m = re.search(r"field=(\S+)", e["detail"])
             contradictions.setdefault(m.group(1) if m else "?", []).append(e)
+    if have_log and not contradictions:
+        f.ok("log", "L3", "open identity contradictions",
+             "the log records no `identity-contradiction:` WARN")
     for fname, evs in sorted(contradictions.items()):
         decided = any(
             l["detail"].startswith("decision:") and fname in l["detail"] for l in entries)
@@ -1838,17 +2165,26 @@ def layer_log(f, a, ctx):
                        action="unresolved at verification time. It is a Gate-A decision, "
                               "never a precedence puzzle to settle mechanically -- record "
                               "it with a `decision:` line naming the field")
+    # Independent of the log: the ledger either exists or it does not.
     claims_path = os.path.join(ctx["logdir"], "identity-claims.tsv")
     if not os.path.isfile(claims_path):
         f.unmechanisable("log", "L3", "identity ledger",
                          "no %s" % os.path.relpath(claims_path, ctx["target"]),
                          "run the identity recovery (step 2) -- without the ledger a "
                          "contradiction has nowhere to be seen")
+    else:
+        f.ok("log", "L3", "identity ledger",
+             "%s present, %d claim(s)"
+             % (os.path.relpath(claims_path, ctx["target"]),
+                sum(len(v) for v in (ctx["claims"] or {}).values())))
 
     # L4 -- the cross-checks. THE point of two oracles: the log says N, the
     # target holds M, and neither number is wrong on its own.
     conv = ctx["log_values"].get("gofsh-convert", {})
-    if conv.get("actual") is not None:
+    if not have_log:
+        f.unmechanisable("log", "L4", "conversion count", no_log_reason, no_log_action)
+        f.unmechanisable("log", "L4", "page count", no_log_reason, no_log_action)
+    elif conv.get("actual") is not None:
         n = int(conv["actual"])
         m = len(ctx["generated"])
         if m == 0:
@@ -1872,7 +2208,9 @@ def layer_log(f, a, ctx):
 
     harv = ctx["log_values"].get("guide-harvest", {})
     tsv_rows = ctx["harvest_rows"]
-    if harv.get("actual") is not None and tsv_rows is not None:
+    if not have_log:
+        pass                                  # already reported above, once
+    elif harv.get("actual") is not None and tsv_rows is not None:
         n = int(harv["actual"])
         m = sum(1 for r in tsv_rows if r.get("status") == "harvested")
         if n != m:
@@ -1925,7 +2263,7 @@ def build_context(a):
     # report and useless on another machine.
     ctx["rendered_label"] = label_path(rendered, target)
     ctx["rendered_root"] = rendered
-    ctx["variants"] = variant_dirs(rendered)
+    ctx["variants"], ctx["redirect_stubs"] = variant_dirs(rendered)
 
     # qa output: at the site root, or in any variant directory.
     ctx["qa_html"] = ctx["qa_txt"] = None
@@ -1973,6 +2311,7 @@ def build_context(a):
     # Menus, the template's own page set, and the languages that have pages.
     ctx["menus"] = read_menus(target)
     ctx["template_pages"] = read_template_pages(a.template_pages)
+    ctx["template_artifacts"] = read_template_artifacts(a.template_artifacts)
     ctx["translation_langs"] = set(
         os.path.basename(os.path.dirname(d))
         for d in glob.glob(os.path.join(target, "input", "translations", "*", "pagecontent")))
@@ -2254,6 +2593,8 @@ def main(argv):
                    default=os.path.join(here, "..", "references", "expected-steps.tsv"))
     p.add_argument("--template-pages", dest="template_pages",
                    default=os.path.join(here, "..", "references", "template-pages.tsv"))
+    p.add_argument("--template-artifacts", dest="template_artifacts",
+                   default=os.path.join(here, "..", "references", "template-artifacts.tsv"))
     p.add_argument("--shape", choices=("A", "B"))
     p.add_argument("--layers", default=",".join(LAYERS))
     p.add_argument("--findings")

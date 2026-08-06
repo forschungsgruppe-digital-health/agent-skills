@@ -151,6 +151,32 @@ def _guard(target, paths):
     return None
 
 
+def read_template_artifact_tokens(path):
+    """The template-example tokens, from references/template-artifacts.tsv.
+
+    THE SAME FILE `verify-migration.py` READS FOR R4. The token used to be a bare
+    inline literal in both programs, so a template that renamed its example would
+    have left the check and the fixer disagreeing about what a template example
+    is -- and this fixer would have gone on stripping links the check no longer
+    raises. Returns None when the manifest cannot be read; the caller then
+    REFUSES rather than falling back to a hard-coded guess.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return None
+    out = []
+    for line in lines:
+        if not line.strip() or line.startswith("#"):
+            continue
+        cols = [c.strip() for c in line.split("\t")]
+        if len(cols) < 4 or cols[0] == "token":
+            continue
+        out.append(cols[0])
+    return out or None
+
+
 def _text_only(md):
     """The prose of a Markdown/HTML file with link TARGETS removed.
 
@@ -212,15 +238,23 @@ def fix_template_example_link(target, finding, args):
     src = _read(path)
     if src is None:
         return None, "cannot read %s" % path
+    tokens = read_template_artifact_tokens(args.template_artifacts)
+    if not tokens:
+        return None, ("REFUSED: no template-artifacts manifest at %s. The tokens that define "
+                      "a template example live in ONE file shared with the R4 check; without "
+                      "it this fixer would be guessing" % args.template_artifacts)
     if path.endswith(".xml"):
-        out, err = _strip_menu_entry(src)
+        out, err = _strip_menu_entry(src, tokens)
         if err:
             return None, err
     else:
         # Markdown/HTML: unwrap the anchor, keep every character of its text.
-        out = re.sub(r"\[([^\[\]]*)\]\(([^()]*example-patient[^()]*)\)", r"\1", src)
-        out = re.sub(r'<a\b[^>]*href="[^"]*example-patient[^"]*"[^>]*>(.*?)</a>',
-                     r"\1", out, flags=re.S | re.I)
+        out = src
+        for token in tokens:
+            tok = re.escape(token)
+            out = re.sub(r"\[([^\[\]]*)\]\(([^()]*%s[^()]*)\)" % tok, r"\1", out)
+            out = re.sub(r'<a\b[^>]*href="[^"]*%s[^"]*"[^>]*>(.*?)</a>' % tok,
+                         r"\1", out, flags=re.S | re.I)
     if out == src:
         return [], None
     if not path.endswith(".xml") and _text_only(src) != _text_only(out):
@@ -231,16 +265,21 @@ def fix_template_example_link(target, finding, args):
     return [os.path.relpath(path, target)], None
 
 
-def _strip_menu_entry(src):
+def _strip_menu_entry(src, tokens):
     """Drop the menu <li> whose link targets a deleted template example.
 
     A menu entry pointing at a page that does not exist is a dead entry, and
     leaving its label behind without a target would be worse than removing it.
     The postcondition is that the result still parses as XML -- a menu the
     publisher cannot read fails the build, which is not an improvement.
+
+    `tokens` comes from references/template-artifacts.tsv, never from a literal
+    here: see `read_template_artifact_tokens`.
     """
-    out = re.sub(r"(?is)[ \t]*<li>(?:(?!</li>).)*example-patient(?:(?!</li>).)*</li>[ \t]*\r?\n?",
-                 "", src)
+    out = src
+    for token in tokens:
+        out = re.sub(r"(?is)[ \t]*<li>(?:(?!</li>).)*%s(?:(?!</li>).)*</li>[ \t]*\r?\n?"
+                     % re.escape(token), "", out)
     if out == src:
         return src, None
     try:
@@ -368,6 +407,9 @@ def main(argv):
     p.add_argument("--seed")
     p.add_argument("--ref")
     p.add_argument("--template-src", dest="template_src")
+    p.add_argument("--template-artifacts", dest="template_artifacts",
+                   default=os.path.join(os.path.dirname(here), "references",
+                                        "template-artifacts.tsv"))
     p.add_argument("--template-repo", dest="template_repo",
                    default="https://github.com/forschungsgruppe-digital-health/"
                            "mii-kds-module-template.git")
