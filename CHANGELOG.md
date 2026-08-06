@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.11.0...v0.12.0) (2026-08-06)
+
+
+### Skills and capabilities
+
+* **mii-ig-migration:** recover module identity from the published FHIR package ([#52](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/52)) ([833614b](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/833614b3179a84f51303b9f6d702362b764801af))
+
 ## [0.11.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.10.1...v0.11.0) (2026-08-06)
 
 
