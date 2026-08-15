@@ -25,13 +25,18 @@ SCHEMA_VERSION = "1.4"
 # be corrected without touching this file.
 #
 # The names below are verified against the MII KDS module template's actual page
-# set. The list this was derived from named six pages that do not exist there
-# (use-cases, data-sets, uml, context, references, security-privacy), so every
-# measurement reported six false missing pages.
-DEFAULT_MANDATORY_PAGES = ["index", "guidance", "datasets-and-descriptions",
-                           "uml-diagrams", "conformance", "implementer-guidance",
-                           "researcher-guidance", "changes", "downloads",
-                           "security-and-privacy", "translationinfo"]
+# set — re-seeded 2026-08-15 at template v0.10.3: only the mandatory (1..1)
+# pages with a file of their own. Since template v0.8 `conformance` and
+# `datasets-and-descriptions` are link-only menu entries (no page), and seven
+# pages are OPTIONAL (0..1, an M9 decision) — an optional page's absence is
+# legitimate and does not belong in a mandatory-page metric. (The list this was
+# originally derived from named six pages that never existed at all, so every
+# measurement reported six false missing pages — same failure class.)
+DEFAULT_MANDATORY_PAGES = ["index", "guidance", "implementer-guidance",
+                           "uml-diagrams", "profiles", "capability-statements",
+                           "logical-models", "examples", "security-and-privacy",
+                           "changes", "version-history", "downloads",
+                           "translationinfo"]
 # Mutated in place by load_content() so existing references stay valid.
 MANDATORY_PAGES = list(DEFAULT_MANDATORY_PAGES)
 SUPPLEMENT_TYPES = ("StructureDefinition", "CodeSystem", "Questionnaire")

@@ -115,7 +115,7 @@ Usage:
                           (default: de) -- the text-run check compares against
                           the target pages in THAT language, because the other
                           language is a translation and would never match.
-    --template-latest V   the module template's latest RELEASE tag, e.g. v0.6.0.
+    --template-latest V   the module template's latest RELEASE tag, e.g. v0.10.3.
                           Absent -> P2 is NICHT PRUEFBAR, never a pass.
     --publisher-pin V     the IG Publisher version pinned in the target's build
                           workflow. Absent -> read from the workflow if findable.

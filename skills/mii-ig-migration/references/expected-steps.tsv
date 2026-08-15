@@ -40,6 +40,8 @@ pre.5	toolchain	both	always	The pinned SUSHI/goFSH versions are the run's only r
 5.2	sushi-skeleton	both	always	The skeleton must compile before any artefact is transferred, or the first error is unattributable.
 5.3	transfer-artefacts	both	always	The step that moves the module's own content; silence here is a migration that moved nothing.
 5.4	fql-scan	both	always	An unconverted Simplifier/FQL directive renders as nothing at all.
+5.4a	optional-page-decisions	both	target template >= v0.8	The seven OPTIONAL (0..1) pages must each be decided — keep (banner + marker deleted, both languages) or remove per the template's procedure (spec §9a); the template's M9 fails a module release while undecided, and a migration with no line here silently shipped seven "decide me" banners.
+5.4b	security-privacy-decision	both	target template >= v0.8	Stage 3 of security-and-privacy: module aspects written or the default text adopted, and the scaffold's Person example + ILLUSTRATIVE-EXAMPLE marker deleted in both languages (spec §9a); the template's M11 fails a release branch while it is present.
 5.5	gen-page-title-po	both	bilingual target	Page titles fall back to the default language with no error anywhere.
 5.6	sushi-build	both	always	One of the two numbers this migration exists to produce.
 5.6	ig-publisher	both	always	The other one — and the rendered output every provenance and rendering check reads.

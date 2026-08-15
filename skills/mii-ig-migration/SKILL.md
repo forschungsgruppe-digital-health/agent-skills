@@ -298,7 +298,18 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    **more than two profiles**, route the per-profile narrative to
    `input/intro-notes/<Type>-<id>-intro.md` (German mirror under
    `input/translations/de/intro-notes/`, same filename — both render atop the artifact page,
-   build-verified) and keep `profiles-and-extensions.md` as a short index.
+   build-verified) and keep `profiles.md` as a short index.
+
+   **Template ≥ v0.8 target structure — spec §9a is normative for the page set.** The combined
+   pages were split (`profiles`/`extensions`, `search-parameters`/`operations`,
+   `value-sets`/`code-systems`), the Conformance cluster and `datasets-and-descriptions` became
+   link-only menu entries (content that lived there moves to `guidance.md` /
+   `implementer-guidance.md` / `logical-models.md`), and two decisions are REQUIRED, run-logged
+   steps: `5.4a optional-page-decisions` (seven OPTIONAL (0..1) pages, each kept-with-banner-deleted
+   or removed per procedure — the template's convention check M9 gates module releases on it) and
+   `5.4b security-privacy-decision` (stage 3 written or default text adopted; the scaffold's
+   Person example + `ILLUSTRATIVE-EXAMPLE` marker deleted, both languages — gated by M11).
+   Transferred pages must not re-add their title as a heading (M10).
 
 6. **Set up the bilingual pages.** English is the default; German is the translation, a same-named
    file under `input/translations/de/pagecontent/`. These **do** render. The menu is
