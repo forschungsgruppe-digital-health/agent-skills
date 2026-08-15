@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.14.0...v0.15.0) (2026-08-15)
+
+
+### Skills and capabilities
+
+* **mii-ig-migration:** align with the TF-KDS-restructured template (v0.10.3) ([#64](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/64)) ([2e2803c](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/2e2803c84a20a5f99871b0480f13dd95fc381e1f))
+
 ## [0.14.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.13.0...v0.14.0) (2026-08-06)
 
 
