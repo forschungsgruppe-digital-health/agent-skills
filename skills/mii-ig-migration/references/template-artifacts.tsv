@@ -29,4 +29,4 @@
 # WHEN THE TEMPLATE CHANGES: re-measure against the vendored package and add or
 # replace a row here. Nothing else needs editing.
 token	template_version	verified_on	why
-example-patient	0.5.1	2026-08-07	the template's example Patient instance and its page, deleted by step 3
+example-patient	1.2.1	2026-08-15	the template's example Patient profile + instance and their pages, deleted by step 3 (re-measured at module-template v0.10.3, which vendors ig-template package 1.2.1: input/fsh/profiles/example-patient.fsh + instances/example-patient-instance.fsh)

@@ -140,7 +140,7 @@ the language you actually derived.
    GEN="$SKILL_DIR/../mii-ig-migration/scripts/gen-page-title-po.py"
    if [ -f "$GEN" ]; then python3 "$GEN" --help; else
      echo "gen-page-title-po.py not installed — install the sibling skill, or write the units by hand:"
-     echo 'npx skills add "https://github.com/forschungsgruppe-digital-health/agent-skills/tree/v0.12.0" --skill mii-ig-migration --agent claude-code codex --yes'
+     echo 'npx skills add "https://github.com/forschungsgruppe-digital-health/agent-skills/tree/v0.14.0" --skill mii-ig-migration --agent claude-code codex --yes'
    fi
    ```
 

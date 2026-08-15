@@ -295,10 +295,11 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    — **never create a page outside it**, an extra page is an unlisted orphan the menu cannot reach.
    The mapping is [spec](references/migration-spec.md) §9, which also records that the reference
    module is itself incomplete on use cases: record such a gap in the report, never fill it. With
-   **more than two profiles**, route the per-profile narrative to
-   `input/intro-notes/<Type>-<id>-intro.md` (German mirror under
-   `input/translations/de/intro-notes/`, same filename — both render atop the artifact page,
-   build-verified) and keep `profiles-and-extensions.md` as a short index.
+   **more than two profiles**, route the per-profile narrative to `input/intro-notes/<Type>-<id>-intro.md`
+   (German mirror under `input/translations/de/intro-notes/`, same filename — both render atop the
+   artifact page, build-verified) and keep `profiles.md` as a short index.
+   **Template ≥ v0.8 targets: spec §9a is normative for the page set** — split pages, link-only Conformance
+   cluster + `datasets-and-descriptions` (content re-routes per §9a), no re-added title headings (M10), two REQUIRED run-logged decisions: `5.4a optional-page-decisions` (M9), `5.4b security-privacy-decision` (M11).
 
 6. **Set up the bilingual pages.** English is the default; German is the translation, a same-named
    file under `input/translations/de/pagecontent/`. These **do** render. The menu is

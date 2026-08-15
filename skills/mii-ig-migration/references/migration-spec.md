@@ -1769,28 +1769,31 @@ map onto sections *within* pages, not onto pages of their own.** That is why the
 like it is missing them and is not.
 
 The mapping below is derived from `medizininformatik-initiative/kerndatensatz-basis` — the MII's own
-reference module, whose `input/pagecontent/` set matches the template's except for two
-template-only pages (`security-and-privacy.md`, `rendering-artifacts.md`, which basis lacks) and
-one basis-only file (`ImplementationGuide-mii-ig-base.md`). It is evidence about what the MII
-actually does, not an interpretation of the Manteldokument's wording. The two template-only pages
-also mean the reference module itself scores 10/11 on the analysis skill's mandatory-page list —
-expect the same of any module whose page set predates them.
+reference module. **Dated caveat (2026-08-15):** basis still carries the PRE-SPLIT page set
+(`profiles-and-extensions.md`, `search-parameters-and-operations.md`, `terminology.md`,
+`conformance.md`, `general-requirements.md`, `must-support.md`, `missing-data.md`,
+`datasets-and-descriptions.md` — measured on its `develop` branch, its active one); the module
+template restructured that set from **v0.8.0** on (§9a). Basis therefore remains the evidence for
+*which source sections exist and what the MII puts in them*, while the **target page names** in the
+tables below follow the template's CURRENT set. It is evidence about what the MII actually does,
+not an interpretation of the Manteldokument's wording. Expect any module whose page set predates
+the template to score short on the analysis skill's mandatory-page list.
 
 | Manteldokument section | Where it lives | Evidence |
 | --- | --- | --- |
 | **Bezüge zu anderen Modulen** | **`implementer-guidance.md` is the primary home** for the substance: module dependencies, cross-module references, and any compared/derived-profile discussion. `index.md` § *Related guides* carries only a **short link list** (the template's `TODO:` there asks for names, not prose). The machine-readable form is `dependencies` in `sushi-config.yaml`. Learned on the first full migration's review: routing the context *prose* onto `index.md` makes the landing page read as misplaced — the index stays lean. | basis `implementer-guidance.md` lists "Module dependencies and cross-references"; template `index.md` |
 | **Referenzen** | **`implementer-guidance.md`** for reference *discussion* (compared specifications, alignment notes); `index.md` § *Related guides* only as a short link list of external guides and the FHIR IG Registry; `downloads.md` for package and artefact references; inline artefact links throughout the narrative | basis `implementer-guidance.md`; template `index.md`; basis `downloads.md` |
-| **Anwendungsfälle / Szenarien** | `guidance.md`, which routes to `implementer-guidance.md` and `researcher-guidance.md`; `general-requirements.md`, which frames the requirements in terms of MII use cases; `examples.md` for the concrete scenarios. Scenario *narratives* (use-case descriptions with diagrams) default to `general-requirements.md` per the basis evidence; `implementer-guidance.md` is the better home when the scenarios are written as implementation instructions. Either way, record the choice as `TODO:REVIEW` for Gate B — reviewers reasonably disagree on this one. | basis `general-requirements.md` (German) refers to "die Anwendungsfälle der Medizininformatik-Initiative"; basis `researcher-guidance.md` covers identifying data elements for a research question |
+| **Anwendungsfälle / Szenarien** | `guidance.md`, which routes to `implementer-guidance.md` and `researcher-guidance.md`; `examples.md` for the concrete scenarios. Scenario *narratives* (use-case descriptions with diagrams) default to **`guidance.md`**; `implementer-guidance.md` is the better home when the scenarios are written as implementation instructions. (`general-requirements.md`, the pre-v0.8 default home per the basis evidence, no longer exists as a page — the whole Conformance cluster is link-only to the Meta module, §9a — so source content that lived there must land on `guidance.md`/`implementer-guidance.md`.) Either way, record the choice as `TODO:REVIEW` for Gate B — reviewers reasonably disagree on this one. | basis `general-requirements.md` (German) refers to "die Anwendungsfälle der Medizininformatik-Initiative"; basis `researcher-guidance.md` covers identifying data elements for a research question |
 
 Further recurring source-section homes, learned on the Dokument migration (same rule: sections
 within existing pages, never new pages):
 
 | Source section | Where it lives | Why |
 | --- | --- | --- |
-| **Datensatz / Informationsmodell page** (dataset narrative + logical-model rendering) | split: the narrative on `datasets-and-descriptions.md`, the logical-model rendering (`-snapshot` include) on `logical-models.md`, cross-linked | the template ships **both** pages; putting everything on one leaves the other an empty stub that reads as missing content |
-| **Per-profile Suchparameter section** | `search-parameters-and-operations.md`, with a link back from the profile's section on `profiles-and-extensions.md` | the template has a dedicated page for it; a stub next to a filled profile page confuses readers |
+| **Datensatz / Informationsmodell page** (dataset narrative + logical-model rendering) | **all on `logical-models.md`**: the narrative above, the logical-model rendering (`-snapshot` include) below. (`datasets-and-descriptions.md` was retired in template v0.8+ — the menu's "Datasets and Descriptions" entry is now link-only to `logical-models.html`, §9a.) | the module's datasets ARE its logical models; the retired page would be an unlisted orphan |
+| **Per-profile Suchparameter section** | `search-parameters.md` (an OPTIONAL page — keeping it is the M9 decision, §9a), with a link back from the profile's section on `profiles.md` | the template has a dedicated page for it; a stub next to a filled profile page confuses readers |
 | **Per-profile example serializations** (inline XML/JSON, tabs) | links to the example artefact pages (whose tabs render the serializations); `examples.md` lists all examples | inlined dumps duplicate the artefact pages and bloat the narrative — see the crosswalk's tabs rule |
-| **Per-profile narrative pages, N > 2 profiles** | one `input/intro-notes/<Type>-<id>-intro.md` per artifact, German mirror at `input/translations/de/intro-notes/<same filename>` — **both render atop the respective artifact page** (verified on a real build: no cross-language leakage); `profiles-and-extensions.md` becomes a short per-profile index with links | the template wires `path-pages: input/intro-notes`; five per-profile pages ≈ 4,400 words (kerndatensatzmodul-person) would make one section-per-profile page unreadable |
+| **Per-profile narrative pages, N > 2 profiles** | one `input/intro-notes/<Type>-<id>-intro.md` per artifact, German mirror at `input/translations/de/intro-notes/<same filename>` — **both render atop the respective artifact page** (verified on a real build: no cross-language leakage); `profiles.md` becomes a short per-profile index with links | the template wires `path-pages: input/intro-notes`; five per-profile pages ≈ 4,400 words (kerndatensatzmodul-person) would make one section-per-profile page unreadable |
 
 ### Two consequences for step 5.4
 
@@ -1808,6 +1811,65 @@ report and raise it at Gate B; do not fill it.
 So §5.4's acceptance criterion is: each of the three sections has a **named home** in the page set
 per the table above, and any that the source guide did not supply is listed in the report as a gap
 rather than silently absent.
+
+## 9a. Template ≥ v0.8: the split page set and the decision gates
+
+**Measured at module-template `v0.10.3` (2026-08-15).** From v0.8.0 the template implements the
+TF-KDS-agreed menu structure; a migration that targets the current template lands on THIS page set
+— [`references/template-pages.tsv`](template-pages.tsv) is the measured list. What changed against
+the pre-v0.8 set the earlier migrations (Dokument, Person, Consent, Labor) targeted:
+
+**Split pages.** Three combined pages became per-artifact-type pages, and source content splits
+with them:
+
+| pre-v0.8 target | current target(s) | split rule |
+| --- | --- | --- |
+| `profiles-and-extensions.md` | `profiles.md` + `extensions.md` | profile narrative → profiles; extension narrative → extensions |
+| `search-parameters-and-operations.md` | `search-parameters.md` + `operations.md` | by artifact type |
+| `terminology.md` | `value-sets.md` + `code-systems.md` | ValueSet notes + expansion note → value-sets; CodeSystem notes + the SU-TermServ note → code-systems |
+
+**Retired pages — content must NOT be routed to them** (they would be unlisted orphans):
+
+- `datasets-and-descriptions.md` — the menu's "Datasets and Descriptions" is now **link-only** to
+  `logical-models.html`; dataset narrative goes ON `logical-models.md`, above the rendering.
+- `conformance.md`, `general-requirements.md`, `must-support.md`, `missing-data.md` — the whole
+  Conformance cluster is **link-only** to the Meta module (interim: the `kerndatensatz-meta` wiki
+  sections; the template's menus carry the URLs). Source content that lived on these pages moves to
+  `guidance.md` / `implementer-guidance.md` (scenario narratives, module-level requirement prose) —
+  MII-wide conformance rules are NOT restated in a module.
+
+**Optional (0..1) pages — a REQUIRED migration decision (M9).** Seven pages ship marked optional
+with a visible decision banner and an `OPTIONAL-PAGE` marker: `researcher-guidance`, `extensions`,
+`search-parameters`, `operations`, `value-sets`, `code-systems`, `metadata`. The migration must
+DECIDE each one: **keep** (the source has content for it → fill it and delete the banner + marker
+in BOTH languages) or **remove** (per the template's `docs/optional-pages.md` procedure: both page
+files, both menu entries, the `pages:` row, the `.po` unit). The template's convention check
+**M9** fails a module release while any is undecided; an undecided page ships a "decide me" banner
+to readers. Emit the decision as run-log step `5.4a optional-page-decisions`, one line per page.
+
+**Security and Privacy is three-stage, and stage 3 is a decision (M11).** The page ships two static
+MII-wide stages (data-protection concept, DIMP) that are KEPT, and a module-specific stage 3 whose
+content is optional: write the module's own aspects (the natural home for source privacy/security
+narrative — e.g. Dokument's Base64-embedding caveat) **or** adopt the page's documented default
+text. Either way the scaffold's highlighted Person example and its `ILLUSTRATIVE-EXAMPLE` marker
+must be deleted in BOTH languages — convention check **M11** fails a release branch while present.
+Emit run-log step `5.4b security-privacy-decision`.
+
+**Transferred content must not re-add title headings (M10).** The publisher renders the page title
+as the section heading; a migrated page whose first heading repeats its title (or a parent
+heading) fails convention check **M10**. Strip such headings during transfer — the pre-v0.8 sandbox
+migrations shipped several.
+
+**Chrome the migration inherits and leaves alone:** NUM-DIZ is the DEFAULT corporate design
+(template ≥ v1.0 of the ig-template; a module opts back to the MII design only with
+`input/data/brand.json` `{"design":"mii"}`); the publisher/© line is NUM-DIZ with a matching `.po`
+unit; highlight boxes use the `ig-highlight*` classes (`mii-highlight*` still renders as a
+deprecated alias — new/edited content uses `ig-*`); scaffold pages link repository files via the
+`{{GITHUB_ORG}}/{{REPO_NAME}}` placeholders the first-run bootstrap fills. None of these is a
+migration surface; do not rewrite them. Advisory for migrated prose: the template's "MII" naming
+policy (MII only in proper names/identifiers and past-tense provenance — `docs/page-structure.md`)
+applies to scaffold text; flag migrated source prose that names MII as an ongoing acting
+institution as `TODO:REVIEW` rather than rewriting normative content.
 
 ## 10. The run log (normative)
 
