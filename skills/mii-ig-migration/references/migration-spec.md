@@ -327,6 +327,16 @@ literal, so the placeholder gate in §2.3 never touches it, and MII modules comm
 published content. Read the source's `license`, carry it over, and treat any divergence exactly
 like the canonical: report it, raise it at Gate A, let a human decide.
 
+**One deliberate exception (template ≥ v1.1): `publisher` is template CHROME, not module
+identity.** The template sets `publisher: NUM-DIZ` (site root URL) because NUM-DIZ takes over IG
+development and maintenance from the MII — the footer's `IG © <year> <publisher>` line names the
+maintainer, and TF-KDS decided that surface. Do NOT carry a source publisher over it; the module's
+content identity (artifact copyright labels, prose attribution) is untouched. Found on the
+2026-08-15 Dokument re-migration: the earlier migration had carried the source's
+`Medizininformatik-Initiative` per this section — under template ≥ v1.1 that carry is reverted
+(§9a). Update the stale publisher unit in the IG-level `.po` by hand: the title-catalogue
+generator is non-destructive and preserves the old unit verbatim.
+
 ### 2.3 Placeholders
 
 The template does not build until every `{{...}}` placeholder is replaced, and an unreplaced
@@ -1863,10 +1873,30 @@ migrations shipped several.
 **Chrome the migration inherits and leaves alone:** NUM-DIZ is the DEFAULT corporate design
 (template ≥ v1.0 of the ig-template; a module opts back to the MII design only with
 `input/data/brand.json` `{"design":"mii"}`); the publisher/© line is NUM-DIZ with a matching `.po`
-unit; highlight boxes use the `ig-highlight*` classes (`mii-highlight*` still renders as a
+unit (this OVERRIDES §2.2's source-wins rule for the `publisher` field — and in a *re*-migration
+the stale publisher unit in the IG-level `.po` must be updated by hand, because the
+title-catalogue generator preserves foreign units verbatim); highlight boxes use the
+`ig-highlight*` classes (`mii-highlight*` still renders as a
 deprecated alias — new/edited content uses `ig-*`); scaffold pages link repository files via the
 `{{GITHUB_ORG}}/{{REPO_NAME}}` placeholders the first-run bootstrap fills. None of these is a
-migration surface; do not rewrite them. Advisory for migrated prose: the template's "MII" naming
+migration surface; do not rewrite them.
+
+**Two template refs in a re-migration — name the axis (P2 reads `ref=`).** A module carries TWO
+template coordinates: the module-template REPO tag whose page STRUCTURE it implements (what
+`--template-latest` and check P2 compare), and the ig-template PACKAGE it vendors under
+`ig-template/` (what the rendered `Templates:` line and check P1 compare). A re-vendor line that
+writes `ref=v1.2.1` (an ig-template tag) makes P2 report a false divergence against the
+module-template release — measured on the 2026-08-15 Dokument re-migration. Write the `5.2
+skeleton-vendored … ref=<module-template tag>` line for the structure axis, and log the package
+re-vendor as its own 5.2 line naming the ig-template tag explicitly.
+
+**Menu adaptation in a migration** (measured on the 2026-08-15 Dokument re-migration): take the
+template's two menu files at the target tag, then (a) DELETE the `rendering-artifacts.html` entry
+— step 3 deletes the demo page, and the shipped menu still lists it; (b) for every optional page
+the migration DECIDES, strip the "(optional)" label suffix and the per-entry `OPTIONAL` comment
+(they mark the *undecided* state); (c) delete the entries of removed optional pages in BOTH
+languages. `translationinfo` is deliberately in no menu — the base template's translation banner
+links it on every translated page; do not add it (and the verifier's C5 exempts it). Advisory for migrated prose: the template's "MII" naming
 policy (MII only in proper names/identifiers and past-tense provenance — `docs/page-structure.md`)
 applies to scaffold text; flag migrated source prose that names MII as an ongoing acting
 institution as `TODO:REVIEW` rather than rewriting normative content.
