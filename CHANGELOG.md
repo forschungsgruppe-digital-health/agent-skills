@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.15.0...v0.15.1) (2026-08-15)
+
+
+### Fixes
+
+* **mii-ig-migration:** five findings from the Dokument re-migration try-run ([#66](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/66)) ([1f3446e](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/1f3446e7f61808dd468863a56a044c6ea08d4b56))
+
 ## [0.15.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.14.0...v0.15.0) (2026-08-15)
 
 
