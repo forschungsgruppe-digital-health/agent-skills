@@ -1019,7 +1019,14 @@ def check_menu(f, a, ctx):
                 base = os.path.basename(href.split("#")[0])
                 if base.endswith(".html"):
                     linked.add(base[:-5])
-        orphan = sorted(p for p in narrative if p not in linked)
+        # translationinfo is the template's ONE deliberately menu-less page: the
+        # base template's translation banner links translationinfo.html on every
+        # translated page, so it is reachable without a menu entry (measured on
+        # the module-template's own rendering; its pages tree carries the page,
+        # its menus do not). Flagging it produced a false DIVERGIERT on every
+        # migrated module -- found on the 2026-08-15 Dokument re-migration try-run.
+        orphan = sorted(p for p in narrative
+                        if p not in linked and p != "translationinfo")
         for page in orphan:
             f.diverges("conservation", "C5", "input/pagecontent/%s.md" % page,
                        "narrative page in NO menu entry -- rendered, but reachable only "
@@ -1396,6 +1403,16 @@ def layer_fidelity(f, a, ctx):
             f.diverges("fidelity", "F1", field,
                        "source has %s, the target declares nothing" % _snip(sv),
                        action="carry the source value over unchanged (guardrail 1)")
+        elif field == "publisher" and tv == "NUM-DIZ":
+            # Template >= v1.1 CHROME, not module identity: the template sets
+            # publisher NUM-DIZ (TF-KDS: NUM-DIZ takes over IG maintenance from
+            # the MII), and spec 2.2/9a say a migration does NOT carry a source
+            # publisher over it. A target that says NUM-DIZ against any source
+            # value is therefore the documented state, not a divergence --
+            # found as a false DIVERGIERT on the 2026-08-15 Dokument re-migration.
+            f.ok("fidelity", "F1", field,
+                 "target NUM-DIZ (template >= v1.1 publisher chrome, spec 2.2); "
+                 "source declared %s -- deliberately not carried" % _snip(sv))
         elif tv != sv:
             f.diverges("fidelity", "F1", field,
                        "target %s  vs  source %s" % (_snip(tv), _snip(sv)),
