@@ -299,7 +299,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    (German mirror under `input/translations/de/intro-notes/`, same filename — both render atop the
    artifact page, build-verified) and keep `profiles.md` as a short index.
    **Template ≥ v0.8 targets: spec §9a is normative for the page set** — split pages, link-only Conformance
-   cluster + `datasets-and-descriptions` (content re-routes per §9a), no re-added title headings (M10), two REQUIRED run-logged decisions: `5.4a optional-page-decisions` (M9), `5.4b security-privacy-decision` (M11).
+   cluster + `datasets-and-descriptions` (content re-routes per §9a), no re-added title headings (M10), two REQUIRED run-logged decisions: `5.4a optional-page-decisions` (M9 — **measured**: package artifact count 0 → remove, > 0 → keep, artifacts never deleted; §9a), `5.4b security-privacy-decision` (M11). Index style parity (authors/contacts as lists, disclaimer as prose), the `(de)` translation-marker wording and the one-commit revertible-fix protocol are §9a; an absent CapabilityStatement is detected, SUGGESTED from the module's profiles and rendered INLINE on its page per **spec §9b**.
 
 6. **Set up the bilingual pages.** English is the default; German is the translation, a same-named
    file under `input/translations/de/pagecontent/`. These **do** render. The menu is
@@ -384,8 +384,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    is generated FROM `migration-log/run.log`** (spec §10.6): every claim traces to a log line, every
    WARN and ERROR lands in a queue, and where the two disagree the log is right.
 
-9. **Open a pull request** with the report as its description. **Do not publish.** Determine the
-   target branch from the module repository's own convention — **discover it, do not assume it**:
+9. **Open a pull request** with the report as its description. **Do not publish.** Name the working branch `migration/<source-version>-template-<module-template-tag>` (spec step 9 — five try-runs each invented a different scheme). Determine the PR's target branch from the module repository's own convention — **discover it, do not assume it**:
    the default branch, the bases of merged pull requests, CONTRIBUTING/README. The template previews
    every non-`main` branch to `gh-pages` under `branches/<branch>/` and reserves `main` and tags for
    publication, so a working branch previews without touching the default branch. Follow a different

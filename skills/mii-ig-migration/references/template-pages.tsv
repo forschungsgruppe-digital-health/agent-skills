@@ -53,3 +53,6 @@ translationinfo	scaffold	v0.10.3
 uml-diagrams	scaffold	v0.10.3
 value-sets	optional	v0.10.3
 version-history	scaffold	v0.10.3
+# ImplementationGuide-mii-ig-<slug>: template-owned intro of the generated
+# IG-resource page from module-template v0.11.0; slug-bearing name, so the
+# verifier matches it by prefix in code rather than by a row here.

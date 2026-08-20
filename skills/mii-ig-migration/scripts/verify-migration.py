@@ -1025,8 +1025,16 @@ def check_menu(f, a, ctx):
         # the module-template's own rendering; its pages tree carries the page,
         # its menus do not). Flagging it produced a false DIVERGIERT on every
         # migrated module -- found on the 2026-08-15 Dokument re-migration try-run.
+        # The IG-resource intro page (ImplementationGuide-mii-ig-<slug>.md,
+        # module-template >= v0.11.0) is the template's SECOND deliberately
+        # menu-less page: linked from the Home page's Contents list and the
+        # ToC, never from the menu (the TF-KDS menu is a fixed structure).
+        # Its name carries the module slug, so it is matched by prefix, not
+        # listed in template-pages.tsv. Flagging it produced two false
+        # DIVERGIERT on the 2026-08-19 Studie try-run.
         orphan = sorted(p for p in narrative
-                        if p not in linked and p != "translationinfo")
+                        if p not in linked and p != "translationinfo"
+                        and not p.startswith("ImplementationGuide-mii-ig-"))
         for page in orphan:
             f.diverges("conservation", "C5", "input/pagecontent/%s.md" % page,
                        "narrative page in NO menu entry -- rendered, but reachable only "
@@ -1064,7 +1072,10 @@ def check_menu(f, a, ctx):
                 stem = os.path.basename(tgt_page)
                 mapped.add(stem[:-3] if stem.endswith(".md") else
                            (stem[:-5] if stem.endswith(".html") else stem))
-        unexplained = sorted(p for p in narrative if p not in tpl and p not in mapped)
+        # ImplementationGuide-mii-ig-<slug> is template-owned from v0.11.0 on
+        # (slug-bearing name -- matched by prefix, not via template-pages.tsv).
+        unexplained = sorted(p for p in narrative if p not in tpl and p not in mapped
+                             and not p.startswith("ImplementationGuide-mii-ig-"))
         for page in unexplained:
             f.diverges("conservation", "C5", "input/pagecontent/%s.md" % page,
                        "target page is neither a template page nor the target of any "

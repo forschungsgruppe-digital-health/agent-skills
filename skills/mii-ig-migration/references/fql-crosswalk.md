@@ -28,7 +28,7 @@ a specific rule already matched, keyed on `file:line`.
 | `{{pagelink: …, hint: MII_PR_X}}` | `[Text](StructureDefinition-mii-pr-x.html)` (hint = artefact `name` → `id`) |
 | `{{link:<id>}}` | artefact link `[Text](<Type>-<id>.html)` |
 | `{{render:<image>}}` (png/jpg/svg…) | copy the image into `input/images/`. With the module template **> v0.4.0** a plain Markdown image `![Alt](file.png)` is safe: the template's CSS block-centers and width-caps content images (opt back into a float with `class="float"` raw HTML). On **older** templates wrap it in raw HTML — `<div style="text-align: center;"><img src="file" alt="…" style="max-width: 100%;"/></div>` — because their base CSS floats `p > img` (text wraps beside it) and caps no width |
-| `{{render:<canonical>}}` (resource) | usually remove — the artefact page is generated — **or** include the matching fragment |
+| `{{render:<canonical>}}` (resource) | usually remove — the artefact page is generated. EXCEPTION: on `capability-statements.md` render the CS INLINE via `{% lang-fragment CapabilityStatement-<id>-html.xhtml %}` (the `-html` fragment is the rendered narrative; the bare `<id>.xhtml` does not exist and fails Jekyll — measured 2026-08-20). Spec §9b |
 | `{{tree}}` / `{{tree, expand}}` | the `-snapshot` fragment (or `-dict` / `-diff`) |
 | `{{xml}}` | **prefer a link to the artefact page**; when an inline rendering is genuinely needed: the `-xml-html` fragment |
 | `{{json}}` | **prefer a link to the artefact page**; inline: the `-json-html` fragment |
