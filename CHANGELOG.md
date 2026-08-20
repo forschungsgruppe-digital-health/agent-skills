@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.15.1...v0.16.0) (2026-08-20)
+
+
+### Skills and capabilities
+
+* **mii-ig-migration:** branch scheme, CS suggestion, measured M9, style parity ([#70](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/70)) ([8809e5e](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/8809e5efedd35d64de5e0f5c01ad3ecd18fc0174))
+
 ## [0.15.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.15.0...v0.15.1) (2026-08-15)
 
 
