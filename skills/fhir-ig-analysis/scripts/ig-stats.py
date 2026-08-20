@@ -229,6 +229,118 @@ def find_resource_dir(igdir):
     return None, None
 
 
+# ---------- Pre-flight (migration Gate 0) --------------------------------------
+def compute_preflight(igdir, identity, deps_items, gendir):
+    """Four migration-decisive aspects, measured OFFLINE from the tree alone
+    (2026-08-20, from the Studie try-run review). Registry lookups, source
+    builds and remote fetches stay OUT of this instrument on purpose - a null
+    is not a zero, and every None below names what a migration pre-flight must
+    obtain elsewhere."""
+    # (a) licence EVIDENCE, tiered: value + where it was read. Absence and
+    # contradiction are first-class findings (Studie: no tier carried one).
+    ev = []
+    if identity.get("license"):
+        ev.append({"source": "sushi-config.yaml/package.json", "value": identity["license"]})
+    lic_file = None
+    for cand in ("LICENSE", "LICENSE.md", "LICENSE.txt"):
+        fp = os.path.join(igdir, cand)
+        if os.path.isfile(fp):
+            first = (read(fp).strip().splitlines() or [""])[0][:80]
+            lic_file = {"source": cand, "value": first}
+            ev.append(lic_file)
+            break
+    lic_pat = re.compile(r"(CC[- ]?BY[- 0-9.]*|CC0[^A-Za-z]|Creative Commons|Apache[- ]2\.0|MIT License)", re.I)
+    hits = []
+    for fp in glob.glob(os.path.join(igdir, "input", "pagecontent", "*.md")) + \
+              glob.glob(os.path.join(igdir, "ImplementationGuide*", "**", "*.md"), recursive=True):
+        m = lic_pat.search(read(fp))
+        if m:
+            hits.append({"source": rel(igdir, fp), "value": m.group(1).strip()})
+    ev.extend(hits[:5])
+    values = {e["value"].lower().replace(" ", "").rstrip(".") for e in ev}
+    licence = {"evidence": ev, "declared_anywhere": bool(ev),
+               "contradictory": len(values) > 1, "distinct_values": sorted(values)}
+    # (b) canonical-space census - predicts the special-url list and exposes
+    # example.org-type defects. Measured from generated resources only; a
+    # tree without them yields None, never a fabricated zero.
+    canonical = identity.get("canonical")
+    out_of_space = None
+    if gendir and canonical:
+        out_of_space = []
+        for fp in sorted(glob.glob(os.path.join(gendir, "*.json"))):
+            try:
+                d = json.load(open(fp, encoding="utf-8"))
+            except Exception:
+                continue
+            u = d.get("url")
+            if u and d.get("resourceType") != "ImplementationGuide" and not u.startswith(canonical):
+                out_of_space.append({"type": d.get("resourceType"), "id": d.get("id"), "url": u})
+    # id<->url mismatches are the SECOND special-url class: the url lives in
+    # the canonical space but not at <canonical>/<Type>/<id> (measured on the
+    # Studie CapabilityStatement, canonical .../CapabilityStatement/metadata).
+    id_url_mismatch = None
+    if gendir and canonical:
+        id_url_mismatch = []
+        for fp in sorted(glob.glob(os.path.join(gendir, "*.json"))):
+            try:
+                d = json.load(open(fp, encoding="utf-8"))
+            except Exception:
+                continue
+            u, rt, rid = d.get("url"), d.get("resourceType"), d.get("id")
+            if u and rt and rid and rt != "ImplementationGuide" and \
+               u.startswith(canonical) and u != "%s/%s/%s" % (canonical, rt, rid):
+                id_url_mismatch.append({"type": rt, "id": rid, "url": u})
+    canon = {"canonical": canonical,
+             "out_of_space_count": len(out_of_space) if out_of_space is not None else None,
+             "out_of_space": (out_of_space or [])[:20],
+             "id_url_mismatch": (id_url_mismatch or [])[:10],
+             "special_url_prediction": (len(out_of_space) + len(id_url_mismatch))
+                 if out_of_space is not None and id_url_mismatch is not None else None,
+             "example_org": [x for x in (out_of_space or []) if "example.org" in x["url"]]}
+    # (c) dependency-pin health: old-style/virtual packages the toolchain
+    # rewrites or warns about, and the THO/Extensions-Pack direct-pin gap
+    # (absent -> the IG Publisher injects the LATEST release at build time;
+    # verified in PublisherIGLoader).
+    dep_ids = list(deps_items or {})
+    old_style = [d for d in dep_ids if re.match(r"hl7\.fhir\.extensions\.r\d", d)]
+    has_tho = any("hl7.terminology" in d for d in dep_ids)
+    has_ext = any(d.startswith("hl7.fhir.uv.extensions") for d in dep_ids)
+    parents = None
+    if gendir:
+        parents = set()
+        for fp in glob.glob(os.path.join(gendir, "StructureDefinition-*.json")):
+            try:
+                d = json.load(open(fp, encoding="utf-8"))
+            except Exception:
+                continue
+            b = d.get("baseDefinition") or ""
+            if b and canonical and not b.startswith(canonical) and \
+               not b.startswith("http://hl7.org/fhir/StructureDefinition/"):
+                parents.add(b)
+        parents = sorted(parents)
+    dep_health = {"old_style_packages": old_style,
+                  "tho_pinned_directly": has_tho, "extensions_pinned_directly": has_ext,
+                  "injection_risk": not (has_tho and has_ext),
+                  "external_parents": parents}
+    # (d) QA baseline: a rendered qa in the tree, if any. None = the migration
+    # pre-flight must build the unmigrated source or fetch its rendered qa -
+    # without it, "pre-existing error" claims have no proof.
+    qa = None
+    for cand in ("output/qa.json", "docs/qa.json", "qa.json"):
+        fp = os.path.join(igdir, cand)
+        if os.path.isfile(fp):
+            try:
+                d = json.load(open(fp, encoding="utf-8"))
+                qa = {"source": cand, "errs": d.get("errs"), "warnings": d.get("warnings"),
+                      "date": d.get("date") or d.get("dateISO8601")}
+            except Exception:
+                qa = {"source": cand, "errs": None, "warnings": None, "date": None}
+            break
+    return {"licence": licence, "canonical_space": canon,
+            "dependency_health": dep_health, "qa_baseline": qa,
+            "_comment": "migration Gate-0 aspects; None = not measurable from this tree (obtain it, never assume it)"}
+
+
 # ---------- Narrative ----------------------------------------------------------
 def narrative_detail(igdir):
     out = []
@@ -604,6 +716,8 @@ def analyze(igdir, label, content):
     doc_health_pct = round(narrative["pages"] / narrative["pages_all"] * 100) if narrative["pages_all"] else None
     maturity = maturity_components(identity, doc_health_pct, example_cov["coverage_pct"], gov["governance_score"])
     maturity.update({"example_coverage": example_cov, "governance": gov, "doc_health_pct": doc_health_pct})
+    gen_for_preflight, _gsrc2 = find_resource_dir(igdir)
+    preflight = compute_preflight(igdir, identity, deps, gen_for_preflight)
     portfolio = compute_portfolio(fsh_text, decl_names, artifacts, directives, narrative["pages"], identity,
                                   dependencies["items"], gs)
     risk = compute_risk(igdir, fsh_text, portfolio["terminology_standard_systems"], None, narrative, gs, quality)
@@ -619,6 +733,7 @@ def analyze(igdir, label, content):
                          "label": label or identity["id"] or os.path.basename(os.path.abspath(igdir)),
                          "git_commit": git_commit(igdir), "timestamp": ts},
             "identity": identity, "artifacts": artifacts, "artifacts_detail": artifact_list,
+            "preflight": preflight,
             "dependencies": dependencies, "narrative": narrative, "linguistics": linguistics,
             "duplication": duplication, "hygiene": hygiene, "i18n": i18n,
             "directives": directives, "quality": quality,
@@ -874,6 +989,28 @@ def report(stats, content, out):
     else:
         B.append("_keine_")
 
+    pf = R.get("preflight") or {}
+    if pf:
+        B.append("## Pre-flight (Migration Gate 0)")
+        lic = pf.get("licence") or {}
+        B.append("- Lizenz-Evidenz: %s%s" % (
+            ("; ".join("%s → %s" % (e["source"], e["value"]) for e in lic.get("evidence", [])) or "**KEINE — in keiner Quelle deklariert**"),
+            " — **WIDERSPRÜCHLICH**" if lic.get("contradictory") else ""))
+        cs = pf.get("canonical_space") or {}
+        B.append("- Canonical-Raum: %s außerhalb + %s id/url-abweichend → special-url-Prognose: %s%s" % (
+            _cell(cs.get("out_of_space_count")), len(cs.get("id_url_mismatch") or []),
+            _cell(cs.get("special_url_prediction")),
+            "; example.org-Canonicals: %d" % len(cs.get("example_org") or []) if cs.get("example_org") else ""))
+        dh = pf.get("dependency_health") or {}
+        B.append("- Dependency-Gesundheit: old-style=%s; THO direkt gepinnt=%s, Extensions-Pack=%s%s; externe Parents: %s" % (
+            ", ".join(dh.get("old_style_packages") or []) or "keine",
+            dh.get("tho_pinned_directly"), dh.get("extensions_pinned_directly"),
+            " — **Injektionsrisiko: der Publisher lädt zur Buildzeit das JEWEILS NEUESTE Release**" if dh.get("injection_risk") else "",
+            len(dh.get("external_parents") or [])))
+        qa = pf.get("qa_baseline")
+        B.append("- QA-Baseline: %s" % ("%s → err=%s warn=%s (%s)" % (qa["source"], qa["errs"], qa["warnings"], qa.get("date")) if qa else
+            "**keine im Baum** — für Vorher/Nachher-Beweise die unmigrierte Quelle bauen oder deren gerendertes qa beziehen"))
+        B.append("")
     B.append("## Artefakte (Quelle: %s)" % a.get("_source"))
     if _intro(content, "artefakte_detail"):
         B.append("_%s_" % _intro(content, "artefakte_detail"))

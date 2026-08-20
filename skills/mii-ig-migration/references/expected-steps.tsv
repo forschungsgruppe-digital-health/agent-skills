@@ -22,6 +22,7 @@ step	action	shape	condition	why_it_matters
 # Hand-editable on purpose, like `fhir-ig-analysis`' mandatory_pages list. A
 # migration that legitimately adds or renames a step edits this file in the same
 # change — and says so in its report.
+1	preflight-analysis	any	always	The Gate-0 measurement of the unmigrated source (spec §9c); every downstream count reconciles against it.
 pre.2	classify-source-shape	both	always	Every shape-B-only row below is skipped when the shape is unknown, so an unrecorded shape silently disables half of this manifest.
 pre.5	toolchain	both	always	The pinned SUSHI/goFSH versions are the run's only record of what produced its output.
 5.1	source-inventory	both	always	The inventory is what goFSH's and the harvest's counts are reconciled against; without it every count is self-reported.

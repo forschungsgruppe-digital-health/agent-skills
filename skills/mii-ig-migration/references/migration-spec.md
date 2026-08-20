@@ -1928,6 +1928,34 @@ policy (MII only in proper names/identifiers and past-tense provenance — `docs
 applies to scaffold text; flag migrated source prose that names MII as an ongoing acting
 institution as `TODO:REVIEW` rather than rewriting normative content.
 
+## 9c. Gate 0 — the REQUIRED pre-flight analysis of the unmigrated source
+
+Before step 2, run the sibling `fhir-ig-analysis` on the SOURCE tree (the sibling-skill check of
+§5.6a applies here too — WARN `sibling-skill-unavailable:` and fall back to the equivalent manual
+measurements, never install anything):
+
+```bash
+bash "$ML" run 1 preflight-analysis --emits-runlog -- \
+  python3 "$ANALYSIS_SKILL_DIR/scripts/ig-stats.py" analyze <source-root> \
+    -o migration-log/preflight-analysis.json
+```
+
+Its sections REPLACE ad-hoc counting downstream — one instrument, measured twice (pre-flight here,
+same-module comparison in step 7):
+
+| `preflight` aspect | Feeds |
+| --- | --- |
+| `artifacts` counts per type | the MEASURED M9 decisions (§9a: 0 → remove, > 0 → keep) and `capabilitystatements == 0` → the §9b suggestion path |
+| `canonical_space.special_url_prediction` | the `special-url` list (out-of-space urls + id↔url mismatches; measured 12 on Studie — exactly the hand-built list) |
+| `licence.evidence` / `declared_anywhere` / `contradictory` | the §2.2 licence tiers and their Gate-A items |
+| `dependency_health` | §2.1 dependency carry-over: old-style packages to expect SUSHI to rewrite, the THO/extensions injection risk, external parents to resolve |
+| `qa_baseline` (`None` ⇒ obtain it) | the report's "pre-existing error" proof — build the unmigrated source or fetch its rendered qa BEFORE claiming provenance |
+| `narrative` / `direktiven` | step 5's mapping effort and the §9 page mapping |
+
+The report's L0 box quotes the pre-flight numbers (artifact counts, page count, directive count,
+special-url prediction, licence state) — the human's scope picture BEFORE any Gate work starts.
+A pre-flight that could not run is a WARN in the log and a ① item, never silently skipped.
+
 ## 9b. The CapabilityStatement: absence, suggestion, and inline rendering
 
 Measured across five try-runs (2026-08-20): sources ship CapabilityStatements inconsistently —
