@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.17.0...v0.18.0) (2026-08-20)
+
+
+### Skills and capabilities
+
+* close the four confirmed silent-mangle routes (census gap analysis items 1-6) ([#76](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/76)) ([52d6711](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/52d671113e168a755b27f58b1592f062008d4a02))
+
 ## [0.17.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.16.0...v0.17.0) (2026-08-20)
 
 
