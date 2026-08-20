@@ -49,6 +49,18 @@ Nothing is published until Gate D (a human merge decision); everything here is r
 |---|---|---|---|
 | {qa error text} | {n} | pre-existing (baseline build) \| migration-induced \| environment: {what} \| unclassified | {fix \| accept \| escalate to maintainers} |
 
+## Applied polish fixes (revertible — a human confirms or reverts)
+
+<!-- Presentation adaptations only (style parity, rendering choices) — never content or
+     identity. ONE dedicated commit; spec §9a "Presentation parity". Delete the section only
+     when the migration applied none. -->
+
+Applied as **one commit `{SHA}`** — revert with `git revert {SHA}` if a reviewer disagrees.
+
+| Fix | Was | Now | Revert effect |
+|---|---|---|---|
+| {…} | {…} | {…} | {…} |
+
 ## Content map (where every source page went)
 
 <!-- "Anything lost?" is the honest column: name RENDERING losses (e.g. a live query table

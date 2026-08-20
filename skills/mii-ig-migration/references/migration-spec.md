@@ -1712,6 +1712,14 @@ summary, and any source-versus-template identity divergence from §2.2.
 
 ### 5.8 Pull request
 
+**Name the working branch `migration/<source-version>-template-<module-template-tag>`**
+(e.g. `migration/2026.0.1-template-v0.11.0`) — it names both coordinates a reviewer needs.
+The five earlier try-runs each invented a different scheme
+(`migration/fresh-<date>`, `migration/kds-module-template`,
+`migration/mii-kds-module-template`, …), which made the sandbox repositories needlessly hard
+to compare; measured across the FGDH `*-inoffiziell` repos on 2026-08-20. A *re*-migration on the
+same coordinates appends a discriminator (`…-r2`).
+
 Open a pull request with the report as its description. **Do not publish.**
 
 Determine the target branch from the module repository's own convention — **discover it, do not
@@ -1848,12 +1856,17 @@ with them:
   `guidance.md` / `implementer-guidance.md` (scenario narratives, module-level requirement prose) —
   MII-wide conformance rules are NOT restated in a module.
 
-**Optional (0..1) pages — a REQUIRED migration decision (M9).** Seven pages ship marked optional
-with a visible decision banner and an `OPTIONAL-PAGE` marker: `researcher-guidance`, `extensions`,
-`search-parameters`, `operations`, `value-sets`, `code-systems`, `metadata`. The migration must
-DECIDE each one: **keep** (the source has content for it → fill it and delete the banner + marker
-in BOTH languages) or **remove** (per the template's `docs/optional-pages.md` procedure: both page
-files, both menu entries, the `pages:` row, the `.po` unit). The template's convention check
+**Optional (0..1) pages — a REQUIRED migration decision (M9), and it is MEASURED, not judged.**
+Seven pages ship marked optional with a visible decision banner and an `OPTIONAL-PAGE` marker:
+`researcher-guidance`, `extensions`, `search-parameters`, `operations`, `value-sets`,
+`code-systems`, `metadata`. Decide each from the BUILT PACKAGE's artifact count for the page's
+type (extensions → Extension SDs; search-parameters → SearchParameters; value-sets → ValueSets;
+code-systems → CodeSystems; researcher-guidance/metadata → source narrative for them):
+**count 0 → REMOVE** (the template's `docs/optional-pages.md` procedure: both page files, both
+menu entries, the `pages:` row, the `.po` unit); **count > 0 → KEEP** (fill it and delete the
+banner + marker in BOTH languages) — **artifacts the source or build package ships are NEVER
+deleted to force a removal** (user decision 2026-08-20: `>0` always keeps, even where the source
+narrative claims the module "has none" — record such a discrepancy in the report instead). The template's convention check
 **M9** fails a module release while any is undecided; an undecided page ships a "decide me" banner
 to readers. Emit the decision as run-log step `5.4a optional-page-decisions`, one line per page.
 
@@ -1890,6 +1903,20 @@ module-template release — measured on the 2026-08-15 Dokument re-migration. Wr
 skeleton-vendored … ref=<module-template tag>` line for the structure axis, and log the package
 re-vendor as its own 5.2 line naming the ig-template tag explicitly.
 
+**Presentation parity with the template's index (measured on five try-runs, user-decided
+2026-08-20).** Authors and contacts on `index.md` are SIMPLE LISTS (one `*` item per person),
+never separator-joined run-in lines; the disclaimer is PROSE SENTENCES, never a bullet list —
+follow the template scaffold's own index style in both languages. **Translation-marker wording:**
+the template's `language-model-check.sh` fails any EN-tree prose asserting German as "the
+source"/"original" — write the provenance as `machine translation of source page <name> (de)`,
+never "of the German source" (21 markers tripped the check on the Studie try-run).
+
+**Every presentation adaptation is REVERTIBLE and REPORTED.** Style fixes of this kind go into
+ONE dedicated commit, and the report gets an "Applied polish fixes (revertible)" section (the
+report template ships it): one row per fix — was / now / revert effect — plus the literal
+`git revert <sha>` command. A human confirms each fix or reverts it; the migration never treats
+its own presentation judgement as final.
+
 **Menu adaptation in a migration** (measured on the 2026-08-15 Dokument re-migration): take the
 template's two menu files at the target tag, then (a) DELETE the `rendering-artifacts.html` entry
 — step 3 deletes the demo page, and the shipped menu still lists it; (b) for every optional page
@@ -1900,6 +1927,40 @@ links it on every translated page; do not add it (and the verifier's C5 exempts 
 policy (MII only in proper names/identifiers and past-tense provenance — `docs/page-structure.md`)
 applies to scaffold text; flag migrated source prose that names MII as an ongoing acting
 institution as `TODO:REVIEW` rather than rewriting normative content.
+
+## 9b. The CapabilityStatement: absence, suggestion, and inline rendering
+
+Measured across five try-runs (2026-08-20): sources ship CapabilityStatements inconsistently —
+Studie ships one, Consent ships **none** — and the template's `capability-statements.md` page is
+mandatory (1..1), so an absent CS left a stub page in a shipped preview.
+
+**Detect absence mechanically:** count `CapabilityStatement` resources in the built package
+(`fsh-generated/resources/CapabilityStatement-*.json`). Zero is a finding, never a silent stub.
+
+**When the source ships none, SUGGEST one — clearly marked, never silently authored.** This is a
+second sanctioned exception to guardrail 3 (like machine-translated default-language pages),
+because every element traces to a package artifact:
+
+- `fhirVersion` from the source `sushi-config.yaml` (`fhirVersion`, e.g. `4.0.1`);
+- `rest.mode = server`; one `rest.resource` entry per FHIR type the module profiles, each with
+  `supportedProfile` = the module's profile canonicals for that type;
+- one `rest.resource.searchParam` entry per SearchParameter the module ships for that type
+  (name, canonical `definition`, `type` — read from the SearchParameter resources);
+- `status = draft`, and a `description` that SAYS it is a migration-generated proposal.
+
+Write it as FSH (`input/fsh/CapabilityStatement.fsh`), log it as
+`5.3 capabilitystatement-suggested`, put it in the report's ① queue — the module team confirms,
+amends or deletes it at Gate A — and mark the page `TODO:REVIEW`. The `capability-statements.md`
+page then states explicitly that the source declared no CapabilityStatement and that the rendered
+one is a migration proposal.
+
+**Render the CS INLINE on `capability-statements.md` — never only a link.** The publisher
+generates a rendered-narrative fragment `CapabilityStatement-<id>-html.xhtml` (verified against
+the generated `_includes` on the 2026-08-20 Studie try-run; the bare `<id>.xhtml` name does NOT
+exist and fails Jekyll hard). Use
+`{% raw %}{% lang-fragment CapabilityStatement-<id>-html.xhtml %}{% endraw %}` so each language
+page renders its own variant — a link alone costs the reader an extra click for the page's whole
+point (user decision, 2026-08-20).
 
 ## 10. The run log (normative)
 
