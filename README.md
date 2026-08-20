@@ -10,7 +10,7 @@ runtime: it is a Git repository with a generated index, and that is deliberate.
 ## Install
 
 ```bash
-CATALOG=https://github.com/forschungsgruppe-digital-health/agent-skills/tree/v0.16.0  # x-release-please-version
+CATALOG=https://github.com/forschungsgruppe-digital-health/agent-skills/tree/v0.17.0  # x-release-please-version
 
 # See what is available without installing anything.
 npx skills add "$CATALOG" --list

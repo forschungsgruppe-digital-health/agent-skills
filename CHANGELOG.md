@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.16.0...v0.17.0) (2026-08-20)
+
+
+### Skills and capabilities
+
+* Gate-0 pre-flight aspects in fhir-ig-analysis + required pre-flight in mii-ig-migration ([#73](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/73)) ([f74b910](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/f74b910a185942f7e7dcbe57181d094ec7bbcdc1))
+
 ## [0.16.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.15.1...v0.16.0) (2026-08-20)
 
 
