@@ -989,7 +989,7 @@ def report(stats, content, out):
     else:
         B.append("_keine_")
 
-    pf = R.get("preflight") or {}
+    pf = stats.get("preflight") or {}
     if pf:
         B.append("## Pre-flight (Migration Gate 0)")
         lic = pf.get("licence") or {}
