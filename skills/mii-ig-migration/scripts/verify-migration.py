@@ -295,36 +295,51 @@ def yaml_scalar(text, key):
 
 
 def yaml_dependencies(text):
-    """The `dependencies:` block as {package: version}.
+    """The `dependencies:` block as {package: version} -- or None when the
+    config has NO such block at all.
+
+    None vs {} is load-bearing: {} means the block EXISTS but yielded no
+    parseable entry, which is a parser finding, never evidence of a
+    dependency-free source (F2 must not storm ABSENT divergences off it --
+    the silent-mangle class confirmed on the PROs module, 2026-08-20).
 
     Two shapes occur in real MII configs and both are handled:
         dependencies:
           de.basisprofil.r4: 1.5.0
         dependencies:
-          de.einwilligungsmanagement:
-            version: 2.0.3
+          hl7.fhir.uv.extensions.r4:
+            id: ext
+            version: 5.2.0
+    Only a nested `version:` is a pin; `id:`/`uri:`/`reason:` sub-keys are not
+    packages. Entry indentation is taken from the FIRST entry seen, not
+    hard-coded at two spaces -- a three-space config previously lost every
+    entry without a line of protest. A trailing comment on the block key
+    (`dependencies: # note`) is valid YAML and must not hide the block.
     """
-    out = {}
     if not text:
-        return out
-    m = re.search(r"^dependencies:[ \t]*$(.*?)(?=^\S|\Z)", text, re.M | re.S)
+        return None
+    m = re.search(r"^dependencies:[ \t]*(?:#.*)?$", text, re.M)
     if not m:
-        return out
-    block = m.group(1)
-    cur = None
-    for line in block.splitlines():
+        return None
+    out, cur, entry_indent = {}, None, None
+    for line in text[m.end():].splitlines():
+        if re.match(r"^\S", line):
+            break
         if not line.strip() or line.strip().startswith("#"):
             continue
-        m2 = re.match(r"^[ \t]{2}([A-Za-z0-9._-]+):[ \t]*(.*?)[ \t]*(?:#.*)?$", line)
-        if m2:
-            cur = m2.group(1)
-            val = m2.group(2).strip().strip('"').strip("'")
+        m2 = re.match(r"^([ \t]+)([A-Za-z0-9._-]+):[ \t]*([^#\n]*?)[ \t]*(?:#.*)?$", line)
+        if not m2:
+            continue
+        ind = len(m2.group(1).expandtabs(2))
+        key, val = m2.group(2), m2.group(3).strip().strip('"').strip("'")
+        if entry_indent is None:
+            entry_indent = ind
+        if ind <= entry_indent:
+            cur = key
             if val:
                 out[cur] = val
-            continue
-        m3 = re.match(r"^[ \t]{4,}version:[ \t]*(.+?)[ \t]*(?:#.*)?$", line)
-        if m3 and cur:
-            out[cur] = m3.group(1).strip().strip('"').strip("'")
+        elif key == "version" and cur:
+            out[cur] = val
     return out
 
 
@@ -925,18 +940,42 @@ def read_menus(target):
 
 
 def read_template_pages(path):
-    """references/template-pages.tsv -> {page: role}. None when unreadable."""
+    """references/template-pages.tsv -> ({page: role}, manifest_tag).
+
+    (None, None) when unreadable. The tag is the module-template tag the
+    manifest was MEASURED at (third column); C5c compares it against the tag
+    the module actually vendors -- the file's own header warns that a stale
+    list produces confident, wrong findings in both directions, and that
+    warning is now a tripwire instead of a comment.
+    """
     txt = read_text(path)
     if txt is None:
-        return None
-    out = {}
+        return None, None
+    out, tags = {}, set()
     for line in txt.splitlines():
         if not line.strip() or line.startswith("#"):
             continue
         cols = line.split("\t")
         if len(cols) >= 2 and cols[0] != "page":
             out[cols[0].strip()] = cols[1].strip()
-    return out or None
+            if len(cols) >= 3 and cols[2].strip():
+                tags.add(cols[2].strip())
+    return (out or None), (sorted(tags)[-1] if tags else None)
+
+
+def manifest_stale(ctx, tag_key):
+    """(manifest_tag, vendored_ref) when both are known and differ, else None.
+
+    The vendored ref is the run log's `5.2 skeleton-vendored ... ref=` value --
+    the SAME line P2 verifies. Unknown-on-either-side is NOT stale: those cases
+    keep their own NICHT PRUEFBAR paths (P2 for the log, the manifest readers
+    for the files).
+    """
+    mtag = ctx.get(tag_key)
+    ref = ((ctx.get("log_values") or {}).get("skeleton-vendored") or {}).get("ref")
+    if mtag and ref and mtag != ref:
+        return mtag, ref
+    return None
 
 
 def check_menu(f, a, ctx):
@@ -1048,7 +1087,19 @@ def check_menu(f, a, ctx):
     # C5c -- target pages with no source counterpart.
     tpl = ctx["template_pages"]
     pmap = ctx["page_map"]
-    if tpl is None:
+    # Manifest-currency tripwire: template-pages.tsv measured at one template
+    # tag, module vendored at another -> every C5c verdict would be built on
+    # the WRONG page set (measured: two false DIVERGIERT on the Studie try-run,
+    # manifest v0.10.3 vs vendored v0.11.0). Downgrade, never guess.
+    stale = manifest_stale(ctx, "template_pages_tag")
+    if stale:
+        f.unmechanisable("conservation", "C5", "target pages without a source counterpart",
+                         "references/template-pages.tsv is measured at module-template %s, but "
+                         "this module vendors %s -- a stale manifest produces confident wrong "
+                         "findings in both directions" % stale,
+                         "re-measure template-pages.tsv at the vendored tag (record the tag in "
+                         "the third column), then re-run")
+    elif tpl is None:
         f.unmechanisable("conservation", "C5", "target pages without a source counterpart",
                          "references/template-pages.tsv is unreadable, so a template page "
                          "cannot be told from an invented one",
@@ -1087,7 +1138,7 @@ def check_menu(f, a, ctx):
                  "every narrative page is either the template's or a page-map target")
 
     # The template's DEMO page must not survive migration (spec step 3).
-    if tpl:
+    if tpl and not stale:
         for page in sorted(p for p, role in tpl.items()
                            if role == "demo" and p in narrative):
             f.diverges("conservation", "C5", "input/pagecontent/%s.md" % page,
@@ -1302,7 +1353,13 @@ def read_identity(root):
         "fhirVersion": yaml_scalar(sushi, "fhirVersion")
         or (pkg.get("fhirVersions") or [None])[0],
     }
-    return ident, yaml_dependencies(sushi) or (pkg.get("dependencies") or {})
+    # None / {} / dict tristate from yaml_dependencies, preserved for F2:
+    # only a config with NO block at all falls back to package.json; a block
+    # that parsed to zero entries stays {} (parser finding, not absence).
+    deps = yaml_dependencies(sushi)
+    if deps is None:
+        deps = pkg.get("dependencies") if pkg.get("dependencies") else None
+    return ident, deps
 
 
 def read_claims(path):
@@ -1435,11 +1492,37 @@ def layer_fidelity(f, a, ctx):
     # F2 -- dependency pins. A wrong pin is invisible in a green build: measured,
     # a run resolved a parent from dist-tags.latest 2.0.3 where the source pinned
     # 2.0.2, and everything built.
+    #
+    # Tristate guards FIRST: a target whose dependency block exists but parsed
+    # to nothing ({}) or is absent entirely (None) must not be compared -- every
+    # source pin would read as "ABSENT from the target", a storm of confident
+    # false divergences (the PROs silent-mangle class). NICHT PRUEFBAR names
+    # the parser, not the module.
+    f2_blocked = False
+    if tgt_deps is None or tgt_deps == {}:
+        f.unmechanisable("fidelity", "F2", "dependency pins",
+                         "the TARGET sushi-config yields no readable dependency entries "
+                         "(%s)" % ("no `dependencies:` block found" if tgt_deps is None else
+                                   "block present, zero entries parsed -- a parser/format "
+                                   "finding, not evidence of a dependency-free target"),
+                         "inspect the target's sushi-config dependencies block by eye; if it "
+                         "uses a form this parser does not model, fix the parser -- never "
+                         "read the empty parse as absence")
+        f2_blocked = True
     dep_src = "the source tree (--source)"
     contested_deps = {}
-    if not src_deps:
+    if not f2_blocked and src_deps == {}:
+        f.unmechanisable("fidelity", "F2", "dependency pins",
+                         "the SOURCE sushi-config has a dependencies block, but zero entries "
+                         "parsed from it -- a parser/format finding, not a dependency-free source",
+                         "inspect the source block by eye and extend the parser; comparing "
+                         "against an empty parse would confirm every wrong pin")
+        f2_blocked = True
+    if f2_blocked:
+        src_deps, contested_deps, tgt_deps = {}, {"__f2_blocked__": None}, {}
+    if not src_deps and not contested_deps:
         src_deps, contested_deps, dep_src = source_deps_from_claims(claims)
-    for name, vals in sorted(contested_deps.items()):
+    for name, vals in sorted(x for x in contested_deps.items() if x[0] != "__f2_blocked__"):
         f.unmechanisable("fidelity", "F2", name,
                          "the claims ledger holds contradicting pins for it (%s)"
                          % ", ".join(vals),
@@ -1935,7 +2018,15 @@ def layer_rendering(f, a, ctx):
     # The tokens come from references/template-artifacts.tsv -- the SAME file
     # `autofix-fix.py` reads -- so the check and its fixer cannot drift apart.
     tpl_arts = ctx["template_artifacts"]
-    if tpl_arts is None:
+    stale_arts = manifest_stale(ctx, "template_artifacts_tag")
+    if stale_arts:
+        f.unmechanisable("rendering", "R4", "template example links",
+                         "references/template-artifacts.tsv is verified at module-template %s, "
+                         "but this module vendors %s -- a stale token list looks for the wrong "
+                         "scaffolding in both directions" % stale_arts,
+                         "re-verify the token list at the vendored tag (update the "
+                         "`# template_tag:` header), then re-run")
+    elif tpl_arts is None:
         f.unmechanisable("rendering", "R4", "template example links",
                          "no template-artifacts manifest at %s" % a.template_artifacts,
                          "supply --template-artifacts; without the manifest there is no "
@@ -2027,24 +2118,33 @@ def parse_log(path):
 
 
 def read_template_artifacts(path):
-    """references/template-artifacts.tsv -> [(token, template_version, verified_on, why)].
+    """references/template-artifacts.tsv -> ([(token, template_version, verified_on, why)], tag).
 
     The ONE definition of "a link into template scaffolding", shared with
-    `autofix-fix.py`. Returns None when the file cannot be read, which R4 reports
-    as NICHT PRUEFBAR -- a detector whose subject list is missing has not passed.
+    `autofix-fix.py`. Returns (None, None) when the file cannot be read, which
+    R4 reports as NICHT PRUEFBAR -- a detector whose subject list is missing has
+    not passed. The tag comes from a `# template_tag: <tag>` header line (the
+    module-template tag the tokens were verified at); R4 compares it against
+    the tag the module vendors, so a stale token list downgrades instead of
+    producing confident wrong findings.
     """
     txt = read_text(path)
     if txt is None:
-        return None
-    rows = []
+        return None, None
+    rows, tag = [], None
     for line in txt.splitlines():
-        if not line.strip() or line.startswith("#"):
+        if line.startswith("#"):
+            m = re.match(r"#\s*template_tag:\s*(\S+)", line)
+            if m:
+                tag = m.group(1)
+            continue
+        if not line.strip():
             continue
         cols = [c.strip() for c in line.split("\t")]
         if len(cols) < 4 or cols[0] == "token":
             continue
         rows.append(tuple(cols[:4]))
-    return rows or None
+    return (rows or None), tag
 
 
 def read_expected_steps(path):
@@ -2280,7 +2380,10 @@ def build_context(a):
     ctx = {"target": target, "logdir": logdir}
 
     ctx["identity"] = read_identity(target)
-    ctx["source_identity"] = read_identity(a.source) if a.source else (None, {})
+    # None, not {}: under the F2 tristate, {} means "block present but
+    # unparseable" -- an absent --source must read as ABSENT so F2 falls back
+    # to the claims ledger instead of blaming a parser that never ran.
+    ctx["source_identity"] = read_identity(a.source) if a.source else (None, None)
     ctx["claims"] = read_claims(os.path.join(logdir, "identity-claims.tsv"))
     ctx["generated"] = collect_generated(target)
 
@@ -2338,8 +2441,9 @@ def build_context(a):
 
     # Menus, the template's own page set, and the languages that have pages.
     ctx["menus"] = read_menus(target)
-    ctx["template_pages"] = read_template_pages(a.template_pages)
-    ctx["template_artifacts"] = read_template_artifacts(a.template_artifacts)
+    ctx["template_pages"], ctx["template_pages_tag"] = read_template_pages(a.template_pages)
+    ctx["template_artifacts"], ctx["template_artifacts_tag"] = \
+        read_template_artifacts(a.template_artifacts)
     ctx["translation_langs"] = set(
         os.path.basename(os.path.dirname(d))
         for d in glob.glob(os.path.join(target, "input", "translations", "*", "pagecontent")))

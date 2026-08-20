@@ -42,8 +42,9 @@ Discover the context: assume none of it, create nothing that is missing.
      repository root plus an `input/fsh/` — the FHIR IG ecosystem conventions that make this skill
      portable. The FSH exists; step 4 transfers it. `input/fsh/` present but empty → report it; a
      migration with no artefacts to move is a configuration error, not a no-op.
-   - **Shape B — a raw FHIR resource repository.** No scaffolding at all (no `sushi-config.yaml`,
-     no `ig.ini`, no `input/`) but conformance resources present as `.xml` and/or `.json`.
+   - **Shape B — a raw FHIR resource repository.** No scaffolding — **checked to depth 3** (spec
+     §5.1b): a SUSHI project nested below root (strukturdaten) is shape **A (nested)**, re-rooted
+     with a `decision` line — goFSH-ing it discards the author's FSH with the ratio green.
      **This is the normal state of a module authored in Forge and published on Simplifier, and it
      is fully in scope** — the most authentic case this skill exists for. Step **2b** derives the
      FSH with goFSH; from step 3 the two paths are identical. **Detect it by content, not by folder
