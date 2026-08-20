@@ -17,6 +17,20 @@ DIVERGIERT · {n} NICHT PRÜFBAR. Exit 3 means *incomplete*, not passed.
 **Your job as reviewer:** work the three queues below in order — ① decide, ② review, ③ triage.
 Nothing is published until Gate D (a human merge decision); everything here is reversible.
 
+## Gate 0 — pre-flight scope (generated from `migration-log/preflight-analysis.json`)
+
+<!-- The human's scope picture BEFORE any Gate work: quote the measured numbers, never retype
+     estimates. Spec §9c. -->
+
+| Measure | Value |
+|---|---|
+| Artifacts (profiles / extensions / VS / CS / SPs / examples / CapabilityStatements) | {…} |
+| Narrative pages / directives to map | {…} |
+| `special-url` prediction (out-of-space + id↔url) | {…} |
+| Licence evidence | {…} |
+| Dependency health (old-style / injection risk / external parents) | {…} |
+| QA baseline | {…} |
+
 ## ① Decision queue (Gate A — someone must choose)
 
 <!-- One row per open decision. "Default applied" = what the migration did in the meantime;

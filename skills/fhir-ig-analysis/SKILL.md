@@ -115,6 +115,30 @@ not been translated. Do not "fix" it silently, and do not translate the numbers.
    column is dropped (meaningless for one module). Every verdict is counted, none forecast.
    Order matters: the FIRST input is the reference.
 
+## Pre-flight aspects (migration Gate 0)
+
+From v0.17.0 every measurement carries a `preflight` section with four
+migration-decisive aspects, measured OFFLINE from the tree alone:
+
+- **Licence evidence, tiered** — every place a licence is declared
+  (sushi-config/package.json, LICENSE file, narrative copyright statements),
+  with absence and contradiction as first-class findings.
+- **Canonical-space census** — resources whose `url` lies outside the IG
+  canonical, plus id↔url mismatches inside it: together the
+  `special_url_prediction`, the publisher's `special-url` list a migration
+  will need; `example.org` canonicals are called out separately.
+- **Dependency-pin health** — old-style/virtual packages, whether
+  THO/Extensions-Pack are pinned DIRECTLY (absent → the IG Publisher injects
+  the latest release at build time), and external parent canonicals.
+- **QA baseline** — a rendered `qa.json` in the tree, if any. `None` means:
+  obtain it (build the unmigrated source, or fetch its rendered qa) — never
+  assume it.
+
+`None` values name what this instrument cannot measure from the tree — the
+consumer obtains it elsewhere, never assumes it (the "a null is not a zero"
+rule). The `mii-ig-migration` skill runs this measurement on the unmigrated
+source as its REQUIRED Gate-0 pre-flight.
+
 ## Verification
 
 ```bash

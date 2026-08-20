@@ -91,7 +91,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
 > `scripts/...` from the project root does not merely fail: if the project has its own `scripts/`
 > with a same-named file, it silently runs **that** instead.
 
-1. **Inventory the source.** From the rendered IG and the source repository, extract every artefact
+1. **Inventory the source — Gate 0 FIRST (spec §9c):** run the sibling `fhir-ig-analysis` on the unmigrated source (`bash "$ML" run 1 preflight-analysis …` → `migration-log/preflight-analysis.json`); its artifact counts drive the measured M9 decisions and the §9b CS-absence path, `special_url_prediction` pre-builds the special-url list, and `qa_baseline: None` means: obtain the source QA proof now. Then, from the rendered IG and the source repository, extract every artefact
    (profiles, extensions, value sets, code systems, capability statements, examples) and the
    narrative structure, each with its source path → `migration-log/source-inventory.json`. When
    `implementation-guides/` holds **several guide trees** (versions × languages + shared assets — a
