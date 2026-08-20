@@ -455,6 +455,17 @@ markdown rather than a rendering of it. Take the structure from there, and use t
 cross-check. Where the repository carries none (source shape B), the harvest **is** the source, and
 the fallback below applies only when both are unavailable.
 
+**IG-Publisher-native narrative ranks equally with the Simplifier tree.** A source that authors its
+prose in `input/pagecontent/`, `input/intro-notes/` and `input/includes/` (KDS Basis has NO
+Simplifier guide at all; its narrative lives nowhere else) is not a degraded case: those files are
+the author's markdown exactly as much as `*.page.md` is. And when a repository carries **both** an
+`implementation-guides/` tree **and** populated `pagecontent`/`intro-notes` (Onkologie, ICU), do
+not pick by rank: compare freshness (`git log -1 -- <dir>` per tree, page-level where the trees
+disagree), take the newer as authoritative, and **record which copy won and why as a `decision`
+line** — silently preferring one is the same defect class C1 outlawed for stale `fsh-generated/`.
+Gate-0's `preflight.narrative_sources` measures exactly this (dual_source + last-commit dates), so
+the decision is on the table before any page is migrated.
+
 **If neither can be read** — every hop of §5.1c WARNs rather than guessing, so "nothing" is a
 recorded URL and status, not an impression — mark the narrative structure and the rendered-IG
 cross-check `TODO:REVIEW` in the inventory and have Gate B supply them by hand, recording WHICH of
@@ -490,6 +501,18 @@ and disposition.
 Applies when the source repository carries **no IG scaffolding** (no `sushi-config.yaml`, no
 `ig.ini`, no `input/`) but does carry conformance resources as `.xml` and/or `.json`. That is the
 normal state of a module authored in **Forge** and published on **Simplifier**, and it is in scope.
+
+**Nested-root check FIRST — root-level absence is not repository-wide absence.** Before declaring
+shape B, search for `sushi-config.yaml` or `ig.ini` up to **three directory levels** below the
+repository root (skipping `.git`, `node_modules`, `output`, `temp`, `input-cache`). A hit means the
+repository IS a SUSHI project whose root simply is not the repository root (measured:
+kerndatensatzmodul-strukturdaten nests the entire project — config, `input/`, build scripts — under
+`Resources/`): **re-root the migration to that directory**, record it as a `decision` line
+(`shape=A (nested at <path>)`), and skip this section. Running goFSH against such a repository
+would round-trip machine-derived FSH while the author's actual FSH is discarded — and the N_IN
+reconciliation stays green because the counter shares the same root-level blindness. The sibling
+analysis skill re-roots the same way and reports the nested root on page one, so Gate 0 already
+names the path a migration must choose.
 Path B runs **between §5.1a and §5.2**: §5.2 merges the template skeleton with FSH that must already
 exist, and §5.3 has nothing to transfer otherwise. Source shape A skips this section entirely.
 
@@ -1869,6 +1892,13 @@ deleted to force a removal** (user decision 2026-08-20: `>0` always keeps, even 
 narrative claims the module "has none" — record such a discrepancy in the report instead). The template's convention check
 **M9** fails a module release while any is undecided; an undecided page ships a "decide me" banner
 to readers. Emit the decision as run-log step `5.4a optional-page-decisions`, one line per page.
+Count from Gate-0's census — and where `generated_crosscheck.mismatches` is non-empty, the
+GENERATED resourceType counts are the authoritative ones (the FSH-declaration typing knows only
+InstanceOf names). **Artefact types outside the seven pages' model** — everything Gate 0 reports
+under `artifacts.other` (ConceptMap, Measure, Library, ObservationDefinition, …) — have NO
+template page to decide: give each type an explicit placement (an existing page's section, a new
+page, or artifacts-only) and record it as its own `5.4a` line; a type nobody placed is a ① item,
+never a silent artifacts-page-only default.
 
 **Security and Privacy is three-stage, and stage 3 is a decision (M11).** The page ships two static
 MII-wide stages (data-protection concept, DIMP) that are KEPT, and a module-specific stage 3 whose
@@ -1945,12 +1975,17 @@ same-module comparison in step 7):
 
 | `preflight` aspect | Feeds |
 | --- | --- |
-| `artifacts` counts per type | the MEASURED M9 decisions (§9a: 0 → remove, > 0 → keep) and `capabilitystatements == 0` → the §9b suggestion path |
+| `artifacts` counts per type, incl. the open `other` bucket | the MEASURED M9 decisions (§9a: 0 → remove, > 0 → keep) and `capabilitystatements == 0` → the §9b suggestion path. Every `other` row (ConceptMap, Measure, ObservationDefinition, …) is an artefact class the §9a page set does NOT model — each needs its own placement decision, named in the report |
+| `artifacts.generated_crosscheck.mismatches` | the trustworthy type counts: FSH declarations only know InstanceOf NAMES (25 SDC Questionnaires typed as examples on PROs); where generated resources exist, THEIR resourceType census is authoritative for M9 and page decisions |
 | `canonical_space.special_url_prediction` | the `special-url` list (out-of-space urls + id↔url mismatches; measured 12 on Studie — exactly the hand-built list) |
+| `canonical_space.config_contradiction` | a §2.1.4 identity-ledger contradiction row: sushi-config vs package.json canonicals disagreeing (measured: PROs' package.json carries a modul-dok canonical) — Gate A decides, upstream is told |
 | `licence.evidence` / `declared_anywhere` / `contradictory` | the §2.2 licence tiers and their Gate-A items |
-| `dependency_health` | §2.1 dependency carry-over: old-style packages to expect SUSHI to rewrite, the THO/extensions injection risk, external parents to resolve |
+| `dependency_health` (incl. `dependency_block_present`/`_unparsed`) | §2.1 dependency carry-over: old-style packages to expect SUSHI to rewrite, the THO/extensions injection risk, external parents to resolve. `_unparsed=true` is a PARSER finding — never read it as a dependency-free source |
+| `package_layout` (`.index.json` presence, nested resource dirs) | shape handling: an index-less or nested package (Kardiologie) starves flat globs and index-based oracles — counts must come from the recursive census |
+| `narrative_sources` (`dual_source`, per-tree last commits) | the §5.1 authoritative-narrative decision: dual sources are decided by freshness, recorded as a `decision` line, never by rank |
 | `qa_baseline` (`None` ⇒ obtain it) | the report's "pre-existing error" proof — build the unmigrated source or fetch its rendered qa BEFORE claiming provenance |
 | `narrative` / `direktiven` | step 5's mapping effort and the §9 page mapping |
+| `analyzed.project_root_nested` | the §5.1b nested-root re-rooting (`shape=A (nested at <path>)`) — the migration MUST adopt the same root the analysis measured |
 
 The report's L0 box quotes the pre-flight numbers (artifact counts, page count, directive count,
 special-url prediction, licence state) — the human's scope picture BEFORE any Gate work starts.
@@ -2326,7 +2361,7 @@ built. Each NICHT PRÜFBAR row carries **why** it could not be mechanised and **
 | **C2** artefact **reachability** | every generated resource against each rendered **variant's** `artifacts.html` (§11.5a — the site root is not a variant) | a page is rendered but **not listed**, or a resource has no page |
 | **C3** guide-page accounting | every source page against `migration-log/page-map.tsv` | a page is in no row (MISSING), mapped to a page that does not exist, or "retired" with no reason |
 | **C4** narrative text runs | every ≥40-character text run of each source page against the target's corpus **in the source's language** | a run survives nowhere |
-| **C5** navigation and the reverse page question | every `menu.xml` entry against the pages that exist; every narrative page against the menus; every target page against the source set and [`references/template-pages.tsv`](template-pages.tsv) | a menu entry leads nowhere; a page renders but is in **no menu** (reachable only by typing its URL — the C2 defect one level up); a target page traces to neither a source page nor the template; the template's demo page survived step 3 |
+| **C5** navigation and the reverse page question | every `menu.xml` entry against the pages that exist; every narrative page against the menus; every target page against the source set and [`references/template-pages.tsv`](template-pages.tsv) | a menu entry leads nowhere; a page renders but is in **no menu** (reachable only by typing its URL — the C2 defect one level up); a target page traces to neither a source page nor the template; the template's demo page survived step 3. **Manifest-currency tripwire:** the manifest records the module-template tag it was MEASURED at; when that differs from the tag the module vendors (run-log `skeleton-vendored ref=`), C5c downgrades to NICHT PRÜFBAR instead of judging against the wrong page set (measured: two false DIVERGIERT on the Studie try-run, manifest v0.10.3 vs vendored v0.11.0) |
 | **C6** content **placement** | where each source page's runs actually landed, ranked, against the page map | the dominant landing page is not the mapped target. Without a page map there is no declared intent to compare against, so the distribution is reported **NICHT PRÜFBAR** with the evidence a human needs — never as a pass |
 
 **C4 and C6 are two different questions, and only the first one is usually asked.** C4 is
@@ -2398,7 +2433,7 @@ of the rendered site and of nothing else.
 | **R1** structure views | a `<table>` renders with no rows; a tab strip with no tabs; an image resolvable in neither the variant directory nor the site root — **and**, comparatively where the harvest kept the source HTML, a target page with no tables/tabs/images where the source page had them. Only the zero/non-zero transition is reported: two renderers never produce comparable counts. The comparative summary counts **the pages that compared clean, out of the pages compared**, and a comparison over **zero** pages is NICHT PRÜFBAR: a blanket IDENTISCH beside its own DIVERGIERT rows, or over nothing at all, is the shape of a false pass. |
 | **R2** header/footer metadata | a defect marker appears inside `id="ig-status"`, `id="publish-box"`, `id="segment-header"` or `id="segment-footer"` — `Unknown region code`, an unexpanded `{{`/`{%`, `[object Object]`, `#ERROR`. The regions are isolated by **depth-scanning** `<div>`, because a regex to the next `</div>` truncates at the first nested one and a truncated header region is exactly where the defect hides. **The regions nest, so one marker is attributed to exactly one of them: the INNERMOST region containing it.** Reporting every enclosing region turned one `Unknown region code '276'` into two rows and two queue items (`#ig-status` and its parent `#segment-header`) on 119 Dokument pages per language. |
 | **R3** language parity | a narrative page renders in the default language but not in the translation, or its translated text is **byte-identical** to the default — a fallback, not a translation. Checked on **narrative pages only**: artefact pages are generated and legitimately near-identical across languages (measured: Consent `en/artifacts.html` 29608 B vs `de/` 29644 B), so including them would bury the real finding. |
-| **R4** template-example links | a page or menu still links to a template example artefact that step 3 deletes. The artefacts are named in [`references/template-artifacts.tsv`](template-artifacts.tsv) — **one file, read by both the check and its fixer**, each row carrying the ig-template PACKAGE version it was verified against. A bare literal duplicated in the two programs would let a renamed template example leave them silently disagreeing about what a template example is. Unreadable manifest ⇒ NICHT PRÜFBAR, and the fixer refuses: "found none" must not be able to mean "looked for nothing". Auto-fixable (§12). |
+| **R4** template-example links | a page or menu still links to a template example artefact that step 3 deletes. The artefacts are named in [`references/template-artifacts.tsv`](template-artifacts.tsv) — **one file, read by both the check and its fixer**, each row carrying the ig-template PACKAGE version it was verified against. A bare literal duplicated in the two programs would let a renamed template example leave them silently disagreeing about what a template example is. Unreadable manifest ⇒ NICHT PRÜFBAR, and the fixer refuses: "found none" must not be able to mean "looked for nothing". A `# template_tag:` header records the module-template tag the tokens were verified at; a mismatch against the vendored tag downgrades R4 the same way C5c downgrades (stale token list = confident wrong findings in both directions). Auto-fixable (§12). |
 | **R5** page-title catalogue | a title in the `pages:` tree has **no unit** in the `.po` (auto-fixable); a unit with an **empty msgstr** is NICHT PRÜFBAR — a translation is a human act. An empty title set is NICHT PRÜFBAR too: a catalogue with nothing to compare against passes trivially, which is the shape of a false pass. |
 
 ### 11.5a What counts as a rendered VARIANT (normative)
