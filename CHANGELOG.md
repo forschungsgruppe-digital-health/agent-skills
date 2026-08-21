@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.18.0...v0.18.1) (2026-08-21)
+
+
+### Fixes
+
+* verifier intro-notes corpus + double-extension page lookup (PROs try-run) ([#79](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/79)) ([431f0b5](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/431f0b5efff264c83e16d73209f1830570e648fe))
+
 ## [0.18.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.17.0...v0.18.0) (2026-08-20)
 
 
