@@ -73,9 +73,8 @@ Discover the context: assume none of it, create nothing that is missing.
    replaced, and an unreplaced one **ships a bogus artefact** rather than failing loudly. Before and
    after migrating, grep the tree for `{{` and account for every hit — excluding `.github/**`
    (Actions `${{ … }}` matches the pattern) and counting Simplifier directives in narrative sources as
-   accounted (step-5 material). **Census by EXCLUSION (`grep -rIl '{{' . --exclude-dir=.git`), not
-   an `--include` list:** `*.yaml|*.md|*.json|*.xml` misses `ig.ini`, whose slug killed a publisher
-   run (PROs). The `sushi-config.yaml` header lists the real placeholders.
+   accounted (step-5 material). **Census by EXCLUSION (`grep -rIl '{{' . --exclude-dir=.git`), not an
+   `--include` list:** it misses `ig.ini`, whose slug killed a publisher run (PROs try-run).
 
 5. **The toolchain — invoke SUSHI and goFSH only as a version-pinned `npx`.** Neither is normally installed (`which gofsh` finds nothing on the reference machine), so **a bare `sushi`/`gofsh` is unrunnable and appears nowhere in this skill**: write `npx --yes fsh-sushi@3.20.0` and `npx --yes gofsh@2.6.1` — the npm package for SUSHI is **`fsh-sushi`**, not `sushi`. What the "no fetching a toolchain" rule protects is an **exact, recorded version**, which the pin supplies and an unpinned `npx` does not; let the pin be the record, carried in the log's `cmd=` token. (`allowed-tools` grants `Bash(npx:*)`; `Bash(gofsh:*)` never matches an `npx` command line.) goFSH is **required for shape B**, for shape A only where the source ships JSON/XML; the IG Publisher is needed from step 7. Missing node/npx → say which and **stop after step 2**. A parent package without snapshots additionally needs **java and a pinned `validator_cli.jar`** — fetched only when that condition is actually detected (spec §5.1b.5), never hand-substituted.
 
