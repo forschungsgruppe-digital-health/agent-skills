@@ -175,6 +175,38 @@ UNMECH = "NICHT PRUEFBAR"   # ASCII in the machine-readable column; the report
 
 LAYERS = ("conservation", "fidelity", "provenance", "rendering", "log")
 
+# What each check asks, in words a first-time IG author can act on. The codes
+# alone are unreadable to the people who have to WORK the findings: the
+# generated table printed "C4 | 10 | 28 | 0" and a reviewer had no way to learn
+# that C4 is about narrative text (measured on the PROs try-run review). Kept
+# here, beside the layer list, so the emitter and the report cannot drift.
+CHECK_TITLES = {
+    "C1": "every source artefact still exists in the migrated module",
+    "C2": "every artefact is reachable from the rendered Artifacts page",
+    "C3": "every source guide page was migrated or explicitly retired",
+    "C4": "the source's narrative text is present somewhere in the target",
+    "C5": "menus lead somewhere, and every page is in a menu",
+    "C6": "each text passage landed on the page the page map promised",
+    "F1": "module identity is unchanged (id, canonical, version, licence, ...)",
+    "F2": "dependency versions are pinned exactly as the source pinned them",
+    "F3": "the licence is asserted from evidence, never defaulted",
+    "F4": "no mechanical FSH conversion residue is left",
+    "P1": "the rendered site reports the template package it was built with",
+    "P2": "the vendored template ref matches what the run log recorded",
+    "P3": "the IG Publisher version matches the workflow pin",
+    "P4": "the source guide was pinned to a published version, not 'current'",
+    "R1": "tables, tabs and images render with content, not empty",
+    "R2": "page header and footer metadata render correctly",
+    "R3": "a translated page really differs from the default language",
+    "R4": "no links point at template example artefacts that were deleted",
+    "R5": "every page has a title unit in the translation catalogue",
+    "L0": "a run log exists at all",
+    "L1": "every partial-success warning was acted on",
+    "L2": "every expected step actually wrote a log line",
+    "L3": "no identity contradiction is still open",
+    "L4": "the log's counts agree with what the tree holds",
+}
+
 
 def log(level, detail, cont=(), step=STEP, action=ACTION):
     """One run-log line plus indented continuations, flushed immediately.
@@ -2692,12 +2724,15 @@ def write_markdown(path, findings, ctx, a):
                  "`migration-log/run.log`, the two oracles. "
                  "**%d IDENTISCH · %d DIVERGIERT · %d NICHT PRÜFBAR.**\n\n"
                  % (len(findings.by_verdict(IDENT)), len(div), len(unm)))
-        fh.write("| Layer | Check | IDENTISCH | DIVERGIERT | NICHT PRÜFBAR |\n")
-        fh.write("|---|---|---|---|---|\n")
+        fh.write("Verdicts: **IDENTISCH** = matches the source · **DIVERGIERT** = differs, named "
+                 "below · **NICHT PRÜFBAR** = could not be checked, which is **not** a pass and "
+                 "owes a named human an action.\n\n")
+        fh.write("| Layer | Check | What it asks | IDENTISCH | DIVERGIERT | NICHT PRÜFBAR |\n")
+        fh.write("|---|---|---|---|---|---|\n")
         for check in findings.checks():
             rows = [r for r in findings.rows if r["check"] == check]
-            fh.write("| %s | %s | %d | %d | %d |\n" % (
-                rows[0]["layer"], check,
+            fh.write("| %s | %s | %s | %d | %d | %d |\n" % (
+                rows[0]["layer"], check, CHECK_TITLES.get(check, "—"),
                 sum(1 for r in rows if r["verdict"] == IDENT),
                 sum(1 for r in rows if r["verdict"] == DIVERG),
                 sum(1 for r in rows if r["verdict"] == UNMECH)))
@@ -2705,21 +2740,23 @@ def write_markdown(path, findings, ctx, a):
         if not div:
             fh.write("none\n")
         else:
-            fh.write("| id | Check | Subject | Evidence | Next action | Auto-fixable |\n")
-            fh.write("|---|---|---|---|---|---|\n")
+            fh.write("| id | Check | What it asks | Subject | Evidence | Next action | Auto-fixable |\n")
+            fh.write("|---|---|---|---|---|---|---|\n")
             for r in div:
-                fh.write("| `%s` | %s | %s | %s | %s | %s |\n" % (
-                    r["id"], r["check"], r["subject"], r["evidence"], r["action"],
+                fh.write("| `%s` | %s | %s | %s | %s | %s | %s |\n" % (
+                    r["id"], r["check"], CHECK_TITLES.get(r["check"], "—"),
+                    r["subject"], r["evidence"], r["action"],
                     "yes — `%s`" % r["autofix"] if r["autofix"] != "-" else "no"))
         fh.write("\n### NICHT PRÜFBAR — not a pass; each needs a human\n\n")
         if not unm:
             fh.write("none\n")
         else:
-            fh.write("| id | Check | Subject | Why not mechanisable | Who does what |\n")
-            fh.write("|---|---|---|---|---|\n")
+            fh.write("| id | Check | What it asks | Subject | Why not mechanisable | Who does what |\n")
+            fh.write("|---|---|---|---|---|---|\n")
             for r in unm:
-                fh.write("| `%s` | %s | %s | %s | %s |\n" % (
-                    r["id"], r["check"], r["subject"], r["evidence"], r["action"]))
+                fh.write("| `%s` | %s | %s | %s | %s | %s |\n" % (
+                    r["id"], r["check"], CHECK_TITLES.get(r["check"], "—"),
+                    r["subject"], r["evidence"], r["action"]))
         fh.write("\n**Inputs:** target `%s` · source `%s` · rendered `%s` · log `%s`\n"
                  % (a.target, a.source or "— (not supplied)", a.rendered, a.log))
 
