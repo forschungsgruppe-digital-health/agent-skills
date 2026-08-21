@@ -1258,12 +1258,21 @@ def _page_exists(target, page):
     """Is `page` a real target page? Accepts a bare name, a path, or a .md/.html."""
     stem = os.path.basename(page)
     for ext in ("", ".md", ".html"):
-        for base in ("input/pagecontent", "input/translations", "output", ""):
+        for base in ("input/pagecontent", "input/intro-notes", "input/translations",
+                     "output", ""):
             cand = os.path.join(target, base, stem + ext)
             if os.path.isfile(cand):
                 return os.path.relpath(cand, target)
-    hits = glob.glob(os.path.join(target, "input", "**", stem + ".md"), recursive=True)
-    return os.path.relpath(hits[0], target) if hits else None
+    # The recursive fallback appended ".md" to a stem that ALREADY carried it,
+    # so it searched for "<name>.md.md" and found nothing: every page-map row
+    # written as a PATH (which spec §9's intro-note rows are) came back
+    # "does not exist in the target" while the file sat right there -- measured
+    # on the PROs try-run, 13 false DIVERGIERT. Try the stem as given first.
+    for pattern in (stem, stem + ".md"):
+        hits = glob.glob(os.path.join(target, "input", "**", pattern), recursive=True)
+        if hits:
+            return os.path.relpath(hits[0], target)
+    return None
 
 
 def _snip(s, n=60):
@@ -2432,6 +2441,16 @@ def build_context(a):
         # searchable, so fall back to the default pages rather than reporting an
         # empty corpus.
         corpus_files = pc
+    # `input/intro-notes/` IS narrative: spec §9 ROUTES the per-profile text
+    # there whenever a module has more than two profiles, and those notes render
+    # atop the artifact pages. Leaving them out of the corpus made C3/C4/C6
+    # report the whole routed set as lost -- measured on the PROs try-run
+    # (2026-08-21): 13 false C3 rows and the bulk of 32 false C4 rows, on
+    # content that was present all along. The per-language mirror counts too.
+    corpus_files = corpus_files + sorted(
+        glob.glob(os.path.join(target, "input", "intro-notes", "*.md"))
+        + glob.glob(os.path.join(target, "input", "translations", a.source_lang,
+                                 "intro-notes", "*.md")))
     ctx["target_corpus"] = "\n".join(read_text(p) or "" for p in corpus_files)
     # The SAME corpus, kept per page. C6 needs to know which page a text run
     # landed on; C4 only needs to know that it landed somewhere, and a single
