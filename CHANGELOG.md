@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.18.1...v0.19.0) (2026-08-21)
+
+
+### Skills and capabilities
+
+* make the migration report usable by a novice IG author ([#81](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/81)) ([2b95596](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/2b955965d27fad82afaa65f683d54176ffcc4fc4))
+
 ## [0.18.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.18.0...v0.18.1) (2026-08-21)
 
 
