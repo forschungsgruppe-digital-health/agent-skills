@@ -377,13 +377,13 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    written as a pass. Exit 0 clean · 1 divergence · **3 incomplete, which is not a pass**.
 
 8. **Report.** Write `migration-log/migration-report.md` **from
-   [the report template](references/migration-report-template.md)** — built around three reviewer
-   queues (① decide, ② review, ③ triage) so the report is a work instrument: every open decision,
-   every `TODO:REVIEW` and every QA finding lands in exactly one queue with a concrete next action
-   and an owner, QA provenance requires proof (build the unmigrated source to claim "pre-existing"),
-   and the L0 box + mini-glossary keep it readable for people new to FHIR IGs. **The protocol section
-   is generated FROM `migration-log/run.log`** (spec §10.6): every claim traces to a log line, every
-   WARN and ERROR lands in a queue, and where the two disagree the log is right.
+   [the report template](references/migration-report-template.md)** — three reviewer queues (① decide,
+   ② review, ③ triage): every open decision, `TODO:REVIEW` and QA finding lands in exactly one, and QA
+   provenance requires proof (build the unmigrated source to claim "pre-existing"). **Its reader has
+   never seen this skill, spec or repo**: every labelled line the template lists is mandatory (incl.
+   **if nobody acts**, who decides, effort, reversibility), codes are glossed where used, and ids tie
+   the queues to *Sign-off*. **The protocol section is generated FROM `migration-log/run.log`**
+   (spec §10.6): every claim traces to a line, every WARN/ERROR lands in a queue, the log wins.
 
 9. **Open a pull request** with the report as its description. **Do not publish.** Name the working branch `migration/<source-version>-template-<module-template-tag>` (spec step 9 — five try-runs each invented a different scheme). Determine the PR's target branch from the module repository's own convention — **discover it, do not assume it**:
    the default branch, the bases of merged pull requests, CONTRIBUTING/README. The template previews
