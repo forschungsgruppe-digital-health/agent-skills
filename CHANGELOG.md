@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.19.0...v0.20.0) (2026-08-22)
+
+
+### Skills and capabilities
+
+* mark migration-written content in the guide, and route pages by measurement ([#83](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/83)) ([6d47f5a](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/6d47f5a99934311b63b1924aaba4ea91cb7bab4a))
+
 ## [0.19.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.18.1...v0.19.0) (2026-08-21)
 
 
