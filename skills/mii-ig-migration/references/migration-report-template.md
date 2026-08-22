@@ -86,7 +86,7 @@ evidence file is right and this report is stale: regenerate it.
 | the migration verifier (C/F/P/R/L) | `python3 {path}/verify-migration.py --target . --source {path} --rendered {path} --source-lang {de} --template-latest {vX.Y.Z}` | exit {0 \| 1 \| 3} |
 | the derived-content scan (rewrites `migration-log/derived-content.tsv`, which C7 reads) | `python3 {path}/derived-scan.py --target .` | {n} markers found; exit 0 |
 | the same scan as the table pasted into ② | `python3 {path}/derived-scan.py --target . --markdown` | the ② table on stdout — paste it, never retype it |
-| the page-structure advice (menu budget, hub and size gates — spec §9d/§9e) | `python3 {path}/page-structure-advice.py --target .` | menu entries {n}/33, top level {n}/8, depth {n}/2, largest host page {n} words — advisory, exit 0 |
+| the page-structure advice (menu budget, hub and size gates — spec §9d/§9e) | `python3 {path}/page-structure-advice.py --source {source} --target . --out migration-log/page-structure-advice.md` | menu entries {n}/33, top level {n}/8, depth {n}/2, largest host page {n} words — advisory, exit 0 |
 
 **The verifier is not vendored in this repository** — it ships with the `mii-ig-migration` skill at
 {URL or path}, version {vX.Y.Z}. Runs offline: {which of the four}. Needs the source checkout and the

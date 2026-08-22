@@ -28,15 +28,25 @@ USAGE
                                   [--target <migrated-repo>] \
                                   [--out <file.md>]
 
-  --source  the ORIGINAL module repository (needs sushi-config.yaml, ideally a
-            `pages:` block; fsh-generated/resources or input/fsh give the
-            artefact index used by branch 1)
+  --source  the ORIGINAL module repository. The page tree comes from the FIRST
+            of three inputs that yields pages:
+              (a) the `pages:` block of sushi-config.yaml
+              (b) the AUTHORITATIVE Simplifier guide tree under
+                  implementation-guides/ (spec 5.1a), walked from its toc.yaml
+              (c) a flat count of input/pagecontent/*.md
+            fsh-generated/resources or input/fsh give the artefact index used
+            by branch 1.
   --target  the MIGRATED repository (input/includes/menu.xml for the menu
             budget, input/pagecontent/*.md for the size gate, input/intro-notes
             for artefact-anchor evidence).  Omit it before the target exists:
             the source half of the report still works, and every
             budget-dependent decision is reported as "unknown (no --target)"
             instead of being guessed.
+  --guide-tree
+            HUMAN OVERRIDE of the authoritative-guide-tree choice: the
+            directory name under implementation-guides/. Without it the script
+            picks per spec 5.1a and reports every tree, the choice and the
+            reason.
 
 Python 3 standard library only.
 """
@@ -50,7 +60,7 @@ import re
 import sys
 from collections import Counter, OrderedDict
 
-SCRIPT_VERSION = "1.0.0"
+SCRIPT_VERSION = "1.1.0"
 
 # --------------------------------------------------------------------------
 # Contract limits (spec 9e).  Changing these changes the advice, so they are
@@ -254,13 +264,19 @@ _PAGE_KEY = re.compile(r"^(\s*)([A-Za-z0-9][A-Za-z0-9._\- ]*\.(?:md|xml|html)):\
 
 
 class PageNode(object):
-    def __init__(self, filename, level, parent):
+    def __init__(self, filename, level, parent, slug=None):
+        # `filename` is what a human types to find the page: the bare file name
+        # for a `pages:` entry, the guide-root-relative PATH for a Simplifier
+        # guide page (a guide ships dozens of `Index.page.md`, so the bare name
+        # would not identify one).  `slug` is the matching key - always the base
+        # name without its extension.
         self.filename = filename
-        self.slug = re.sub(r"\.(md|xml|html)$", "", filename)
+        self.slug = slug if slug is not None else re.sub(r"\.(md|xml|html)$", "", filename)
         self.level = level
         self.parent = parent
         self.children = []
         self.title = ""
+        self.words = 0
         # filled in later
         self.branch = ""
         self.destination = ""
@@ -329,6 +345,432 @@ def parse_pages_block(config_text):
         stack.append((level, node))
         all_nodes.append(node)
     return roots, all_nodes, True
+
+
+# ==========================================================================
+# SOURCE: the Simplifier guide trees under implementation-guides/
+# ==========================================================================
+# The normal MII shape: the narrative does NOT live in input/pagecontent, it
+# lives in one or more Simplifier guide trees, and input/pagecontent holds a
+# single stub.  Measured on kerndatensatzmodul-onkologie v2026.0.3: three trees
+# (2025.x-DE, 2025.x-EN, 2026.x-DE) and ONE file in input/pagecontent.
+#
+# Structure of a tree, verified:
+#   <tree>/guide.yaml        title:, description:, version:, style-*
+#   <tree>/toc.yaml          a list of {name:, filename:} entries
+#   a `filename` ending in `.page.md` is a PAGE;
+#   any other `filename` is a SUB-DIRECTORY holding its own toc.yaml.  Recurse.
+#
+# Parsed line by line with the standard library, like the rest of this script.
+
+GUIDE_DIR_NAME = "implementation-guides"
+PAGE_SUFFIX = ".page.md"
+INDEX_PAGE = "index" + PAGE_SUFFIX          # compared case-insensitively
+
+_TOC_ITEM_START = re.compile(r"^\s*-\s*(.*)$")
+_TOC_FIELD = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_\-]*)\s*:\s*(.*)$")
+_VERSION_TOKEN = re.compile(r"v?(\d+(?:\.[0-9xX]+)*)")
+_LANG_SUFFIX = re.compile(r"[-_ ]([A-Za-z]{2})$")
+_LANG_TAG = re.compile(r"^\s*\[([A-Za-z]{2})\]")
+
+
+def _unquote(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        inner = value[1:-1]
+        return inner.replace("''", "'") if value[0] == "'" else inner
+    return value
+
+
+def parse_toc_file(path):
+    """Return the toc.yaml entries as [(name, filename), ...] in document order.
+
+    Line-oriented: a `- ` starts an entry, `name:`/`filename:` fill it, and both
+    values may be quoted (measured: the Onkologie 2026 tree quotes them in
+    `Organspezifische-Module/toc.yaml` and nowhere else)."""
+    entries = []
+    current = None
+    for raw in read_text(path).split("\n"):
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        start = _TOC_ITEM_START.match(raw)
+        if start:
+            if current and current.get("filename"):
+                entries.append(current)
+            current = {}
+            rest = start.group(1)
+            field = _TOC_FIELD.match(rest) if rest else None
+            if field:
+                current[field.group(1).lower()] = _unquote(field.group(2))
+            continue
+        field = _TOC_FIELD.match(raw)
+        if field and current is not None:
+            key = field.group(1).lower()
+            current.setdefault(key, _unquote(field.group(2)))
+    if current and current.get("filename"):
+        entries.append(current)
+    return [(entry.get("name", ""), entry["filename"]) for entry in entries]
+
+
+def parse_guide_yaml(path):
+    """`title:`, `description:`, `version:` from a guide.yaml - flat, top level."""
+    fields = {}
+    for raw in read_text(path).split("\n"):
+        if raw.startswith((" ", "\t")) or not raw.strip():
+            continue
+        field = _TOC_FIELD.match(raw)
+        if field:
+            fields.setdefault(field.group(1).lower(), _unquote(field.group(2)))
+    return fields
+
+
+def version_from_name(name):
+    """The longest version-looking substring of a directory name.
+    'ImplementationGuide-2026.x-DE' -> '2026.x'; 'MII-PRO-v2026-DE' -> '2026';
+    'Common' -> ''."""
+    best = ""
+    for match in _VERSION_TOKEN.finditer(name):
+        if len(match.group(1)) > len(best):
+            best = match.group(1)
+    return best
+
+
+def version_key(text):
+    """Sort key for a dotted version. Numeric parts compare numerically; an
+    'x' placeholder ('2026.x') sorts BELOW any explicit number in the same
+    position, so an explicit 2026.0.3 outranks a bare 2026.x. Stated because it
+    decides which tree is authoritative."""
+    if not text:
+        return ()
+    parts = []
+    for part in re.split(r"[.\-_]", text):
+        parts.append((1, int(part)) if part.isdigit() else (0, 0))
+    return tuple(parts)
+
+
+def language_of(dir_name, fields):
+    """Two-letter language of a guide tree, uppercased.  The description tag
+    (`'[DE] Modul ...'`) is authoritative; the directory-name suffix is the
+    fallback; a tree with neither (a shared-asset tree like `Common`) has none."""
+    tag = _LANG_TAG.match(fields.get("description", "") or "")
+    if tag:
+        return tag.group(1).upper()
+    suffix = _LANG_SUFFIX.search(dir_name)
+    if suffix:
+        return suffix.group(1).upper()
+    return ""
+
+
+def source_language(config_text):
+    """The module's own narrative language from sushi-config `language:`
+    ('de-DE' -> 'DE'). Empty when the config does not state one."""
+    match = re.search(r"^language:\s*(.+?)\s*$", config_text, re.M)
+    if not match:
+        return ""
+    value = _unquote(match.group(1))
+    return value.split("-")[0].upper() if value else ""
+
+
+def _dir_has_pages(path):
+    for _dirpath, _dirnames, filenames in os.walk(path):
+        if any(name.endswith(PAGE_SUFFIX) for name in filenames):
+            return True
+    return False
+
+
+def discover_guide_trees(source_root):
+    """Every directory under implementation-guides/, with its metadata and its
+    on-disk page count.  Nothing is filtered away here: the report lists them
+    all, including the ones that are not guide trees at all (spec 5.1a #4)."""
+    guide_root = os.path.join(source_root, GUIDE_DIR_NAME)
+    if not os.path.isdir(guide_root):
+        return []
+    trees = []
+    for name in sorted(os.listdir(guide_root)):
+        path = os.path.join(guide_root, name)
+        if not os.path.isdir(path):
+            continue
+        fields = parse_guide_yaml(os.path.join(path, "guide.yaml"))
+        page_files = 0
+        for _dirpath, _dirnames, filenames in os.walk(path):
+            page_files += sum(1 for f in filenames if f.endswith(PAGE_SUFFIX))
+        trees.append({
+            "name": name,
+            "path": path,
+            "title": fields.get("title", ""),
+            "description": fields.get("description", ""),
+            "version_yaml": fields.get("version", ""),
+            "version_name": version_from_name(name),
+            "language": language_of(name, fields),
+            "has_guide_yaml": os.path.isfile(os.path.join(path, "guide.yaml")),
+            "has_toc": os.path.isfile(os.path.join(path, "toc.yaml")),
+            "page_files": page_files,
+            "disposition": "",
+        })
+    return trees
+
+
+def choose_guide_tree(trees, module_language, override):
+    """Spec 5.1a #1: the AUTHORITATIVE tree is the highest-version guide in the
+    module's own narrative language.
+
+    Returns (chosen, reason, notes).  It never chooses silently: the caller
+    prints every tree, the choice, the reason and the override switch."""
+    notes = []
+    usable = [t for t in trees if t["page_files"] > 0]
+    if not usable:
+        return None, "no directory under %s/ contains a *%s file" % (
+            GUIDE_DIR_NAME, PAGE_SUFFIX), notes
+
+    if override:
+        wanted = override.strip().strip("/")
+        for tree in usable:
+            if tree["name"].lower() == wanted.lower():
+                return tree, ("HUMAN OVERRIDE: --guide-tree %s (the spec 5.1a "
+                              "ranking below was not applied)" % tree["name"]), notes
+        notes.append("--guide-tree %s does not name a guide tree that holds pages; "
+                     "falling back to the spec 5.1a ranking." % override)
+
+    versioned = [t for t in usable if t["version_name"]]
+    if not versioned:
+        notes.append("no directory name under %s/ carries a version substring; "
+                     "ranked by name instead." % GUIDE_DIR_NAME)
+        versioned = usable
+
+    same_language = [t for t in versioned
+                     if module_language and t["language"] == module_language]
+    if same_language:
+        pool, why = same_language, ("highest version among the trees in the module's own "
+                                    "narrative language %s (sushi-config `language:`)"
+                                    % module_language)
+    else:
+        pool = versioned
+        if module_language:
+            why = ("highest version overall - NO tree matches the module's narrative "
+                   "language %s, so the language criterion of spec 5.1a #1 could not be "
+                   "applied" % module_language)
+            notes.append("the module's narrative language (%s) matches none of the guide "
+                         "trees; confirm the choice by hand." % module_language)
+        else:
+            why = ("highest version overall - sushi-config states no `language:`, so the "
+                   "language criterion of spec 5.1a #1 could not be applied")
+            notes.append("sushi-config states no `language:`; the narrative language could "
+                         "not be determined, so only the version decided.")
+
+    chosen = max(pool, key=lambda t: (version_key(t["version_name"]),
+                                      version_key(t["version_yaml"]),
+                                      t["name"]))
+    reason = "%s: %s (directory version %s, guide.yaml version %s)" % (
+        why, chosen["name"], chosen["version_name"] or "-", chosen["version_yaml"] or "-")
+    return chosen, reason, notes
+
+
+def label_dispositions(trees, chosen):
+    """Spec 5.1a's four dispositions, recorded for EVERY tree."""
+    for tree in trees:
+        if chosen is not None and tree is chosen:
+            tree["disposition"] = "**AUTHORITATIVE** - steps 5.4/5.5 operate on this tree"
+        elif tree["page_files"] == 0 and not tree["has_guide_yaml"]:
+            tree["disposition"] = ("unrecognized directory - needs a retain/retire "
+                                   "proposal (5.1a #4)")
+        elif not tree["version_name"] and not tree["language"]:
+            tree["disposition"] = "shared assets - retain unchanged (5.1a #3)"
+        elif (chosen is not None and tree["language"] and chosen["language"]
+                and tree["language"] != chosen["language"]):
+            text = ("parallel-language tree - harvest seed for the translation skill, "
+                    "not a machine translation (5.1a #2)")
+            if version_key(tree["version_name"]) < version_key(chosen["version_name"]):
+                text += ("; **STALE** (%s vs %s) - every harvested page needs a per-page "
+                         "`TODO:REVIEW` naming both versions"
+                         % (tree["version_name"] or "-", chosen["version_name"] or "-"))
+            tree["disposition"] = text
+        else:
+            tree["disposition"] = ("historical version tree - retain unchanged, Gate-D "
+                                   "retirement set (5.1a #3)")
+
+
+class GuideWalk(object):
+    """Walks one guide tree's toc.yaml hierarchy into the SAME PageNode tree
+    `parse_pages_block` builds, so the depth histogram and the whole routing
+    pass work unchanged.
+
+    Two modelling decisions the shape forces, both stated in the report:
+
+    * A sub-directory is a LEVEL, not a page.  Every page inside one directory
+      therefore shares one level - which is how Simplifier renders a folder's
+      contents - and the levels are shifted so the shallowest page sits at
+      level 1 (a guide root whose toc holds nothing but one folder entry adds
+      no page level).
+    * Routing still needs a page PARENT, so a directory is represented by its
+      `Index.page.md` (the folder's landing page); the directory's other pages
+      and the representatives of its sub-directories become that page's
+      children.  A parent may therefore sit at the same level as its children.
+    """
+
+    def __init__(self, root):
+        self.root = root
+        self.roots = []
+        self.nodes = []
+        self.dirs_without_toc = []      # rel dir -> hierarchy from directory nesting
+        self.dirs_unreached = []        # rel dir -> holds pages, no toc.yaml links to it
+        self.dangling = []              # (rel toc, filename, why)
+        self.unreferenced = []          # (rel page, why)
+        self.seen_pages = set()
+        self.seen_dirs = set()
+        self.dir_info = {}              # realpath(dir) -> (level, representative)
+
+    # -- helpers ----------------------------------------------------------
+    def rel(self, path):
+        return os.path.relpath(path, self.root).replace(os.sep, "/")
+
+    def listing(self, directory):
+        try:
+            return sorted(os.listdir(directory))
+        except OSError:
+            return []
+
+    def make_node(self, directory, filename, level, title):
+        path = os.path.join(directory, filename)
+        node = PageNode(self.rel(path), level, None, slug=filename[:-len(PAGE_SUFFIX)])
+        node.title = title
+        node.words = count_words(read_text(path))
+        self.seen_pages.add(os.path.realpath(path))
+        return node
+
+    def synthesise(self, directory):
+        """No toc.yaml: fall back to directory nesting - pages first, then the
+        sub-directories that actually hold pages."""
+        entries = [("", name) for name in self.listing(directory)
+                   if name.endswith(PAGE_SUFFIX)]
+        for name in self.listing(directory):
+            path = os.path.join(directory, name)
+            if (os.path.isdir(path) and not name.startswith(".")
+                    and _dir_has_pages(path)):
+                entries.append(("", name))
+        return entries
+
+    # -- the walk ---------------------------------------------------------
+    def visit(self, directory, level, inherited_parent):
+        real = os.path.realpath(directory)
+        if real in self.seen_dirs:
+            return
+        self.seen_dirs.add(real)
+
+        toc_path = os.path.join(directory, "toc.yaml")
+        has_toc = os.path.isfile(toc_path)
+        if has_toc:
+            entries = parse_toc_file(toc_path)
+        else:
+            entries = self.synthesise(directory)
+            self.dirs_without_toc.append(self.rel(directory))
+
+        pages = []
+        subdirs = []
+        listed = set()
+        for title, filename in entries:
+            path = os.path.join(directory, filename)
+            if filename.endswith(PAGE_SUFFIX):
+                listed.add(filename)
+                if not os.path.isfile(path):
+                    self.dangling.append((self.rel(toc_path), filename,
+                                          "page file does not exist"))
+                    continue
+                pages.append(self.make_node(directory, filename, level, title))
+            else:
+                if not os.path.isdir(path):
+                    self.dangling.append((self.rel(toc_path), filename,
+                                          "sub-directory does not exist"))
+                    continue
+                subdirs.append(path)
+
+        # Pages on disk that this directory's toc.yaml never mentions.  They are
+        # real pages, so they join the tree - flagged, never dropped silently.
+        if has_toc:
+            for filename in self.listing(directory):
+                if not filename.endswith(PAGE_SUFFIX) or filename in listed:
+                    continue
+                node = self.make_node(directory, filename, level, "")
+                node.notes.append("on disk but not listed in %s" % self.rel(toc_path))
+                self.unreferenced.append((node.filename,
+                                          "not listed in %s" % self.rel(toc_path)))
+                pages.append(node)
+
+        representative = None
+        for node in pages:
+            if os.path.basename(node.filename).lower() == INDEX_PAGE:
+                representative = node
+                break
+        if representative is None and pages:
+            representative = pages[0]
+
+        for node in pages:
+            node.parent = inherited_parent if node is representative else representative
+            if node.parent is None:
+                self.roots.append(node)
+            else:
+                node.parent.children.append(node)
+            self.nodes.append(node)
+
+        next_parent = representative if representative is not None else inherited_parent
+        self.dir_info[real] = (level, next_parent)
+        for path in subdirs:
+            self.visit(path, level + 1, next_parent)
+
+    def sweep_unvisited(self):
+        """Pages under a directory no toc.yaml ever reaches.  Placed by
+        directory nesting, relative to the nearest directory the walk did
+        reach, and reported."""
+        for dirpath, dirnames, filenames in os.walk(self.root):
+            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+            extra = sorted(f for f in filenames
+                           if f.endswith(PAGE_SUFFIX)
+                           and os.path.realpath(os.path.join(dirpath, f)) not in self.seen_pages)
+            if not extra:
+                continue
+            level, parent, steps = 1, None, 0
+            probe = os.path.realpath(dirpath)
+            while probe and probe.startswith(os.path.realpath(self.root)):
+                if probe in self.dir_info:
+                    level, parent = self.dir_info[probe]
+                    level += steps
+                    break
+                parent_dir = os.path.dirname(probe)
+                if parent_dir == probe:
+                    break
+                probe, steps = parent_dir, steps + 1
+            self.dirs_unreached.append(self.rel(dirpath))
+            for filename in extra:
+                node = self.make_node(dirpath, filename, level, "")
+                node.notes.append("directory is reached by no toc.yaml - placed by "
+                                  "directory nesting")
+                node.parent = parent
+                if parent is None:
+                    self.roots.append(node)
+                else:
+                    parent.children.append(node)
+                self.nodes.append(node)
+                self.unreferenced.append((node.filename,
+                                          "in a directory no toc.yaml reaches"))
+
+    def normalise_levels(self):
+        if not self.nodes:
+            return 0
+        shift = min(node.level for node in self.nodes) - 1
+        if shift:
+            for node in self.nodes:
+                node.level -= shift
+        return shift
+
+
+def walk_guide_tree(tree_path):
+    """Returns (roots, nodes, walk).  `walk` carries everything the report has
+    to disclose: directories with no toc.yaml, dangling toc references, and
+    pages no toc.yaml mentions."""
+    walk = GuideWalk(tree_path)
+    walk.visit(tree_path, 1, None)
+    walk.sweep_unvisited()
+    walk.normalise_levels()
+    return walk.roots, walk.nodes, walk
 
 
 # ==========================================================================
@@ -626,11 +1068,17 @@ def agreed_pages(target_root, menu, target_pages):
     if not by_slug and not target_root:
         for slug in FALLBACK_AGREED_PAGES:
             by_slug[slug] = slug
+    # Case-insensitive aliases.  Target page files are lower case; Simplifier
+    # guide pages are CamelCase (`Index.page.md`, `Downloads.page.md`), so
+    # without the alias the exact-name match never fires on a guide tree.  For a
+    # `pages:` source, whose names are already lower case, this adds nothing.
+    for slug in list(by_slug):
+        by_slug.setdefault(slug.lower(), by_slug[slug])
     return by_slug, by_title
 
 
 def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
-          target_pages, budget):
+          target_pages, budget, folder_landing_pages=False):
     """Fill node.branch / .destination / .measurement for every source page.
 
     Evaluation order (the branch NUMBER reported is always the spec's):
@@ -641,6 +1089,12 @@ def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
       2  family overview  -> rule 2;
       3  fuzzy agreed-page match -> rule 3;
       4  everything else  -> rule 4 (+ 4a presentation, 4b visibility).
+
+    `folder_landing_pages` is set for a Simplifier guide tree, where every
+    folder ships an `Index.page.md`.  Only the one at level 1 is the guide's
+    index; the deeper ones are FOLDER landing pages and must not all be merged
+    into the target's `index.md`, so the name match is suppressed for them and
+    they are routed by their children like any other overview.
     """
     # -- pass 1: artefact anchors -----------------------------------------
     for node in nodes:
@@ -651,8 +1105,13 @@ def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
 
     # -- pass 2: branches 0-3 ---------------------------------------------
     for node in nodes:
-        exact = agreed_slug.get(node.slug)
+        exact = agreed_slug.get(node.slug) or agreed_slug.get(node.slug.lower())
         by_label = agreed_title.get(compact(node.title)) if node.title else None
+        if (folder_landing_pages and node.level > 1
+                and node.slug.lower() == "index"):
+            exact = by_label = None
+            node.notes.append("folder landing page - NOT matched against the target's "
+                              "index.md; routed by its own children")
         distinct_children = {c.anchor["id"] for c in node.children if c.anchor}
         node.is_family = len(node.children) >= 2 and len(distinct_children) >= 2
 
@@ -706,6 +1165,12 @@ def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
     queue1 = []
     for node in nodes:
         if node.branch:
+            # rule 5, size gate on the SOURCE page being merged: a page that
+            # already exceeds the gate on its own puts the host over it.
+            if node.branch in ("2", "3") and node.words > GATE_WORDS:
+                node.notes.append("source page is %d words > %d - merging it trips the "
+                                  "host's size gate on its own (rule 5)"
+                                  % (node.words, GATE_WORDS))
             # rule 5, size gate on the HOST of a branch-2 / branch-3 merge
             if node.branch in ("2", "3") and target_pages:
                 host_slug = re.sub(r"\.md$", "", node.destination.split()[-1])
@@ -809,18 +1274,73 @@ def build_report(args, source_info, target_info, nodes, roots, queue1, budget):
     # ---- 1. source ------------------------------------------------------
     out.append("## 1. Source page tree")
     out.append("")
-    if not source_info["found"]:
-        out.append("`sushi-config.yaml` has **no `pages:` block**, so the source page tree is "
-                   "**flat/unknown** - it is not reconstructed here. Counted instead: "
-                   "**%d** files in `input/pagecontent/`." % source_info["file_count"])
+    out.append("The tree is taken from the FIRST of three inputs that yields pages: "
+               "**(a)** the `pages:` block of the source `sushi-config.yaml`, **(b)** the "
+               "authoritative Simplifier guide tree under `%s/` (spec 5.1a), "
+               "**(c)** a flat count of `input/pagecontent/*.md`." % GUIDE_DIR_NAME)
+    out.append("")
+    out.append("**Input used: %s.**" % source_info["origin_label"])
+    out.append("")
+
+    guide = source_info.get("guide") or {}
+    trees = guide.get("trees") or []
+    if trees:
+        out.append("### 1.0 Simplifier guide trees found")
+        out.append("")
+        out.append("Every tree under `%s/` is listed - the choice is never made silently. "
+                   "Dispositions follow spec 5.1a: #1 authoritative, #2 parallel-language "
+                   "harvest seed, #3 historical/shared retained, #4 unrecognized."
+                   % GUIDE_DIR_NAME)
+        out.append("")
+        out.append("| Guide tree | Title | Version (dir name) | Version (guide.yaml) | Lang | "
+                   "`*.page.md` on disk | Disposition |")
+        out.append("| --- | --- | --- | --- | --- | ---: | --- |")
+        for tree in trees:
+            out.append("| `%s` | %s | %s | %s | %s | %d | %s |" % (
+                tree["name"], md_escape(tree["title"] or "-"),
+                tree["version_name"] or "-", tree["version_yaml"] or "-",
+                tree["language"] or "-", tree["page_files"],
+                md_escape(tree["disposition"])))
+        out.append("")
+        if guide.get("chosen"):
+            out.append("**Chosen: `%s`** - %s." % (guide["chosen"]["name"],
+                                                   md_escape(guide["reason"])))
+        else:
+            out.append("**No tree chosen** - %s." % md_escape(guide["reason"]))
+        out.append("")
+        out.append("The module's narrative language read from `sushi-config.yaml` "
+                   "`language:` is **%s**." % (guide.get("module_language") or "not stated"))
+        out.append("")
+        for note in guide.get("notes") or []:
+            out.append("- %s" % note)
+        if guide.get("notes"):
+            out.append("")
+        out.append("**A human can override this choice**: re-run with "
+                   "`--guide-tree <directory name>`. The ranking above is evidence, not a "
+                   "verdict - confirm it against the rendered IG and record it in the "
+                   "inventory (Gate B reviews it).")
+        out.append("")
+        if source_info["origin"] != "guide-tree":
+            out.append("_These trees were NOT used: the `pages:` block already yielded a page "
+                       "tree, and input (a) wins. They still need a disposition in the "
+                       "inventory._")
+            out.append("")
+
+    if not nodes:
+        out.append("### 1.1 No page tree could be built")
+        out.append("")
+        out.append("`sushi-config.yaml` has no usable `pages:` block and no guide tree under "
+                   "`%s/` yielded pages, so the source page tree is **flat/unknown** - it is "
+                   "not reconstructed here. Counted instead: **%d** files in "
+                   "`input/pagecontent/`." % (GUIDE_DIR_NAME, source_info["file_count"]))
         out.append("")
         out.append("Every routing row below therefore carries no depth evidence; treat the "
                    "parent/child measurements as absent, not as zero.")
         out.append("")
     else:
-        out.append("Parsed from `%s`, indentation-based." % md_escape(source_info["config_rel"]))
-        out.append("")
         out.append("### 1.1 Depth histogram")
+        out.append("")
+        out.append(source_info["tree_note"])
         out.append("")
         out.append("| Level | Pages | Share |")
         out.append("| --- | ---: | ---: |")
@@ -830,10 +1350,20 @@ def build_report(args, source_info, target_info, nodes, roots, queue1, budget):
             out.append("| %d | %d | %.0f%% |" % (level, count, 100.0 * count / total))
         out.append("| **total** | **%d** | 100%% |" % total)
         out.append("")
-        out.append("Maximum depth used: **%d**. Pages in `input/pagecontent/`: **%d** "
-                   "(%d listed in `pages:`)."
-                   % (max(source_info["histogram"]), source_info["file_count"], total))
+        out.append("Maximum depth used: **%d**. Total words across the %d source pages: "
+                   "**%d**. Pages in `input/pagecontent/`: **%d**."
+                   % (max(source_info["histogram"]), total,
+                      sum(node.words for node in nodes), source_info["file_count"]))
         out.append("")
+        if source_info["findings"]:
+            out.append("### 1.1a Structural findings in the source tree")
+            out.append("")
+            out.append("Reported, never silently absorbed - each one is a page the migration "
+                       "would otherwise lose or invent.")
+            out.append("")
+            for finding in source_info["findings"]:
+                out.append("- %s" % finding)
+            out.append("")
         out.append("### 1.2 Parent-child tree")
         out.append("")
         out.append("```")
@@ -926,19 +1456,21 @@ def build_report(args, source_info, target_info, nodes, roots, queue1, budget):
     # ---- 4. routing proposal -------------------------------------------
     out.append("## 4. Routing proposal (spec 9d/9e)")
     out.append("")
-    if not source_info["found"]:
-        out.append("_No `pages:` block in the source - no per-source-page routing is proposed. "
-                   "Route the %d files in `input/pagecontent/` by hand, or add the block._"
+    if not nodes:
+        out.append("_No source page tree could be built (no `pages:` block and no guide tree "
+                   "with pages) - no per-source-page routing is proposed. Route the %d files "
+                   "in `input/pagecontent/` by hand, or add the block._"
                    % source_info["file_count"])
         out.append("")
     else:
         out.append("One row per source page. The branch number is the spec's; the measurement "
                    "column is the number that forced it. Branch-4 rows state the presentation "
                    "(4a) and the visibility (4b), and, where a menu entry fits, the remaining "
-                   "budget after it.")
+                   "budget after it. `Words` is the source page's own size, counted the same "
+                   "way as the target pages in section 2.")
         out.append("")
-        out.append("| # | Source page | Lvl | Children | Branch | Proposed destination | Measurement |")
-        out.append("| ---: | --- | ---: | ---: | --- | --- | --- |")
+        out.append("| # | Source page | Lvl | Children | Words | Branch | Proposed destination | Measurement |")
+        out.append("| ---: | --- | ---: | ---: | ---: | --- | --- | --- |")
         branch_label = {
             "1": "1 intro-note",
             "2": "2 section on index page",
@@ -949,8 +1481,8 @@ def build_report(args, source_info, target_info, nodes, roots, queue1, budget):
             destination = node.destination
             if node.notes:
                 destination += " <br>_(%s)_" % "; ".join(node.notes)
-            out.append("| %d | `%s` | %d | %d | %s | %s | %s |" % (
-                index, node.filename, node.level, len(node.children),
+            out.append("| %d | `%s` | %d | %d | %d | %s | %s | %s |" % (
+                index, node.filename, node.level, len(node.children), node.words,
                 branch_label.get(node.branch, node.branch),
                 md_escape(destination), md_escape(node.measurement)))
         out.append("")
@@ -983,7 +1515,7 @@ def build_report(args, source_info, target_info, nodes, roots, queue1, budget):
         out.append("")
 
     # ---- 6. run-log lines ----------------------------------------------
-    if source_info["found"]:
+    if nodes:
         out.append("## 6. Suggested `5.4c page-routing` run-log lines")
         out.append("")
         out.append("One per source page, ready for the migration run log. The script does not "
@@ -1012,6 +1544,9 @@ def main(argv=None):
     parser.add_argument("--source", required=True, help="the ORIGINAL module repository")
     parser.add_argument("--target", help="the MIGRATED repository (optional)")
     parser.add_argument("--out", help="write the Markdown report here (default: stdout)")
+    parser.add_argument("--guide-tree", dest="guide_tree",
+                        help="HUMAN OVERRIDE: the directory name under "
+                             "implementation-guides/ to treat as authoritative")
     args = parser.parse_args(argv)
 
     source_root = os.path.abspath(args.source)
@@ -1023,24 +1558,125 @@ def main(argv=None):
 
     if args.out:
         out_path = os.path.abspath(args.out)
-        for label, root in (("--source", source_root), ("--target", target_root)):
-            if root and (out_path == root or out_path.startswith(root + os.sep)):
-                parser.error("refusing to write inside the %s repository: %s "
-                             "(this script never modifies a repository)" % (label, out_path))
+        # The rule this guard exists for is "never change a module": not the
+        # source (read-only by definition) and no CONTENT of the target. The
+        # target's `migration-log/` is the migration's own workspace, where
+        # every other artefact of the run already lives and is committed with
+        # the branch -- refusing it sent the report to /tmp, away from the
+        # evidence it belongs beside (measured on the Onkologie try-run, where
+        # the natural invocation failed outright).
+        if source_root and (out_path == source_root
+                            or out_path.startswith(source_root + os.sep)):
+            parser.error("refusing to write inside the --source repository: %s "
+                         "(the source is read-only)" % out_path)
+        if target_root and (out_path == target_root
+                            or out_path.startswith(target_root + os.sep)):
+            log_dir = os.path.join(target_root, "migration-log") + os.sep
+            if not out_path.startswith(log_dir):
+                parser.error("refusing to write into the target's CONTENT: %s "
+                             "(this script never edits a module; write to "
+                             "%smigration-log/ instead)" % (out_path, target_root + os.sep))
 
     # ---- source ---------------------------------------------------------
+    # Fallback order, spec 9d/9e: (a) the sushi-config `pages:` block, (b) the
+    # authoritative Simplifier guide tree, (c) a flat file count.  A module that
+    # authors its narrative on Simplifier - the normal MII shape - has no usable
+    # `pages:` block, and reporting "0 source pages" for it made the routing
+    # rule unusable exactly where it matters most.
     config_path = os.path.join(source_root, "sushi-config.yaml")
     if not os.path.isfile(config_path):
         config_path = os.path.join(source_root, "sushi-config.yml")
-    roots, nodes, found = parse_pages_block(read_text(config_path))
+    config_text = read_text(config_path)
+    config_rel = os.path.relpath(config_path, source_root)
+
     page_dir = os.path.join(source_root, "input", "pagecontent")
     file_count = len([n for n in os.listdir(page_dir) if n.endswith(".md")]) \
         if os.path.isdir(page_dir) else 0
+
+    roots, nodes, found = parse_pages_block(config_text)
+    for node in nodes:
+        path = os.path.join(page_dir, node.filename)
+        if os.path.isfile(path):
+            node.words = count_words(read_text(path))
+
+    module_language = source_language(config_text)
+    trees = discover_guide_trees(source_root)
+    guide_info = {
+        "trees": trees,
+        "chosen": None,
+        "reason": "",
+        "notes": [],
+        "module_language": module_language,
+    }
+    findings = []
+    origin = "pages-block" if found else "flat"
+    origin_label = ("(a) the `pages:` block of `%s`" % config_rel) if found else \
+                   ("(c) a flat count of `input/pagecontent/*.md` - "
+                    "no page tree available")
+    tree_note = "Parsed from `%s`, indentation-based." % config_rel
+    folder_landing_pages = False
+
+    if trees:
+        chosen, reason, notes = choose_guide_tree(
+            trees, module_language, None if found else args.guide_tree)
+        if found and args.guide_tree:
+            notes.append("`--guide-tree` was given but the `pages:` block already yielded a "
+                         "page tree, and input (a) wins - the override had no effect.")
+        guide_info.update({"chosen": chosen, "reason": reason, "notes": notes})
+        label_dispositions(trees, chosen)
+
+        if not found and chosen is not None:
+            guide_roots, guide_nodes, walk = walk_guide_tree(chosen["path"])
+            if guide_nodes:
+                roots, nodes = guide_roots, guide_nodes
+                origin = "guide-tree"
+                origin_label = ("(b) the Simplifier guide tree `%s/%s`, walked from its "
+                                "`toc.yaml`" % (GUIDE_DIR_NAME, chosen["name"]))
+                folder_landing_pages = True
+                tree_note = (
+                    "Walked from `%s/%s/toc.yaml`: an entry whose `filename` ends in "
+                    "`%s` is a page, any other `filename` is a sub-directory holding its "
+                    "own `toc.yaml`. A sub-directory is a LEVEL, not a page, so every page "
+                    "of one directory shares one level (that is how Simplifier renders a "
+                    "folder), and the levels are shifted so the shallowest page sits at "
+                    "level 1 - this guide's root `toc.yaml` lists only a folder, which adds "
+                    "no page level. Routing still needs a page parent, so each directory is "
+                    "represented by its `Index.page.md` and its remaining pages plus its "
+                    "sub-folders' representatives become that page's children; a parent may "
+                    "therefore share its children's level."
+                    % (GUIDE_DIR_NAME, chosen["name"], PAGE_SUFFIX))
+                for rel_dir in walk.dirs_without_toc:
+                    findings.append("`%s/` has **no `toc.yaml`** - the hierarchy of that "
+                                    "subtree is derived from DIRECTORY NESTING, not from a "
+                                    "table of contents. Order and titles are the file "
+                                    "system's, not the author's." % rel_dir)
+                for rel_dir in walk.dirs_unreached:
+                    findings.append("`%s/` holds pages but **no `toc.yaml` links to it** - "
+                                    "its pages are placed by directory nesting and are "
+                                    "invisible in the rendered guide's navigation."
+                                    % rel_dir)
+                for rel_toc, filename, why in walk.dangling:
+                    findings.append("`%s` lists `%s`, but the **%s** - the entry is dangling "
+                                    "and produced no page." % (rel_toc, filename, why))
+                for rel_page, why in walk.unreferenced:
+                    findings.append("`%s` exists on disk but is **%s** - it is in the tree "
+                                    "below, flagged, so the migration cannot lose it."
+                                    % (rel_page, why))
+            else:
+                guide_info["notes"].append(
+                    "guide tree `%s` yielded no pages when walked; fell back to the flat "
+                    "file count." % chosen["name"])
+
     source_info = {
         "found": found,
+        "origin": origin,
+        "origin_label": origin_label,
+        "tree_note": tree_note,
+        "guide": guide_info,
+        "findings": findings,
         "file_count": file_count,
         "histogram": Counter(node.level for node in nodes),
-        "config_rel": os.path.relpath(config_path, source_root),
+        "config_rel": config_rel,
     }
 
     # ---- target ---------------------------------------------------------
@@ -1055,7 +1691,7 @@ def main(argv=None):
     slug_index, title_index = agreed_pages(target_root, menu, target_pages)
     budget = MenuBudget(menu)
     queue1 = route(nodes, artefacts, frequency, slug_index, title_index,
-                   target_pages, budget) if found else []
+                   target_pages, budget, folder_landing_pages) if nodes else []
 
     report = build_report(args, source_info, target_info, nodes, roots, queue1, budget)
 
@@ -1066,9 +1702,10 @@ def main(argv=None):
         with open(args.out, "w", encoding="utf-8") as handle:
             handle.write(report)
         sys.stderr.write(
-            "page-structure-advice: %d source pages, %d target pages, "
+            "page-structure-advice: %d source pages (from %s), %d target pages, "
             "%d artefacts -> %s\n"
-            % (len(nodes), len(target_pages), len(artefacts), args.out))
+            % (len(nodes), source_info["origin"], len(target_pages),
+               len(artefacts), args.out))
     else:
         sys.stdout.write(report)
     return 0
