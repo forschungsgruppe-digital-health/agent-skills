@@ -196,7 +196,7 @@ completeness, not as a choice.
 
 {Repeat per decision, or write "none — no open decisions" and keep the section.}
 
-**Values this migration invented (STAND-IN — must not be published unconfirmed):** {list each with
+**Values this migration invented (STAND-IN — each is a Gate-A confirmation, decided by a human):** {list each with
 `{path:line}` and its DEC id | none}.
 
 ## ② Review queue (Gates B/C — someone must check)
@@ -233,8 +233,8 @@ disagree, the tree wins: re-run the scan. The verifier's **C7** reads the same f
 marker whose `source=` names no source page, on a marker present in one language mirror only, and on a
 page whose source prose did not survive and that carries no marker at all.
 
-**Working these rows is not optional and is not deferrable:** a module must not be published while any
-marker remains, so each row is answered and its marker deleted before release. `stand-in` rows are
+**Each row is answered, and the answer is a human's:** clearing a row means deleting its marker and box;
+letting one stand is a Gate-D decision, recorded here — nothing blocks a release automatically. `stand-in` rows are
 ALSO ① decisions (an invented value — carry the same item id in both places); `suggestion`, `summary`,
 `bridge` and `no-source` rows are Gate B, except where the kind's `gate=` says otherwise. The
 per-language mirror of a marked page is not a separate item: it is the same decision, edited twice.

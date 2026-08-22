@@ -2038,9 +2038,11 @@ and the same `source=` — identical semantics to the template's M11 rule for `I
 (§9a). A box that appears in `en/` and not in `de/` tells the two reviewers different things about
 the same paragraph.
 
-**Release rule.** A module is not published while markers remain: each is confirmed (box and comment
-deleted) or its text is rewritten. The skill enforces this at verification; the module template's own
-release check is a second, independent gate and is out of scope here.
+**Publication is a human decision, and this rule does not pre-empt it.** Markers are review items, not
+defects: nothing in this skill refuses a release because they remain, and no check fails merely because
+a page still carries one. What the tooling owes the human is that every marker is visible in the guide,
+listed in the ledger and traceable to its source — the question of whether any may remain at publication
+belongs to Gate D, which decides it and records the decision in the report.
 
 **The machine artefact.** `migration-log/derived-content.tsv`, one row per marker, header:
 
