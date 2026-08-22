@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.2](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.20.1...v0.20.2) (2026-08-22)
+
+
+### Fixes
+
+* read the guide tree as a page hierarchy, and let the advice land beside the evidence ([#87](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/87)) ([a1a2da4](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/a1a2da4de1dfe1780f06f9a95a5ef32a28869f9a))
+
 ## [0.20.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.20.0...v0.20.1) (2026-08-22)
 
 
