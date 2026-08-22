@@ -283,22 +283,22 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    bash "$ML" run 5.4 fql-scan --emits-runlog -- bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
    ```
 
-   The scan is recursive and, pre-migration, includes `implementation-guides/**` where a Simplifier
-   project keeps its pages; it logs how many files it scanned per target, WARNs when a named
-   directory contributed none, and exits 2 on an empty target set — never read "nothing scanned" as
-   "nothing found". `--strict` exits 1 on any finding, for CI; `run` keeps both statuses where a
-   `tee` would report 0. Apply the recommendation printed per finding; the mapping is in [the FQL
-   crosswalk](references/fql-crosswalk.md), the rules in
-   [`references/fql-rules.tsv`](references/fql-rules.tsv). In doubt, write `TODO:REVIEW`.
+   The scan is recursive and pre-migration includes `implementation-guides/**`; it logs files scanned per
+   target, WARNs when a named directory contributed none, and exits 2 on an empty target set — never read
+   "nothing scanned" as "nothing found". `--strict` exits 1 on any finding; `run` keeps both statuses where
+   a `tee` reports 0. Apply each printed recommendation; mapping in [the FQL crosswalk](references/fql-crosswalk.md),
+   rules in [`references/fql-rules.tsv`](references/fql-rules.tsv). In doubt, write `TODO:REVIEW`.
 
-   The Manteldokument requires sections the template's English-named page set does not name. They
-   are not missing: they map onto *sections within* the fixed page set, never onto pages of their own
-   — **never create a page outside it**, an extra page is an unlisted orphan the menu cannot reach.
-   The mapping is [spec](references/migration-spec.md) §9, which also records that the reference
-   module is itself incomplete on use cases: record such a gap in the report, never fill it. With
-   **more than two profiles**, route the per-profile narrative to `input/intro-notes/<Type>-<id>-intro.md`
-   (German mirror under `input/translations/de/intro-notes/`, same filename — both render atop the
-   artifact page, build-verified) and keep `profiles.md` as a short index.
+   **Route every source page BEFORE writing — spec §9e, first match wins:** one artefact → `input/intro-notes/<Type>-<id>-intro.md`
+   (German mirror, same filename, renders atop the artifact page); a family overview → a section on an index page that
+   exists; an agreed page owns it → merge; only cross-cutting narrative becomes a page — a **hub** (≤250 words, one line
+   per child) at ≥3 children, with a menu entry only inside the budget (≤33 entries, ≤10 per dropdown, top level ≤8,
+   depth ≤2), else `pages:`-nested and linked. **Size gate:** >2500 words, >4 merged sources or ANY repeated heading re-runs
+   it (PROs shipped a 6214-word host, 13 colliding anchors). Log `5.4c page-routing` per page; `page-structure-advice.py` proposes.
+   **Text you WRITE (overviews, hub one-liners, bridges) is DERIVED — mark it per §9d** so it renders as a review box;
+   run `5.4d derived-scan` (writes `migration-log/derived-content.tsv`, which C7 reads and ② is generated from); moved or
+   split content is never marked. §9 records the reference module's use-case gap: report it, never fill it.
+
    **Template ≥ v0.8 targets: spec §9a is normative for the page set** — split pages, link-only Conformance
    cluster + `datasets-and-descriptions` (content re-routes per §9a), no re-added title headings (M10), two REQUIRED run-logged decisions: `5.4a optional-page-decisions` (M9 — **measured**: package artifact count 0 → remove, > 0 → keep, artifacts never deleted; §9a), `5.4b security-privacy-decision` (M11). Index style parity (authors/contacts as lists, disclaimer as prose), the `(de)` translation-marker wording and the one-commit revertible-fix protocol are §9a; an absent CapabilityStatement is detected, SUGGESTED from the module's profiles and rendered INLINE on its page per **spec §9b**.
 
@@ -458,7 +458,7 @@ bash "$ML" run 11 verify-migration --emits-runlog --expected-nonzero 'findings a
   python3 "$SKILL_DIR/scripts/verify-migration.py" --target . --source <src> --rendered output
 ```
 
-Those three keep their own acceptance: every `{{...}}` accounted for (an unreplaced one ships a bogus artefact **silently**); SUSHI clean and `qa.txt` `Errors: 0` — both shape B **as qualified in step 2b**, while the IDENTISCH criteria are not qualified by shape; `fql-scan.sh --strict` exits 0 **with a non-zero scanned-file count** (an empty target set exits 2 and is not a pass) and no `[UNKNOWN]` findings. Everything else — the six aspects above, identity/licence/pins, parent snapshots, and the run log's own completeness — is a numbered check in spec §11, measured rather than recalled.
+Those three keep their own acceptance: every `{{...}}` accounted for (an unreplaced one ships a bogus artefact **silently**); SUSHI clean and `qa.txt` `Errors: 0` — both shape B **as qualified in step 2b**, while the IDENTISCH criteria are not qualified by shape; `fql-scan.sh --strict` exits 0 **with a non-zero scanned-file count** (an empty target set exits 2 and is not a pass) and no `[UNKNOWN]` findings. Everything else — the six aspects above, identity/licence/pins, parent snapshots, and the run log's own completeness — is a numbered check in spec §11, measured rather than recalled. **Every code printed anywhere (M1–M11, C1–C7, F/P/R/L, gates, marker kinds) is glossed inline by the generator and listed in [`references/codes.md`](references/codes.md).**
 
 **Auto-fix is optional and bounded** (spec §12): `bash "$SKILL_DIR/scripts/autofix-loop.sh" --skill-dir "$SKILL_DIR"` repairs only the four **allowlisted** mechanical classes, at most **3** iterations, snapshotting each fix, **reverting any whose finding did not clear**, and stopping the moment the finding set stops shrinking. Identity, narrative, anything the SOURCE declares and every judgement call are excluded by construction — they go to the ① queue.
 

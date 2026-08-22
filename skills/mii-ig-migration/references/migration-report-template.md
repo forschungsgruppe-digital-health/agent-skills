@@ -65,6 +65,7 @@ reachable | is private} at {full URL | none}.
 | `migration-log/verification.md` | the verifier's human-readable per-check table, incl. a **Next action** per divergence | Verification, ②, ③ |
 | `migration-log/verification-findings.tsv` | the same rows, machine-readable (`id layer check verdict subject evidence autofix action`) | Verification |
 | `migration-log/page-map.tsv` | `source_page` → `target_page` or `RETIRED` + reason | Content map, ② |
+| `migration-log/derived-content.tsv` | one row per DERIVED marker (`page lang kind source gate line excerpt`) — every passage the migration **wrote** rather than carried, and where it stands | ②, Verification (C7) |
 | `migration-log/identity-claims.tsv` | one row per identity field per source, with tier and contradiction flag | Identity, ① |
 | `migration-log/preflight-analysis.json` | the measured scope of the **unmigrated** source | Gate 0 |
 | `migration-log/source-inventory.json` | every source file classified, with a retain/retire disposition | Content map, ② |
@@ -83,6 +84,9 @@ evidence file is right and this report is stale: regenerate it.
 | render and validate the guide | `{command}` | `qa.txt` with {n} errors |
 | the template's release checks (M1–M11) | `{e.g. node scripts/convention-check.mjs}` | {exit 0 \| `M{n} FAIL`, exit 1 — see DEC-{n}} |
 | the migration verifier (C/F/P/R/L) | `python3 {path}/verify-migration.py --target . --source {path} --rendered {path} --source-lang {de} --template-latest {vX.Y.Z}` | exit {0 \| 1 \| 3} |
+| the derived-content scan (rewrites `migration-log/derived-content.tsv`, which C7 reads) | `python3 {path}/derived-scan.py --target .` | {n} markers found; exit 0 |
+| the same scan as the table pasted into ② | `python3 {path}/derived-scan.py --target . --markdown` | the ② table on stdout — paste it, never retype it |
+| the page-structure advice (menu budget, hub and size gates — spec §9d/§9e) | `python3 {path}/page-structure-advice.py --target .` | menu entries {n}/33, top level {n}/8, depth {n}/2, largest host page {n} words — advisory, exit 0 |
 
 **The verifier is not vendored in this repository** — it ships with the `mii-ig-migration` skill at
 {URL or path}, version {vX.Y.Z}. Runs offline: {which of the four}. Needs the source checkout and the
@@ -197,10 +201,50 @@ completeness, not as a choice.
 
 ## ② Review queue (Gates B/C — someone must check)
 
-<!-- Group the in-tree TODO:REVIEW markers into reviewable units; never paste a raw grep. Give a grep
-     that returns exactly this group and nothing else, and say what the marker's other hits are.
-     Typical groups: machine-translated pages (C), section-mapping homes (B), replaced live tables
-     (B), image and link substitutions (B), retain/retire proposals (D). -->
+<!-- Two kinds of row, and they are filled differently. The DERIVED-content table is GENERATED — its
+     rows come from the scanner, never from memory. The REV-n blocks below it are hand-written, and
+     only for review questions that are NOT derived content. Group the in-tree TODO:REVIEW markers
+     into reviewable units; never paste a raw grep. Give a grep that returns exactly this group and
+     nothing else, and say what the marker's other hits are. Typical groups: machine-translated pages
+     (C), section-mapping homes (B), replaced live tables (B), image and link substitutions (B),
+     retain/retire proposals (D). -->
+
+### Derived content — GENERATED, do not retype
+
+Every passage this migration **wrote** rather than carried is marked where it stands: an HTML comment
+`<!-- DERIVED:{kind} source={source page | none} gate={A|B|C} -->` the machine reads, plus the visible
+"Written during migration — review before release" box the reader sees (spec §9d). Marked content is
+only what was written — verbatim carry-over, moved and split content and the routine per-language
+mirror are **never** marked, because a page of boxes is a page whose boxes stop being read.
+
+The rows below are GENERATED from `migration-log/derived-content.tsv` — regenerate, never retype:
+
+```
+python3 {path}/derived-scan.py --target . --markdown
+```
+
+{paste the generated table here | none — this migration wrote no derived content}
+
+One row per marker: page · language · **kind** (`summary` condensed or reworded · `bridge` connective
+text joining merged sections · `suggestion` proposed where the source had none · `stand-in` an invented
+value pending confirmation · `no-source` a default-language page the source ships no counterpart for) ·
+source page (or `none`) · gate · line · the first 120 characters. Where this table and the tree
+disagree, the tree wins: re-run the scan. The verifier's **C7** reads the same file and fails on a
+marker whose `source=` names no source page, on a marker present in one language mirror only, and on a
+page whose source prose did not survive and that carries no marker at all.
+
+**Working these rows is not optional and is not deferrable:** a module must not be published while any
+marker remains, so each row is answered and its marker deleted before release. `stand-in` rows are
+ALSO ① decisions (an invented value — carry the same item id in both places); `suggestion`, `summary`,
+`bridge` and `no-source` rows are Gate B, except where the kind's `gate=` says otherwise. The
+per-language mirror of a marked page is not a separate item: it is the same decision, edited twice.
+
+### Hand-written review items
+
+Everything that is **not** derived content: a placement question (is this section on the right page?),
+a machine-translated page, a replaced live table, an image or link substitution, a retain/retire
+proposal. Never hand-write a REV block for a marker the scan above already reports — one item, one
+place. Each hand-written item fills every labelled line below; a line with nothing to say says "none".
 
 **REV-1 — {one-line title}** · severity **{…}** · Gate {B | C}
 

@@ -64,7 +64,9 @@ THE LAYERS
     (with a reason) or MISSING (a failure); every source narrative text run
     present somewhere in the target; every menu entry leading somewhere and every
     narrative page IN a menu; every target page traceable to a source page or to
-    the template; and, for text that survived, WHICH page it landed on.
+    the template; for text that survived, WHICH page it landed on; and, for text
+    the migration WROTE rather than carried, that the guide SAYS SO where it
+    stands (the DERIVED markers, spec section 9d).
   2 FIDELITY -- identity IDENTISCH; dependency pins identical to the source's;
     `license` explicitly asserted from a source tier, never silently defaulted.
   3 PROVENANCE -- the template package+version READ OUT OF THE RENDERED OUTPUT
@@ -111,6 +113,12 @@ Usage:
     --page-map FILE       source page -> target page ledger, TSV, written by step 5
                           (default: migration-log/page-map.tsv). Columns:
                           source_page, target_page (or RETIRED), reason.
+    --derived-tsv FILE    the DERIVED-marker ledger, TSV, written by
+                          `scripts/derived-scan.py` (default:
+                          migration-log/derived-content.tsv). Columns:
+                          page, lang, kind, source, gate, line, excerpt. C7 READS
+                          it; this script never scans the pages itself, so one
+                          scanner defines what a marker is.
     --source-lang LANG    the language the source narrative is written in
                           (default: de) -- the text-run check compares against
                           the target pages in THAT language, because the other
@@ -187,6 +195,7 @@ CHECK_TITLES = {
     "C4": "the source's narrative text is present somewhere in the target",
     "C5": "menus lead somewhere, and every page is in a menu",
     "C6": "each text passage landed on the page the page map promised",
+    "C7": "content the migration wrote is marked as such in the guide",
     "F1": "module identity is unchanged (id, canonical, version, licence, ...)",
     "F2": "dependency versions are pinned exactly as the source pinned them",
     "F3": "the licence is asserted from evidence, never defaulted",
@@ -884,6 +893,14 @@ def layer_conservation(f, a, ctx):
                                action="fix the map or create the target page")
 
     # C4 -- every source narrative text run present somewhere in the target.
+    #
+    # C7 REUSES this computation rather than repeating it: "which source pages
+    # lost prose" is exactly where "did the migration WRITE something in its
+    # place" has to start, and two independent implementations of the same
+    # measurement would eventually disagree and make both findings unusable. The
+    # dict below is the handover; it records what C4 measured, never a verdict.
+    c4_state = {"ran": False, "lost": {}, "unjudged": []}
+    ctx["c4_state"] = c4_state
     corpus = ctx["target_corpus"]
     runs = ctx["source_runs"]
     if runs is None:
@@ -898,6 +915,7 @@ def layer_conservation(f, a, ctx):
                          "check --source-lang: the source narrative is compared against the "
                          "target pages in the SAME language, never against the translation")
     else:
+        c4_state["ran"] = True
         hay = reduce_text(corpus)
         for page, page_runs in sorted(runs.items()):
             missing = [r for r in page_runs if reduce_text(r) not in hay]
@@ -921,8 +939,10 @@ def layer_conservation(f, a, ctx):
                                  "read the page against its target: migration replaces the "
                                  "VIEW with the artefact page (R1), so only its prose has to "
                                  "be conserved -- and only a human can say which is which here")
+                c4_state["unjudged"].append(page)
                 continue
             if missing:
+                c4_state["lost"][page] = (len(missing), len(page_runs))
                 f.diverges("conservation", "C4", page,
                            "%d of %d PROSE runs of the source page are in no target page "
                            "(first: %s)%s"
@@ -944,6 +964,7 @@ def layer_conservation(f, a, ctx):
 
     check_menu(f, a, ctx)          # C5
     check_placement(f, a, ctx)     # C6
+    check_derived(f, a, ctx)       # C7
 
 
 # --- C5: the menu, and the reverse page question ----------------------------
@@ -1310,6 +1331,259 @@ def _page_exists(target, page):
 def _snip(s, n=60):
     s = re.sub(r"\s+", " ", s).strip()
     return s[:n] + ("…" if len(s) > n else "")
+
+
+# --- C7: content the migration WROTE, marked as such ------------------------
+
+# The mirror a page has when it is NOT under `input/translations/<lang>/`. The
+# default language's label is nowhere in the tree -- the pages simply sit in
+# `input/pagecontent` -- so the mirrors are compared by SLOT, never by guessing
+# which language code the default pages are written in. A guess there produced
+# the whole bilingual rule firing on a monolingual module in the first sketch.
+DEFAULT_SLOT = "*default*"
+
+# `page lang kind source gate line excerpt`, spec section 9d. Positional, so a
+# ledger written without its header row still reads.
+DERIVED_COLUMNS = ("page", "lang", "kind", "source", "gate", "line", "excerpt")
+
+
+def _derived_page_key(page):
+    """The identity a page's two language mirrors share: its bare stem.
+
+    `input/pagecontent/ueberblick.md` and
+    `input/translations/de/pagecontent/ueberblick.md` are the same PAGE in two
+    mirrors, and the bilingual rule is about exactly that pair.
+    """
+    stem = os.path.basename((page or "").strip().replace("\\", "/"))
+    for ext in (".md", ".html"):
+        if stem.endswith(ext):
+            stem = stem[:-len(ext)]
+    return stem
+
+
+def _mirror_slot(page, lang, mirror_langs):
+    """Which mirror a marker row sits in: a language code, or DEFAULT_SLOT.
+
+    Read from the PATH first, because the path is where the answer actually is;
+    the `lang` column is used only when the path carries no `translations/<lang>/`
+    segment and the column names a mirror the tree really has.
+    """
+    m = re.search(r"(?:^|/)translations/([^/]+)/", (page or "").replace("\\", "/"))
+    if m:
+        return m.group(1)
+    lang = (lang or "").strip()
+    if lang and lang in mirror_langs:
+        return lang
+    return DEFAULT_SLOT
+
+
+def _mirror_page(target, stem, slot):
+    """The file that IS this page's mirror in `slot`, or None when there is none.
+
+    A page nobody mirrored cannot be missing a marker in a mirror that does not
+    exist. Without this the rule would fire on every untranslated page and the
+    boxes would stop being read -- the exact failure spec section 9d's "NEVER
+    marked" list exists to prevent.
+    """
+    if slot == DEFAULT_SLOT:
+        bases = (os.path.join("input", "pagecontent"),
+                 os.path.join("input", "intro-notes"))
+    else:
+        bases = (os.path.join("input", "translations", slot, "pagecontent"),
+                 os.path.join("input", "translations", slot, "intro-notes"))
+    for base in bases:
+        cand = os.path.join(target, base, stem + ".md")
+        if os.path.isfile(cand):
+            return os.path.relpath(cand, target)
+    return None
+
+
+def _slot_label(slot):
+    return "default-language" if slot == DEFAULT_SLOT else slot
+
+
+def check_derived(f, a, ctx):
+    """C7 -- content the migration WROTE is visible AS SUCH in the guide.
+
+    A migration does not only carry text; it writes some. A family overview that
+    condenses four source passages, a hub's one-line summaries, a bridge sentence
+    joining two merged sections, a CapabilityStatement nobody in the source ever
+    wrote, an approval date invented so the build passes -- all of that reads,
+    on the rendered page, exactly like text the module's own authors wrote and
+    signed off. It is indistinguishable from carried content by every other check
+    in this file: C4 finds no LOSS (nothing went missing), C6 finds no
+    MISPLACEMENT (nothing moved), the build is green, and the reviewer at Gate B
+    reads a paragraph they never approved as if they had.
+
+    So the migration marks it where it stands (spec section 9d): an HTML comment
+    the machine reads, a blockquote the human reads. This check is the second
+    half of that contract, and it asks three questions the marker convention only
+    makes ANSWERABLE:
+
+      a  does every marker's `source=` name a page that exists in the ledger of
+         source pages -- or the literal `none`, which is what a `suggestion` or a
+         `stand-in` legitimately has? A marker citing a page nobody harvested
+         cites nothing.
+      b  does each marker exist in BOTH language mirrors? A box that appears in
+         the German page and not the English one hides the same paragraph from
+         half the reviewers (the same rule the module template enforces for
+         ILLUSTRATIVE-EXAMPLE, M11).
+      c  the one that matters most: is there UNMARKED derived content? Where C4
+         reports that a source page's prose did not survive into the target, the
+         target page in its place was, by definition, rewritten -- and if it
+         carries no marker at all, the rewrite is invisible. That is the defect
+         the whole convention exists for.
+
+    This check READS `migration-log/derived-content.tsv` and never scans the
+    pages itself: `scripts/derived-scan.py` is the single definition of what a
+    marker is, and a second implementation here would drift from it.
+    """
+    tgt = ctx["target"]
+    rows = ctx["derived_rows"]
+    tsv = label_path(a.derived_tsv, tgt)
+    pmap_label = label_path(a.page_map, tgt)
+
+    if rows is None:
+        f.unmechanisable("conservation", "C7", "derived-content markers",
+                         "no marker ledger at %s" % tsv,
+                         "run its producer -- `python3 scripts/derived-scan.py --target .` "
+                         "writes %s from the DERIVED markers in the tree; the verifier reads "
+                         "that ledger and deliberately does not re-scan the pages, so without "
+                         "it nothing can be said about derived content either way" % tsv)
+        return
+
+    diverged = 0
+
+    # a -- every `source=` resolves to a source page, or to the literal `none`.
+    page_map = ctx["page_map"]
+    if page_map is None:
+        f.unmechanisable("conservation", "C7", "marker source= values",
+                         "%d marker(s) to resolve, but no page map at %s to resolve them "
+                         "against" % (len(rows), pmap_label),
+                         "write step 5's ledger (source_page<TAB>target_page|RETIRED<TAB>"
+                         "reason); until it exists, a marker's source= names a page nothing "
+                         "can confirm")
+    else:
+        known = set()
+        for key in page_map:
+            known.add(key)
+            known.add(_derived_page_key(key))
+        for r in rows:
+            src = (r["source"] or "").strip()
+            if src.lower() == "none":
+                continue                       # suggestion / stand-in: no source, by contract
+            if src and (src in known or _derived_page_key(src) in known):
+                continue
+            f.diverges("conservation", "C7",
+                       "%s:%s (%s)" % (r["page"] or "?", r["line"] or "?", r["kind"] or "?"),
+                       "the marker's source=%s is in no row of %s and is not the literal "
+                       "`none`" % (src or "<empty>", pmap_label),
+                       action="spell the source page exactly as %s's source column spells it, "
+                              "or write `none` -- which is what a suggestion or a stand-in "
+                              "carries, because it had no source" % pmap_label)
+            diverged += 1
+
+    # b -- both language mirrors, or neither.
+    mirror_langs = set(ctx["mirror_langs"])
+    bilingual = bool(mirror_langs)
+    if bilingual:
+        slots = {DEFAULT_SLOT} | mirror_langs
+        groups = {}
+        for r in rows:
+            key = (_derived_page_key(r["page"]), (r["kind"] or "").strip(),
+                   (r["source"] or "").strip())
+            groups.setdefault(key, {})[_mirror_slot(r["page"], r["lang"], mirror_langs)] = r
+        for (stem, kind, src), present in sorted(groups.items()):
+            for slot in sorted(slots - set(present)):
+                twin = _mirror_page(tgt, stem, slot)
+                if twin is None:
+                    continue                   # that mirror of the page does not exist at all
+                have = ", ".join(_slot_label(s) for s in sorted(present))
+                f.diverges("conservation", "C7", "%s (%s, source=%s) in %s"
+                           % (stem, kind or "?", src or "?", _slot_label(slot)),
+                           "marked in the %s mirror, but %s carries no %s marker for this page"
+                           % (have, twin, kind or "DERIVED"),
+                           action="add the SAME marker (same kind, same source=) to %s -- a "
+                                  "marker in one language only hides the passage from the "
+                                  "reviewers of the other" % twin)
+                diverged += 1
+
+    # c -- unmarked derived content: prose the source had, the target does not,
+    #      and no marker anywhere on the page that replaced it.
+    c4 = ctx.get("c4_state") or {}
+    marked = set(_derived_page_key(r["page"]) for r in rows)
+    if not c4.get("ran"):
+        f.unmechanisable("conservation", "C7", "unmarked derived content",
+                         "C4 (%s) could not run, so the pages whose source prose did NOT "
+                         "survive -- the pages where the migration most likely wrote something "
+                         "in its place -- cannot be named" % CHECK_TITLES["C4"],
+                         "supply --harvest-dir or --source so C4 runs, then re-run "
+                         "verification; until then C7 covers the markers that ARE there and "
+                         "says nothing about the ones that should be")
+    elif page_map is None:
+        f.unmechanisable("conservation", "C7", "unmarked derived content",
+                         "%d source page(s) lost prose (C4), but no page map at %s says which "
+                         "target page replaced them" % (len(c4.get("lost") or {}), pmap_label),
+                         "write step 5's ledger, then re-run: without it the page that would "
+                         "have to carry the marker is unknown")
+    else:
+        pages, _src = ctx["source_pages"]
+        alias = {}
+        for p in pages:
+            for key in p["aliases"]:
+                alias.setdefault(key, p)
+        unmapped = []
+        for src_page, counts in sorted((c4.get("lost") or {}).items()):
+            n_missing, n_total = counts
+            entry = _map_lookup(page_map, alias[src_page]) if src_page in alias else None
+            if entry is None:
+                unmapped.append(src_page)
+                continue
+            if entry[0].upper() == "RETIRED":
+                continue                       # no target page -- C3 owns the retirement
+            stem = _derived_page_key(entry[0])
+            if stem in marked:
+                continue
+            f.diverges("conservation", "C7", stem,
+                       "%d of %d prose runs of the source page %s are in no target page (C4), "
+                       "and %s carries no DERIVED marker at all -- text was rewritten and the "
+                       "guide does not say so" % (n_missing, n_total, src_page, stem),
+                       action="mark the passage per spec section 9d (the DERIVED comment plus "
+                              "the visible box, in BOTH language mirrors), or restore the "
+                              "source wording; if the text was deliberately dropped, record "
+                              "that in %s instead" % pmap_label)
+            diverged += 1
+        if unmapped:
+            # One row, not N: a missing page-map row is already a C3 DIVERGIERT
+            # per page, and repeating it here per page would bury C7's own rows.
+            f.unmechanisable("conservation", "C7", "%d source page(s) with lost prose and no "
+                             "page-map row" % len(unmapped),
+                             "no row of %s declares which target page replaced %s%s, so the "
+                             "page that would have to carry the marker is unknown"
+                             % (pmap_label, ", ".join(unmapped[:3]),
+                                " …" if len(unmapped) > 3 else ""),
+                             "map those pages (C3 reports the same rows), then re-run")
+        for src_page in c4.get("unjudged") or []:
+            f.unmechanisable("conservation", "C7", src_page,
+                             "C4 could not tell this page's prose from its embedded element-tree "
+                             "rendering, so whether anything was rewritten here is not measured",
+                             "read the page against its target (the same human action C4 asks "
+                             "for) and mark whatever the migration wrote per spec section 9d")
+
+    # clean -- one row, naming what was actually verified.
+    if not diverged:
+        checked = ["source= resolves to a page-map row or the literal `none`"] \
+            if page_map is not None else []
+        if bilingual:
+            checked.append("both language mirrors carry it (%s)"
+                           % ", ".join(sorted(_slot_label(s) for s in
+                                              {DEFAULT_SLOT} | mirror_langs)))
+        if c4.get("ran") and page_map is not None:
+            checked.append("every target page that replaced lost source prose carries one")
+        f.ok("conservation", "C7", "%d derived-content marker(s)" % len(rows),
+             "%s (%s). The markers are review items, not defects: they are queue 2 rows and "
+             "the module must not be published while they remain (spec section 9d)."
+             % ("; ".join(checked) if checked else "read from the ledger", tsv))
 
 
 GENERATED_ROW = re.compile(r"^\s*\|")
@@ -2544,6 +2818,15 @@ def build_context(a):
 
     ctx["page_map"] = _page_map(a.page_map)
 
+    # The DERIVED-marker ledger, and the language mirrors a marker has to appear
+    # in. The mirrors are read from the TREE (`input/translations/<lang>/`), never
+    # from a language code guessed for the default pages -- see DEFAULT_SLOT.
+    ctx["derived_rows"] = _derived_rows(a.derived_tsv)
+    ctx["mirror_langs"] = set(
+        os.path.basename(d)
+        for d in glob.glob(os.path.join(target, "input", "translations", "*"))
+        if os.path.isdir(d))
+
     # The log, and the values other layers read out of it.
     ctx["log"] = parse_log(a.log)
     ctx["log_values"] = _log_values(ctx["log"])
@@ -2637,6 +2920,31 @@ def _page_map(path):
         reason = cols[2].strip() if len(cols) > 2 else ""
         out[src] = (tgt, reason)
     return out
+
+
+def _derived_rows(path):
+    """migration-log/derived-content.tsv -> [{page, lang, kind, source, gate, line,
+    excerpt}], or None when the ledger does not exist.
+
+    None and [] are different answers and C7 treats them as such: no ledger means
+    "nobody scanned", which is NICHT PRUEFBAR; an empty ledger means "scanned, no
+    marker found", which is a measurement.
+    """
+    txt = read_text(path)
+    if txt is None:
+        return None
+    rows = []
+    for line in txt.splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        cols = [c.strip() for c in line.split("\t")]
+        if cols[0] in ("page", "source_page"):
+            continue                          # the header row, written or not
+        row = dict(zip(DERIVED_COLUMNS, cols))
+        for col in DERIVED_COLUMNS:
+            row.setdefault(col, "")
+        rows.append(row)
+    return rows
 
 
 def _log_values(entries):
@@ -2774,6 +3082,7 @@ def main(argv):
     p.add_argument("--harvest-dir", dest="harvest_dir")
     p.add_argument("--source-html", dest="source_html")
     p.add_argument("--page-map", dest="page_map")
+    p.add_argument("--derived-tsv", dest="derived_tsv")
     p.add_argument("--source-lang", dest="source_lang", default="de")
     p.add_argument("--template-latest", dest="template_latest")
     p.add_argument("--publisher-pin", dest="publisher_pin")
@@ -2803,6 +3112,7 @@ def main(argv):
     a.harvest_dir = a.harvest_dir or os.path.join(logdir, "guide-harvest", "pagecontent")
     a.source_html = a.source_html or os.path.join(logdir, "guide-harvest", "html")
     a.page_map = a.page_map or os.path.join(logdir, "page-map.tsv")
+    a.derived_tsv = a.derived_tsv or os.path.join(logdir, "derived-content.tsv")
     a.findings = a.findings or os.path.join(logdir, "verification-findings.tsv")
     a.markdown = a.markdown or os.path.join(logdir, "verification.md")
 
