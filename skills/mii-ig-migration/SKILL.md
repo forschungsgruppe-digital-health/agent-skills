@@ -294,7 +294,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    exists; an agreed page owns it → merge; only cross-cutting narrative becomes a page — a **hub** (≤250 words, one line
    per child) at ≥3 children, with a menu entry only inside the budget (≤33 entries, ≤10 per dropdown, top level ≤8,
    depth ≤2), else `pages:`-nested and linked. **Size gate:** >2500 words, >4 merged sources or ANY repeated heading re-runs
-   it (PROs shipped a 6214-word host, 13 colliding anchors). Log `5.4c page-routing` per page; `page-structure-advice.py` proposes.
+   it (PROs shipped a 6214-word host, 13 colliding anchors). Log `5.4c page-routing` per page; `page-structure-advice.py` proposes, from the source's `pages:` block or its guide tree.
    **Text you WRITE (overviews, hub one-liners, bridges) is DERIVED — mark it per §9d** so it renders as a review box;
    run `5.4d derived-scan` (writes `migration-log/derived-content.tsv`, which C7 reads and ② is generated from); moved or
    split content is never marked. §9 records the reference module's use-case gap: report it, never fill it.
