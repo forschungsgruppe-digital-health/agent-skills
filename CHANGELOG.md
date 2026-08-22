@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.20.0...v0.20.1) (2026-08-22)
+
+
+### Fixes
+
+* leave publication to the human gate rather than refusing it ([#85](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/85)) ([da0806b](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/da0806b0d35c46f3ac778241d71a281d8004a9f8))
+
 ## [0.20.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.19.0...v0.20.0) (2026-08-22)
 
 
