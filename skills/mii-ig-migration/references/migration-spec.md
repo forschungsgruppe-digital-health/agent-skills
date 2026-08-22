@@ -1991,6 +1991,131 @@ The report's L0 box quotes the pre-flight numbers (artifact counts, page count, 
 special-url prediction, licence state) — the human's scope picture BEFORE any Gate work starts.
 A pre-flight that could not run is a WARN in the log and a ① item, never silently skipped.
 
+## 9d. Derived content is marked IN the guide, not only in the report
+
+**A migration does not only carry text; it writes some. The text it WROTE is marked where it
+renders**, so a Gate B/C reviewer meets it in place instead of only in a report they read once.
+Measured on the PROs try-run: the report described five machine-translated pages while the tree
+carried eight `TODO:REVIEW` hits in seven files — report and tree disagreed because nothing tied
+them together.
+
+**The marker shape**, in `input/pagecontent/*.md` and `input/intro-notes/*.md`:
+
+```text
+<!-- DERIVED:<kind> source=<source-page|none> gate=<A|B|C> -->
+> **Written during migration - review before release.** <the text>
+{: .ig-highlight .ig-highlight-blue}
+```
+
+The HTML comment is the machine-readable half; the blockquote plus the attribute line render the
+visible box. `.ig-highlight` and `.ig-highlight-blue` already exist in the ig-template (§9a — `ig-*`
+is the current spelling, `mii-*` the deprecated alias), so this styles nothing new.
+
+**The kinds are a CLOSED set, and every one of them describes text the migration wrote:**
+
+| `kind` | Marks | Gate it usually routes to |
+| --- | --- | --- |
+| `summary` | condensed or reworded from one or more source passages | B |
+| `bridge` | connective/intro text written to join merged sections | B |
+| `suggestion` | content proposed where the source had none — the §9b CapabilityStatement is the standing example | A |
+| `stand-in` | an invented value pending confirmation: approval date, contact, topic code | A |
+| `no-source` | a default-language page produced where the source ships no counterpart | C |
+
+`source=` names the source page exactly as `migration-log/page-map.tsv` names it, or the literal
+`none` for `suggestion` and `stand-in`, which by definition have none. `gate=` routes the item to
+the human who owns it — **A** identity and values, **B** narrative, **C** language — and the gate
+follows the ITEM, not the kind: a `summary` whose only open question is its English wording is a C.
+
+**What is NEVER marked, and why.** Verbatim carry-over, MOVED content, SPLIT content (the same words
+in a new location, §9a) and the routine per-language mirror carry no marker. None of them is written
+content; they are conserved content, and C4/C6 already prove where they landed (§11.2). The reason
+to be strict here is **box fatigue**: mark the mirror and every page in both trees opens with a box,
+at which point the boxes stop being read and the five kinds above lose the only property that makes
+them worth having. A marker on everything marks nothing.
+
+**Bilingual rule.** A marker exists in BOTH language mirrors of the same page, with the same `kind`
+and the same `source=` — identical semantics to the template's M11 rule for `ILLUSTRATIVE-EXAMPLE`
+(§9a). A box that appears in `en/` and not in `de/` tells the two reviewers different things about
+the same paragraph.
+
+**Release rule.** A module is not published while markers remain: each is confirmed (box and comment
+deleted) or its text is rewritten. The skill enforces this at verification; the module template's own
+release check is a second, independent gate and is out of scope here.
+
+**The machine artefact.** `migration-log/derived-content.tsv`, one row per marker, header:
+
+```text
+page	lang	kind	source	gate	line	excerpt
+```
+
+`excerpt` is the first 120 characters of the marked block with tabs and newlines collapsed to single
+spaces — enough for a reviewer to recognise the paragraph in a list without opening the file. Rows
+are written as the markers are written, during step 5, never reconstructed at the end.
+
+**Report queue ② is GENERATED from that file.** This is §10.6's rule — the report is produced from
+the record, not from recollection — extended from the log to the tree: the review queue's
+derived-content groups come from `derived-content.tsv`, and a queue entry with no row behind it is a
+defect in the report. One artefact, two consumers, no memory in between is exactly what the PROs
+discrepancy above lacked. The typed marker and `TODO:REVIEW` coexist and answer different questions
+— `TODO:REVIEW` says a human must look here, `DERIVED:` says these words were written by the
+migration and names what kind — and one block may legitimately carry both.
+
+## 9e. Page routing and presentation (where content goes, and what the host looks like)
+
+**Where a source page's content goes is decided per source page during step 5, BEFORE any of it is
+written — and it is measured, not judged.** Measured on the PROs try-run, routing by judgement
+produced `researcher-guidance.html` at **6214 words across 147 headings** (58 `h3`, 84 `h4`, zero
+`h2`), four heading titles repeated on the same page, and 13 numeric-suffix anchors of the
+`#overview-2` kind. The anchors are the part that does not merely read badly: the publisher numbers
+them by order of appearance, so adding one sibling section renumbers every later anchor, and the
+German mirror renumbers independently — the two languages' deep links cannot be kept in
+correspondence at all.
+
+**The routing rule.** Apply in order; the first branch that matches wins:
+
+1. Content about ONE artefact (one questionnaire, profile, extension, operation) →
+   `input/intro-notes/<Type>-<id>-intro.md` plus its per-language mirror (§9's per-profile row).
+   **No page, no menu entry, no `pages:` row, no `.po` unit** — and this holds regardless of how
+   large the family is.
+2. A family or group overview → an `h3`/`h4` section on an artefact index page that ALREADY exists
+   in the agreed menu (`profiles.md`, `logical-models.md`, …). No new page.
+3. An agreed page already owns the concern (`uml-diagrams`, `logical-models`, `changes`, `index`,
+   `security-and-privacy`) → merge into it, subject to the size gate in 5.
+4. Cross-cutting narrative → it becomes a page. Then TWO further decisions:
+   - **4a Presentation.** A host page with **3 or more children** becomes a **hub** — a short index,
+     one line per child, **at most 250 words** — rather than a merged prose page.
+   - **4b Visibility.** Add a menu entry only if ALL of these hold after the addition: total menu
+     entries **≤ 33**; the target dropdown ends with **≤ 10** children; the top level stays **≤ 8**;
+     menu depth stays **≤ 2**. Otherwise the page is `pages:`-nested under its host and linked from
+     it — ToC and breadcrumbs still reach it, and the menu does not grow.
+5. **Size gate on any host page.** More than **2500 words**, or more than **4** merged sources, or
+   **ANY** repeated heading title → re-run the routing preferring branches 1 and 2, or split. Three
+   countable numbers; none of them is a matter of taste.
+
+**Where the menu numbers come from.** Surveyed across published IGs: MII Basis 26, Genomics
+Reporting 26, SDC 31, US Core 33, mCODE 33, `ig-guidance` 35 entries — 33 is the top of the range
+real readers navigate, not an invented ceiling. And **every IG-Publisher IG surveyed caps menu depth
+at 2**: the module template supports ONE sub-menu level and Bootstrap 3 renders no third, so a third
+level is not a crowded menu, it is an unreachable page (the C5 defect, §11.2).
+
+**Every decision is logged, one line per source page** (§10.2 format, alongside §9a's `5.4a` and
+`5.4b`):
+
+```text
+5.4c  page-routing  source=<source page> branch=<1|2|3|4|5> target=<path> measure=<what forced it>
+```
+
+For branch 4 the line also carries `presentation=<hub|prose>` and `visibility=<menu|nested>`, the two
+decisions 4a and 4b. The `measure=` token is not optional: "chose branch 2" is an assertion,
+`words=2731 gate=2500` is a decision a reviewer can check. **Where the menu budget forced
+ToC-nesting instead of a menu entry, that is also a ① queue item** — the budget is a default, and a
+human may decide to spend it differently.
+
+**Interlock with §9d.** Branches 2 and 4a make the migration WRITE text — family overviews, hub
+one-liners, the bridges between merged sections — so every such block carries a `DERIVED:` marker
+(`summary` or `bridge`) and a row in `derived-content.tsv`. Content merely MOVED or SPLIT carries
+none: routing decides where words go, §9d marks only the words the migration added.
+
 ## 9b. The CapabilityStatement: absence, suggestion, and inline rendering
 
 Measured across five try-runs (2026-08-20): sources ship CapabilityStatements inconsistently —
