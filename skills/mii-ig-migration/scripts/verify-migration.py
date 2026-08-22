@@ -1581,8 +1581,8 @@ def check_derived(f, a, ctx):
         if c4.get("ran") and page_map is not None:
             checked.append("every target page that replaced lost source prose carries one")
         f.ok("conservation", "C7", "%d derived-content marker(s)" % len(rows),
-             "%s (%s). The markers are review items, not defects: they are queue 2 rows and "
-             "the module must not be published while they remain (spec section 9d)."
+             "%s (%s). The markers are review items, not defects: they are queue 2 rows, and "
+             "whether any may remain at publication is a Gate-D decision (spec section 9d)."
              % ("; ".join(checked) if checked else "read from the ledger", tsv))
 
 

@@ -60,11 +60,11 @@ marked is being told, by the page, that the text is sourced. It is not. That
 class of defect is invisible to every check that reads one language at a time,
 so the twin comparison below reads them together.
 
-THE RELEASE RULE. A module must not be published while markers remain -- a marker
-is an open review item by definition, and the box says so in the page. Enforcing
-it at the module template's release check is a SECOND gate and is out of scope
-for this script; what this script owns is the verification-time question, "are
-the markers that exist well-formed, visible, and mirrored".
+PUBLICATION IS A HUMAN DECISION. A marker is an open review item, not a defect,
+and this script never refuses anything on account of one: whether markers may
+remain at publication is decided by a human at Gate D and recorded in the report.
+What this script owns is the narrower, checkable question -- "are the markers
+that exist well-formed, visible, and mirrored".
 
 WHAT IT REPORTS AS A FINDING (each one exits non-zero -- a check that cannot fail
 is decoration):
@@ -540,8 +540,9 @@ def markdown_block(markers, findings):
     out.append("## Queue ② — derived content written during the migration")
     out.append("")
     out.append("Text the migration WROTE, not carried. Each row renders as a highlighted "
-               "box on the page named, and **the module must not be published while any "
-               "marker remains** — clearing the row means deleting the marker and its box.")
+               "box on the page named. Clearing a row means deleting the marker and its box; "
+               "**whether any may remain at publication is a Gate-D decision**, recorded in "
+               "the report — nothing here blocks a release by itself.")
     out.append("")
     if findings:
         out.append("> **%d marker finding(s) are open** (malformed, missing box, or missing "
