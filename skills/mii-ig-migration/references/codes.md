@@ -75,6 +75,7 @@ column beside every one of these, and `migration-log/verification.md` carries th
 | **P2** | the vendored template ref matches what the run log recorded |
 | **P3** | the IG Publisher version matches the workflow pin |
 | **P4** | the source guide was pinned to a published version, not "current" |
+| **P5** | `ig.ini` points at the IG resource the build actually writes — SUSHI names it from the sushi-config `id`, so a path derived from the repository slug names a file that never exists |
 | **R1** | tables, tabs and images render with content, not empty |
 | **R2** | page header and footer metadata render correctly |
 | **R3** | a translated page really differs from the default language |
@@ -113,3 +114,10 @@ Content merely **moved** or **split** is never marked — only text that did not
 The first field of a run-log line. They follow the specification's section numbers, so `5.4c` is the step
 described in spec §5.4c. The full list of steps a run is expected to emit — and therefore the list whose
 absence check **L2** reports — is [`references/expected-steps.tsv`](expected-steps.tsv).
+
+**page-map v2 columns.** `migration-log/page-map.tsv` — the contract the narrative migration binds to:
+GENERATED and coverage-validated at step 3 by `page-structure-advice.py --map` (the `5.4c page-routing`
+run), human-reviewed, consumed by step 5, checked by C3/C6 at step 8 — carries
+`source_page` · `target` (or `RETIRED`) · `reason` · `branch` (the spec-§9e routing branch, 1–5) ·
+`measure` (the measurement that forced the branch). Backward compatible: a v1 parser (the verifier
+included) reads the first three columns and ignores the rest.

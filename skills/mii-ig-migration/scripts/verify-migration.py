@@ -123,6 +123,16 @@ Usage:
                           (default: de) -- the text-run check compares against
                           the target pages in THAT language, because the other
                           language is a translation and would never match.
+    --source-guide-tree D directory name under <source>/implementation-guides/
+                          to treat as the AUTHORITATIVE guide tree. Without it
+                          the tree is chosen by the same rule the advice script
+                          applies: highest version substring in the directory
+                          name among the trees in the source language,
+                          guide.yaml `version:` as the tiebreak. The source
+                          page set for the conservation checks is the UNION of
+                          the harvested Markdown, the source's own
+                          input/pagecontent, and that tree -- one stub page
+                          must never suppress a 149-page guide tree.
     --template-latest V   the module template's latest RELEASE tag, e.g. v0.10.3.
                           Absent -> P2 is NICHT PRUEFBAR, never a pass.
     --publisher-pin V     the IG Publisher version pinned in the target's build
@@ -204,6 +214,7 @@ CHECK_TITLES = {
     "P2": "the vendored template ref matches what the run log recorded",
     "P3": "the IG Publisher version matches the workflow pin",
     "P4": "the source guide was pinned to a published version, not 'current'",
+    "P5": "ig.ini points at the IG resource the build actually writes",
     "R1": "tables, tabs and images render with content, not empty",
     "R2": "page header and footer metadata render correctly",
     "R3": "a translated page really differs from the default language",
@@ -1647,6 +1658,64 @@ def split_runs(text, run_length=40):
     return out, tabular
 
 
+# Raw Simplifier `*.page.md` machinery that is NOT narrative and never survives
+# a migration verbatim -- the harvested Markdown never carries any of it,
+# because guide-page-to-md.py works from the RENDERED page; only files read RAW
+# from a guide tree need this. Measured on Onkologie (2026-08-23), where
+# leaving it in reported ALL 150 tree pages as lost narrative:
+#   * the YAML front matter (parent:/topic:/subject:) and `{{page-title}}`-
+#     style render placeholders, glued into the first text run of every page;
+#   * @```…``` render directives (FQL queries the renderer executes in place)
+#     and fenced code blocks -- a rendered view and code samples, not prose
+#     (the same distinction strip_generated_rows draws for table rows);
+#   * <tabs>/<tab> markup, the container of the embedded profile view;
+#   * the per-search-parameter boilerplate sentence the Simplifier profile
+#     template repeats with only the element name varying (6x per profile
+#     page, 193x across the tree) -- migration condenses it into the
+#     publisher-rendered search-parameter list BY DESIGN, and a conservation
+#     check on template boilerplate would measure the template, not the page.
+# Two further classes are structure, not prose, and go with them: heading
+# lines (the template re-heads routed content BY DESIGN, and a heading carries
+# no sentence punctuation, so the splitter glues it to the page's first
+# sentence -- the sentence then reports as lost when only the HEADING moved)
+# and inline HTML tags (<img>/<div>/<br> rendering markup).
+_PAGE_FRONT_MATTER = re.compile(r"\A\s*---[ \t]*\n.*?\n---[ \t]*\n?", re.S)
+_PAGE_RENDER_FENCE = re.compile(r"@?```.*?```", re.S)
+_PAGE_PLACEHOLDER = re.compile(r"\{\{[^{}]*\}\}")
+_PAGE_TAB_MARKUP = re.compile(r"</?tabs?\b[^>]*>")
+_PAGE_HEADING_LINE = re.compile(r"^#{1,6}[^\n]*$", re.M)
+_PAGE_HTML_TAG = re.compile(r"<[^<>\n]{0,200}>")
+_PAGE_SEARCH_BOILERPLATE = re.compile(
+    r"Weitere Informationen zur Suche nach [^\n]{0,120}?FHIR-Basisspezifikation[^\n]*")
+# The intentionally-blank stub is a PLACEHOLDER, not narrative (Onkologie
+# repeats it on 22 chapter-Index pages). Stripping it routes such pages into
+# C4's existing "the source page carries NO prose" branch -- which is the
+# truth of them -- instead of reporting the stub sentence as lost narrative
+# 22 times; a page that says only "nothing here" conserves nothing.
+_PAGE_BLANK_STUB = re.compile(
+    r"Diese Seite wurde absichtlich leer gelassen\.?|"
+    r"This page (?:was |is )?intentionally left (?:blank|empty)\.?", re.I)
+
+# The raw form of the EMBEDDED PROFILE VIEW. A harvested profile page carries
+# the rendered element tree and C4 sends it to the "prose and rendered view
+# cannot be told apart" branch via ELEMENT_TREE_MARK; the same page read RAW
+# from the tree carries the <tabs>/<tab> container that renders into exactly
+# that view. One page class, one verdict class -- otherwise the union would
+# change a page's verdict merely by which FORM of it was read.
+_PAGE_TAB_OPEN = re.compile(r"<tab\b")
+
+
+def _strip_simplifier_page(text):
+    text = _PAGE_FRONT_MATTER.sub(" ", text)
+    text = _PAGE_RENDER_FENCE.sub(" ", text)
+    text = _PAGE_TAB_MARKUP.sub(" ", text)
+    text = _PAGE_HEADING_LINE.sub(" ", text)
+    text = _PAGE_HTML_TAG.sub(" ", text)
+    text = _PAGE_SEARCH_BOILERPLATE.sub(" ", text)
+    text = _PAGE_BLANK_STUB.sub(" ", text)
+    return _PAGE_PLACEHOLDER.sub(" ", text)
+
+
 # --- layer 2: fidelity ------------------------------------------------------
 
 IDENTITY_FIELDS = ("id", "packageId", "canonical", "version", "status", "title",
@@ -1913,6 +1982,49 @@ def layer_fidelity(f, a, ctx):
                              "confirm the value at Gate A. The template's literal CC-BY-4.0 "
                              "reaches here unflagged otherwise")
 
+    # F3, the LICENSE FILE. The scalar comparison above cannot see the second
+    # copy of the licence every repo carries: the template ships a full
+    # CC-BY-4.0 LICENSE file, and a module that correctly asserts CC0-1.0 in
+    # sushi-config still hands every visitor the WRONG licence text -- measured
+    # on both try-run targets (declared CC0-1.0, file "Attribution 4.0
+    # International"). The file's first lines name the licence in a fixed,
+    # recognizable header, so the two copies are reconciled mechanically.
+    lic_text = read_text(os.path.join(ctx["target"], "LICENSE"))
+    if lic_text is None:
+        f.ok("fidelity", "F3", "LICENSE file",
+             "no LICENSE file in the target -- nothing contradicts the declared "
+             "scalar (%s)" % (tlic or "none"))
+    else:
+        head = " ".join(lic_text.splitlines()[:5]).lower()
+        recognized = matched = None
+        for marker, spdx in (("attribution 4.0 international", "CC-BY-4.0"),
+                             ("cc0 1.0 universal", "CC0-1.0"),
+                             ("creative commons zero", "CC0-1.0"),
+                             ("apache license", "Apache-2.0"),
+                             ("mit license", "MIT")):
+            if marker in head:
+                recognized, matched = spdx, marker
+                break
+        if recognized is None:
+            f.unmechanisable("fidelity", "F3", "LICENSE file",
+                             "the file exists but its first lines match no known licence "
+                             "header (%s)" % _snip(" ".join(lic_text.splitlines()[:5])),
+                             "read LICENSE and compare it to the declared %s by hand"
+                             % (tlic or "none"))
+        elif tlic and recognized == tlic:
+            f.ok("fidelity", "F3", "LICENSE file",
+                 "the file text is %s (header: %r), matching the declared scalar"
+                 % (recognized, matched))
+        else:
+            f.diverges("fidelity", "F3", "LICENSE file",
+                       "the file text is %s (header: %r) while the module declares %s -- "
+                       "two licences in one repository" % (recognized, matched,
+                                                           tlic or "NO licence"),
+                       action="align them: keep the licence the SOURCE asserts and replace "
+                              "the other copy (the template's CC-BY-4.0 LICENSE file "
+                              "surviving next to a CC0-1.0 module is the measured case). "
+                              "Gate A decides; never default")
+
     # F4 -- the two MECHANICAL goFSH residues, which are also the auto-fix
     # loop's only FSH-touching class.
     fsh_files = sorted(glob.glob(os.path.join(ctx["target"], "input", "fsh", "**", "*.fsh"),
@@ -2064,6 +2176,60 @@ def layer_provenance(f, a, ctx):
     else:
         f.ok("provenance", "P4", "source guide version",
              "pinned %s (%s)" % (pin_ver, pin_src))
+
+    # P5 -- ig.ini points at the IG resource the build actually writes. SUSHI
+    # derives its output file name from sushi-config `id`
+    # (fsh-generated/resources/ImplementationGuide-<id>.json); an ig.ini written
+    # from the repo SLUG instead (the id-vs-slug failure class) names a file
+    # SUSHI never writes, and the publisher dies with "unable to find the IG"
+    # after a green SUSHI run. Evidence order: the file ON DISK first; where
+    # SUSHI has not run in this checkout (no fsh-generated/resources at all),
+    # the name SUSHI will derive from `id` is the remaining reference.
+    ini_text = read_text(os.path.join(ctx["target"], "ig.ini"))
+    ini_match = re.search(r"^\s*ig\s*=\s*(\S+)", ini_text, re.M) if ini_text else None
+    tgt_id = (ctx["identity"][0] or {}).get("id")
+    if ini_text is None:
+        f.unmechanisable("provenance", "P5", "ig.ini",
+                         "no readable ig.ini in the target",
+                         "the publisher cannot run without one -- create it (spec 5.2) "
+                         "and point `ig =` at fsh-generated/resources/"
+                         "ImplementationGuide-<id>.json")
+    elif ini_match is None:
+        f.unmechanisable("provenance", "P5", "ig.ini",
+                         "ig.ini carries no `ig =` line",
+                         "add `ig = fsh-generated/resources/ImplementationGuide-<id>.json`")
+    else:
+        ig_rel = ini_match.group(1)
+        ig_path = os.path.join(ctx["target"], ig_rel)
+        expected = "ImplementationGuide-%s.json" % tgt_id if tgt_id else None
+        if os.path.isfile(ig_path):
+            f.ok("provenance", "P5", "ig.ini",
+                 "`ig = %s` exists in the target" % ig_rel)
+        elif os.path.isdir(os.path.dirname(ig_path)):
+            siblings = sorted(os.path.basename(x) for x in glob.glob(
+                os.path.join(os.path.dirname(ig_path), "ImplementationGuide-*.json")))
+            f.diverges("provenance", "P5", "ig.ini",
+                       "`ig = %s` does not exist; the build wrote %s"
+                       % (ig_rel, ", ".join(siblings) or "NO ImplementationGuide-*.json"),
+                       action="the id-vs-slug class: point ig.ini at ImplementationGuide-"
+                              "<sushi-config id>.json (%s), never at a name derived from "
+                              "the repo slug" % (expected or "id unreadable"))
+        elif expected and os.path.basename(ig_rel) == expected:
+            f.ok("provenance", "P5", "ig.ini",
+                 "`ig = %s` names the file SUSHI derives from sushi-config id `%s`; "
+                 "not built in this checkout (no fsh-generated/resources), so the "
+                 "id-derived name is the reference" % (ig_rel, tgt_id))
+        elif expected:
+            f.diverges("provenance", "P5", "ig.ini",
+                       "`ig = %s`, but SUSHI writes %s (from sushi-config id `%s`) -- "
+                       "the file will never exist" % (ig_rel, expected, tgt_id),
+                       action="the id-vs-slug class: point ig.ini at the id-derived name")
+        else:
+            f.unmechanisable("provenance", "P5", "ig.ini",
+                             "`ig = %s` does not exist, SUSHI has not run in this checkout, "
+                             "and sushi-config declares no `id` to derive the name from"
+                             % ig_rel,
+                             "run SUSHI (or declare `id`) and re-run verification")
 
 
 # --- layer 4: rendering integrity -------------------------------------------
@@ -2687,6 +2853,90 @@ def layer_log(f, a, ctx):
                  "artifacts.html lists %d for %d generated resources" % (listed, m))
 
 
+# --- the authoritative guide tree ------------------------------------------
+# The SAME selection rule page-structure-advice.py applies (spec 5.1a #1), so
+# the verifier measures conservation against the tree the advice step actually
+# routed: the highest version substring in the directory name among
+# implementation-guides/*/ whose language matches the source language, with
+# guide.yaml `version:` as the tiebreak, overridable via --source-guide-tree.
+# Two scripts choosing by two rules would verify a migration against a source
+# set the migration never saw.
+
+def _tree_version(name):
+    """The longest version-looking substring of a directory name
+    ('ImplementationGuide-2026.x-DE' -> '2026.x'; 'Common' -> '')."""
+    best = ""
+    for m in re.finditer(r"v?(\d+(?:\.[0-9xX]+)*)", name):
+        if len(m.group(1)) > len(best):
+            best = m.group(1)
+    return best
+
+
+def _tree_version_key(text):
+    """Sort key for a dotted version; an 'x' placeholder sorts below any
+    explicit number in the same position (2026.0.3 outranks 2026.x)."""
+    parts = []
+    for part in re.split(r"[.\-_]", text or ""):
+        if part:
+            parts.append((1, int(part)) if part.isdigit() else (0, 0))
+    return tuple(parts)
+
+
+def _choose_source_guide_tree(source, source_lang, override):
+    """(path, dirname) of the authoritative guide tree, or (None, None).
+
+    Only directories that HOLD `*.page.md` files compete: a styles/asset
+    directory outranking a 149-page tree on its name would be absurd. The
+    tree's language is read from guide.yaml's description tag ('[DE] ...')
+    first, the directory-name suffix ('...-DE') second -- the same order the
+    advice script uses.
+    """
+    if not source:
+        return None, None
+    root = os.path.join(source, "implementation-guides")
+    if not os.path.isdir(root):
+        return None, None
+    lang = (source_lang or "").split("-")[0].upper()
+    trees = []
+    for name in sorted(os.listdir(root)):
+        path = os.path.join(root, name)
+        if not os.path.isdir(path):
+            continue
+        pages = 0
+        for _dirpath, _dirnames, filenames in os.walk(path):
+            pages += sum(1 for x in filenames if x.endswith(".page.md"))
+        if not pages:
+            continue
+        fields = {}
+        for raw in (read_text(os.path.join(path, "guide.yaml")) or "").splitlines():
+            m = re.match(r"^(description|version)\s*:\s*(.+?)\s*$", raw)
+            if m:
+                value = m.group(2).strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+                    value = value[1:-1]
+                fields.setdefault(m.group(1), value)
+        tag = re.match(r"^\s*\[([A-Za-z]{2})\]", fields.get("description", ""))
+        suffix = re.search(r"[-_ ]([A-Za-z]{2})$", name)
+        trees.append({"name": name, "path": path,
+                      "lang": (tag.group(1) if tag else
+                               (suffix.group(1) if suffix else "")).upper(),
+                      "vname": _tree_version(name),
+                      "vyaml": fields.get("version", "")})
+    if not trees:
+        return None, None
+    if override:
+        wanted = override.strip().strip("/")
+        for t in trees:
+            if t["name"].lower() == wanted.lower():
+                return t["path"], t["name"]
+        # An override naming no page-holding tree falls through to the ranking
+        # (the advice script does the same), rather than silently picking it.
+    pool = [t for t in trees if lang and t["lang"] == lang] or trees
+    best = max(pool, key=lambda t: (_tree_version_key(t["vname"]),
+                                    _tree_version_key(t["vyaml"]), t["name"]))
+    return best["path"], best["name"]
+
+
 # --- context assembly -------------------------------------------------------
 
 def build_context(a):
@@ -2757,12 +3007,22 @@ def build_context(a):
         glob.glob(os.path.join(target, "input", "intro-notes", "*.md"))
         + glob.glob(os.path.join(target, "input", "translations", a.source_lang,
                                  "intro-notes", "*.md")))
-    ctx["target_corpus"] = "\n".join(read_text(p) or "" for p in corpus_files)
+    # HTML comments are stripped from the corpus EXACTLY as split_runs strips
+    # them from the source side: the migration writes `<!-- source: … -->`
+    # provenance stamps between a heading and its paragraph, and a source run
+    # that spans that boundary (headings carry no sentence punctuation, so the
+    # splitter glues them to the next sentence) then never matches -- measured
+    # on Onkologie 2026-08-23: the stamp alone turned ~90 conserved pages into
+    # C4 divergences. Comments are invisible in the rendered page; comparing
+    # against them compares against nothing a reader sees.
+    ctx["target_corpus"] = "\n".join(
+        re.sub(r"(?s)<!--.*?-->", " ", read_text(p) or "") for p in corpus_files)
     # The SAME corpus, kept per page. C6 needs to know which page a text run
     # landed on; C4 only needs to know that it landed somewhere, and a single
     # concatenated string cannot answer the first question.
     ctx["target_page_texts"] = {
-        os.path.basename(p)[:-3]: (read_text(p) or "") for p in corpus_files}
+        os.path.basename(p)[:-3]: re.sub(r"(?s)<!--.*?-->", " ", read_text(p) or "")
+        for p in corpus_files}
 
     # Menus, the template's own page set, and the languages that have pages.
     ctx["menus"] = read_menus(target)
@@ -2774,8 +3034,18 @@ def build_context(a):
         for d in glob.glob(os.path.join(target, "input", "translations", "*", "pagecontent")))
     ctx["generated_page_stems"] = set(k.replace("/", "-") for k in ctx["generated"])
 
-    # Source pages + their text runs: the harvest manifest first, the source
-    # tree second.
+    # Source pages + their text runs. The page set is the UNION of every
+    # narrative home the source has -- the harvested Markdown, the source's own
+    # input/pagecontent, and the AUTHORITATIVE guide tree -- never a fallback
+    # chain: the old elif let ONE SUSHI stub in input/pagecontent suppress a
+    # 149-page guide tree, and the whole C layer then verified conservation of
+    # nothing (measured on Onkologie, 2026-08-23: a 1-page source set beside a
+    # 149-page tree). De-duplicated by basename ACROSS the homes -- a page
+    # harvested to disk and sitting in the tree is ONE page -- while same-named
+    # pages WITHIN the tree (Onkologie holds 25 Index.page.md) stay distinct,
+    # keyed by their parent directory. Non-authoritative trees (parallel
+    # languages, historical versions) are NOT in the union: their content is
+    # translation seed / retained history, not conservation reference (5.1a).
     ctx["harvest_rows"] = _harvest_rows(a.harvest_tsv)
     pages, pages_src, runs = [], None, None
     if ctx["harvest_rows"]:
@@ -2792,25 +3062,85 @@ def build_context(a):
                           "stem": stem or slug, "url": r.get("url", "")})
         pages_src = os.path.relpath(a.harvest_tsv, target) \
             if a.harvest_tsv.startswith(target) else a.harvest_tsv
-    src_md = sorted(glob.glob(os.path.join(a.harvest_dir, "*.md"))) if a.harvest_dir else []
-    if not src_md and a.source:
-        src_md = sorted(glob.glob(os.path.join(a.source, "input", "pagecontent", "*.md"))) \
-            or sorted(glob.glob(os.path.join(a.source, "implementation-guides", "**", "*.md"),
-                                recursive=True))
-    if src_md:
+
+    harvest_files = sorted(glob.glob(os.path.join(a.harvest_dir, "*.md"))) \
+        if a.harvest_dir else []
+    pagecontent_files, tree_files = [], []
+    tree_root = getattr(a, "guide_tree_path", None)
+    if a.source:
+        pagecontent_files = sorted(glob.glob(
+            os.path.join(a.source, "input", "pagecontent", "*.md")))
+        if tree_root:
+            tree_files = sorted(glob.glob(os.path.join(tree_root, "**", "*.page.md"),
+                                          recursive=True))
+        elif not harvest_files and not pagecontent_files:
+            # No authoritative tree and no other home: exactly the old last
+            # resort, so a source without guide trees behaves as before.
+            tree_root = os.path.join(a.source, "implementation-guides")
+            tree_files = sorted(glob.glob(os.path.join(tree_root, "**", "*.md"),
+                                          recursive=True))
+
+    entries, seen = [], set()          # (key, path, aliases, stem)
+    for p in harvest_files + pagecontent_files:
+        base = os.path.basename(p)
+        if base in seen:
+            continue                   # the harvested copy stands for both
+        seen.add(base)
+        entries.append((base, p, [base, base[:-3]], base[:-3]))
+    tree_kept = [p for p in tree_files if os.path.basename(p) not in seen]
+    base_count = {}
+    for p in tree_kept:
+        base_count[os.path.basename(p)] = base_count.get(os.path.basename(p), 0) + 1
+    used_keys = set(k for (k, _p, _al, _st) in entries)
+    for p in tree_kept:
+        base = os.path.basename(p)
+        rel = os.path.relpath(p, tree_root).replace(os.sep, "/")
+        qualified = "/".join(rel.split("/")[-2:])
+        key = base if base_count[base] == 1 else qualified
+        if key in used_keys:
+            key = rel                  # two same-named parents: the full path
+        used_keys.add(key)
+        stem = base[:-len(".page.md")] if base.endswith(".page.md") else base[:-3]
+        aliases = []
+        for x in (key, base, base[:-3], stem, qualified, rel):
+            if x and x not in aliases:
+                aliases.append(x)
+        entries.append((key, p, aliases, stem))
+
+    src_md = [p for (_k, p, _al, _st) in entries]
+    if entries:
         runs, tabular, etrees = {}, {}, {}
-        for p in src_md:
+        for key, p, _aliases, _stem in entries:
             raw = read_text(p) or ""
+            marks = raw.count(ELEMENT_TREE_MARK)
+            if p.endswith(".page.md"):
+                # The raw form of the embedded profile view counts into the
+                # SAME marker channel the harvested form uses -- see
+                # _PAGE_TAB_OPEN: one page class, one C4 verdict class.
+                marks += len(_PAGE_TAB_OPEN.findall(raw))
+                raw = _strip_simplifier_page(raw)
             prose, rows = split_runs(raw)
-            runs[os.path.basename(p)] = prose
-            tabular[os.path.basename(p)] = rows
-            etrees[os.path.basename(p)] = raw.count(ELEMENT_TREE_MARK)
+            runs[key] = prose
+            tabular[key] = rows
+            etrees[key] = marks
         ctx_tabular, ctx_etrees = tabular, etrees
-        if not pages:
-            pages = [{"key": os.path.basename(p),
-                      "aliases": [os.path.basename(p), os.path.basename(p)[:-3]],
-                      "stem": os.path.basename(p)[:-3], "url": ""} for p in src_md]
-            pages_src = a.harvest_dir if a.harvest_dir else "source pagecontent"
+        known = set()
+        for pg in pages:
+            known.update(pg["aliases"])
+        for key, _p, aliases, stem in entries:
+            if any(x in known for x in aliases):
+                continue               # the manifest's entry stands for it
+            pages.append({"key": key, "aliases": aliases, "stem": stem, "url": ""})
+        homes = []
+        if harvest_files:
+            homes.append(label_path(a.harvest_dir, target))
+        if pagecontent_files:
+            homes.append("source input/pagecontent")
+        if tree_files:
+            homes.append("guide tree %s"
+                         % (getattr(a, "guide_tree_name", None) or "implementation-guides"))
+        union_label = " + ".join(homes)
+        pages_src = "%s + %s" % (pages_src, union_label) if pages_src else union_label
     ctx["source_pages"] = (pages, pages_src)
     ctx["source_runs"] = runs
     ctx["source_tabular"] = locals().get("ctx_tabular") or {}
@@ -3084,6 +3414,10 @@ def main(argv):
     p.add_argument("--page-map", dest="page_map")
     p.add_argument("--derived-tsv", dest="derived_tsv")
     p.add_argument("--source-lang", dest="source_lang", default="de")
+    p.add_argument("--source-guide-tree", dest="source_guide_tree",
+                   help="directory name under <source>/implementation-guides/ to "
+                        "treat as the authoritative guide tree (overrides the "
+                        "highest-version-in-source-language ranking)")
     p.add_argument("--template-latest", dest="template_latest")
     p.add_argument("--publisher-pin", dest="publisher_pin")
     p.add_argument("--expected-steps", dest="expected_steps",
@@ -3123,9 +3457,15 @@ def main(argv):
             % (",".join(unknown), ",".join(LAYERS)))
         return 2
 
-    log("INFO", "%s  target=%s source=%s rendered=%s log=%s layers=%s"
-        % (OPEN_WORD, a.target, a.source or "-", a.rendered or "<target>/output",
-           a.log, ",".join(selected)))
+    # The authoritative guide tree, chosen by the SAME rule as the advice
+    # script and named in the start line: the union source set is only
+    # reviewable when the run says which tree it measured against.
+    a.guide_tree_path, a.guide_tree_name = _choose_source_guide_tree(
+        a.source, a.source_lang, a.source_guide_tree)
+
+    log("INFO", "%s  target=%s source=%s guide_tree=%s rendered=%s log=%s layers=%s"
+        % (OPEN_WORD, a.target, a.source or "-", a.guide_tree_name or "-",
+           a.rendered or "<target>/output", a.log, ",".join(selected)))
 
     ctx = build_context(a)
     f = Findings()
