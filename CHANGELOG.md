@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.20.2...v0.21.0) (2026-08-23)
+
+
+### Skills and capabilities
+
+* the page map is the contract — generated, validated, consumed, checked ([#89](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/89)) ([fcf2874](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/fcf2874ed16fc93e29375af3887ea0de1be90416))
+
 ## [0.20.2](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.20.1...v0.20.2) (2026-08-22)
 
 
