@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.21.0...v0.22.0) (2026-08-23)
+
+
+### Skills and capabilities
+
+* the harvested guide enters the page-map contract ([#91](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/91)) ([e2b8c55](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/e2b8c557d18c36d35197f2062f71d95f03acb418))
+
 ## [0.21.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.20.2...v0.21.0) (2026-08-23)
 
 
