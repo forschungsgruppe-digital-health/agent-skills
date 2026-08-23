@@ -64,9 +64,11 @@
 #     and re-running it next month silently harvests a different guide, so an
 #     omitted version is a WARN.
 #   * WHERE THE PAGES BELONG. It writes to `--out`, which has NO DEFAULT. The
-#     harvested tree is step 5's INPUT, not the template's page set: the template
-#     has a fixed page set and an extra page is an orphan the menu cannot reach
-#     (SKILL.md step 5, spec §9). A German guide's pages are the TRANSLATION
+#     harvested tree is INPUT to the page-map contract, not the template's page
+#     set: the `5.4c page-routing` advice run reads this manifest and GENERATES
+#     the harvested pages' map rows, and step 5 consumes only the reviewed map
+#     (spec §9/§9f) — the template has a fixed page set and an extra page is an
+#     orphan the menu cannot reach. A German guide's pages are the TRANSLATION
 #     under the English default (SKILL.md *Language*), which is also a step-5
 #     decision and not this script's.
 #
@@ -142,9 +144,10 @@ done
 [ -n "$GUIDE_URL" ] || { printf 'guide-harvest: --guide-url URL is required  exit=2\n' >&2; exit 2; }
 [ -n "$OUT" ] || {
   printf 'guide-harvest: --out DIR is required and has no default.  exit=2\n' >&2
-  printf '  The harvested tree is step 5 INPUT, not the template page set: the\n' >&2
-  printf '  template page set is fixed and an extra page is an unreachable orphan\n' >&2
-  printf '  (spec 9). Name the directory deliberately, e.g.\n' >&2
+  printf '  The harvested tree is INPUT to the page-map contract (the 5.4c advice\n' >&2
+  printf '  run routes it; step 5 consumes only the reviewed map, spec 9/9f): the\n' >&2
+  printf '  template page set is fixed and an extra page is an unreachable orphan.\n' >&2
+  printf '  Name the directory deliberately, e.g.\n' >&2
   printf '  migration-log/guide-harvest/pagecontent.\n' >&2
   exit 2; }
 [ -f "$PY" ] || { printf 'guide-harvest: %s is missing  exit=2\n' "$PY" >&2; exit 2; }
@@ -310,8 +313,9 @@ N_ASSETS=$(grep -c . "$ASSETS" 2>/dev/null | tr -d ' ')
 log_info "$STEP" "$ACTION" \
   "harvest complete  discovered=$N_DISC harvested=$N_OK skipped=$N_SKIP short=$N_SHORT artefact_views=$N_ART assets=${N_ASSETS:-0} out=$OUT" \
   "Next: verify the harvested set against the published package's artefact list" \
-  "(package-identity.sh, spec 2.1.1), then map the pages onto the template's" \
-  "FIXED page set (spec 9) -- never one new page per harvested page." \
+  "(package-identity.sh, spec 2.1.1), then let the 5.4c advice run GENERATE the" \
+  "map rows from this manifest (page-structure-advice.py --map; step 5 consumes" \
+  "only the reviewed map, spec 9/9f) -- never one new page per harvested page." \
   "Links and images are still absolute to simplifier.net: retargeting them is" \
   "part of that mapping, and the assets in $ASSETS still have to be transferred."
 

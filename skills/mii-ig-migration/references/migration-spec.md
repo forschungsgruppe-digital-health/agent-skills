@@ -1702,8 +1702,14 @@ narrative pages, intro notes and translation pages; the directive counts; the du
 each carrying pre, post and a verdict `unchanged | improved | REGRESSION | expected-change`.
 **Exit 1 means at least one property got WORSE** (licence contradictory `false→true`, injection
 risk `false→true`, any artefact count dropped, an identity field changed): that is a **stop to
-fix**, never a delta to file. The TSV mirror (`property⇥pre⇥post⇥verdict`) is what the report's
-generator reads.
+fix**, never a delta to file. **One exception, and it is measured, not judged:** when the two
+measurements' `mode` fields differ (ig-stats' `reduced` raw-resource census against its `static`
+FSH-declaration census — the §5.1d shape, where the source repo holds Forge XML and the target holds FSH), the two
+census styles classify the same artefacts differently, so every artefact-COUNT difference is
+reported as `expected-change` with both modes named, never as a regression — conservation of the
+artefacts themselves is §11's C1 question, answered by id, not by count; identity, licence, flag
+and directive regressions are unaffected. The TSV mirror (`property⇥pre⇥post⇥verdict`) is what
+the report's generator reads.
 
 → **Acceptance (and then §11, which checks the rest mechanically):** the pre/post delta ran and
 reports **no REGRESSION row** (exit 0); `qa.txt` reports `Errors: 0` — **shape B: as qualified in §5.1b.4**, where the
@@ -2166,8 +2172,12 @@ means adding a table row, which the next generated map picks up — never a hand
 
 **The generated map is VALIDATED for coverage before anything consumes it.** The source page
 universe is the authoritative guide tree (§5.1a) ∪ `input/pagecontent` ∪ on-disk pages no toc
-lists; every member must have a row with a non-empty target, a toc entry whose page is not on disk
-is a finding (dangling), and a `RETIRED` row must carry a reason. The generator exits 1 until that
+lists ∪ the step-2c harvest manifest (§5.1d — the shape whose narrative exists only on the
+rendered guide; `--harvest-tsv`, auto-discovered from the target's `migration-log/`, and when no
+other input yields pages the harvest IS the primary input); every member must have a row with a
+non-empty target, a toc entry whose page is not on disk is a finding (dangling), a page the
+harvest SKIPPED is in the universe with no routable content — coverage fails until the harvest is
+clean or a human retires the page in the reviewed map — and a `RETIRED` row must carry a reason. The generator exits 1 until that
 holds — an uncovered map is not reviewable, let alone consumable — and proposes the M9 and
 other-bucket placements (§9a) in the same pass, from the Gate-0 counts.
 
@@ -2216,7 +2226,7 @@ count.
 
 | Column | Carries |
 | --- | --- |
-| `source_page` | path relative to the narrative source root (guide tree or `pagecontent`) |
+| `source_page` | path relative to the narrative source root (guide tree or `pagecontent`), or the harvested file's name for a step-2c-harvested page |
 | `target` | repo-relative target path (`input/pagecontent/x.md`, `input/intro-notes/<Type>-<id>-intro.md`) — or `RETIRED` |
 | `reason` | one human clause; REQUIRED on every `RETIRED` row |
 | `branch` | the §9e routing branch, `1`–`5` |
