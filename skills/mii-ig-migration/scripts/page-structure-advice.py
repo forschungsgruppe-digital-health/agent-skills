@@ -16,17 +16,23 @@ into arithmetic: it measures the SOURCE page tree, the TARGET page sizes and
 the TARGET menu budget, and then prints, per source page, the branch the
 measurements support and the number that forced it.
 
-IT PROPOSES AND NEVER EDITS.
+IT PROPOSES AND NEVER EDITS A MODULE.
 It opens the source repository and the target repository read-only and writes
-exactly one file, the report named by --out (stdout when --out is omitted).
-It refuses to write inside either repository. Nothing in it applies a decision;
-a human (or the skill, at step 5) does that.
+at most two files: the report named by --out (stdout when --out is omitted)
+and the page-map v2 TSV named by --map - THE PRIMARY OUTPUT, the contract of
+the whole narrative migration (step 3 generates and validates it, step 5
+consumes only it, step 8 checks against it; the Markdown report is its
+rendering). It refuses to write into the source or into the target's content;
+only the target's migration-log/ is accepted. Nothing in it applies a
+decision; a human (or the skill, at step 5) does that.
 
 USAGE
 -----
   python3 page-structure-advice.py --source <source-repo> \
                                   [--target <migrated-repo>] \
-                                  [--out <file.md>]
+                                  [--out <file.md>] \
+                                  [--map <page-map.tsv>] \
+                                  [--routing-table <routing-table.tsv>]
 
   --source  the ORIGINAL module repository. The page tree comes from the FIRST
             of three inputs that yields pages:
@@ -47,6 +53,26 @@ USAGE
             directory name under implementation-guides/. Without it the script
             picks per spec 5.1a and reports every tree, the choice and the
             reason.
+  --map     write the page-map v2 TSV (header: `# source_page<TAB>target<TAB>
+            reason<TAB>branch<TAB>measure`): one row per page of the SOURCE
+            PAGE UNIVERSE - the authoritative guide tree UNION
+            input/pagecontent UNION on-disk pages no toc lists - plus one
+            RETIRED summary row (`<tree>/**`) per non-authoritative guide
+            tree. The COVERAGE VALIDATION then re-derives the universe from
+            disk and checks every page has a row with a non-empty target and
+            every RETIRED row carries a reason; exit 1 when it fails, 0 when
+            covered.
+  --routing-table
+            the semantic routing table (default: the references/
+            routing-table.tsv sibling of this script). Pattern rows route a
+            source page whose compacted slug or title CONTAINS the pattern to
+            a named agreed-page home - checked after the exact agreed-page
+            match, before artefact-anchor matching.
+
+Where <target>/migration-log/preflight-analysis.json exists (Gate 0), its
+artefact census backs the anchor matching and the M9/other-bucket proposal;
+without it the script scans fsh-generated as before and the report says
+"run Gate 0 first".
 
 Python 3 standard library only.
 """
@@ -55,12 +81,13 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import os
 import re
 import sys
 from collections import Counter, OrderedDict
 
-SCRIPT_VERSION = "1.1.0"
+SCRIPT_VERSION = "1.2.0"
 
 # --------------------------------------------------------------------------
 # Contract limits (spec 9e).  Changing these changes the advice, so they are
@@ -120,6 +147,35 @@ FALLBACK_AGREED_PAGES = [
     "security-and-privacy", "translationinfo", "version-history",
     "artifacts", "profiles", "extensions", "examples",
 ]
+
+# The seven OPTIONAL (0..1) template pages of the M9 decision (spec 9a), and
+# the Gate-0 census key that measures each.  None = no artefact count decides
+# it (source narrative does), so the proposal stays a human decision.
+OPTIONAL_PAGE_COUNT_KEY = OrderedDict([
+    ("extensions", "extensions"),
+    ("search-parameters", "searchparameters"),
+    ("operations", "operations"),
+    ("value-sets", "valuesets"),
+    ("code-systems", "codesystems"),
+    ("researcher-guidance", None),
+    ("metadata", None),
+])
+
+# How a Gate-0 `artifacts_detail` category maps onto the FHIR type the anchor
+# matching reasons in.  `examples` entries stay in the census but are flagged
+# so they never anchor a narrative page - same effect as EXAMPLE_TYPES has on
+# the fsh-generated census.
+DETAIL_CATEGORY_TYPE = {
+    "profiles": "StructureDefinition",
+    "extensions": "StructureDefinition",
+    "logicals": "StructureDefinition",
+    "valuesets": "ValueSet",
+    "codesystems": "CodeSystem",
+    "capabilitystatements": "CapabilityStatement",
+    "questionnaires": "Questionnaire",
+    "searchparameters": "SearchParameter",
+    "operations": "OperationDefinition",
+}
 
 
 # ==========================================================================
@@ -254,6 +310,108 @@ def merged_sources(text):
         if value not in found:
             found.append(value)
     return found
+
+
+# ==========================================================================
+# the semantic routing table (references/routing-table.tsv)
+# ==========================================================================
+# Mechanizes the spec-9 SEMANTIC page mapping: pattern -> agreed-page home.
+# A pattern is a lowercase compacted token; a source page whose compacted slug
+# OR compacted title CONTAINS the pattern (>= 3 chars) routes branch 3 to the
+# named home - checked AFTER the exact agreed-page match and BEFORE
+# artefact-anchor matching.  The table is a per-module-family artefact a human
+# extends; this script only reads it.
+
+def default_routing_table_path():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(os.path.dirname(script_dir), "references",
+                        "routing-table.tsv")
+
+
+def load_routing_table(path):
+    """Returns (rows, skipped).  A row is {'pattern','target','note'}; skipped
+    lists (line_number, why) for malformed lines - reported, never silently
+    dropped."""
+    rows, skipped = [], []
+    text = read_text(path)
+    for number, raw in enumerate(text.split("\n"), 1):
+        line = raw.rstrip("\n")
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        cols = line.split("\t")
+        pattern = compact(cols[0]) if cols else ""
+        target = cols[1].strip() if len(cols) > 1 else ""
+        note = cols[2].strip() if len(cols) > 2 else ""
+        if not target:
+            skipped.append((number, "no target column"))
+            continue
+        if len(pattern) < 3:
+            skipped.append((number, "pattern %r shorter than 3 characters "
+                                    "after compaction" % cols[0].strip()))
+            continue
+        rows.append({"pattern": pattern, "target": target, "note": note})
+    return rows, skipped
+
+
+def semantic_route(node, table):
+    """The routing-table match for one page: the LONGEST pattern contained in
+    the page's compacted slug or compacted title (earlier row wins a length
+    tie), or None."""
+    slug_compact = compact(node.slug)
+    title_compact = compact(node.title) if node.title else ""
+    best = None
+    for row in table:
+        pattern = row["pattern"]
+        if pattern in slug_compact or (title_compact and pattern in title_compact):
+            if best is None or len(pattern) > len(best["pattern"]):
+                best = row
+    return best
+
+
+# ==========================================================================
+# Gate 0: migration-log/preflight-analysis.json
+# ==========================================================================
+
+def load_preflight(target_root):
+    """Returns (data_or_None, path, note).  A missing file is normal (run Gate
+    0 first); an unparsable one is reported, never silently ignored."""
+    if not target_root:
+        return None, "", "no --target given"
+    path = os.path.join(target_root, "migration-log", "preflight-analysis.json")
+    if not os.path.isfile(path):
+        return None, path, "not found"
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            return json.load(handle), path, ""
+    except (OSError, ValueError) as error:
+        return None, path, "unreadable: %s" % error
+
+
+def collect_artefacts_from_detail(detail):
+    """The Gate-0 `artifacts_detail` census as the same (id -> {type, intro})
+    shape `collect_artefacts` builds.  Rulesets, invariants and mappings are
+    FSH bookkeeping, not artefacts; `examples` (and `other` instances) keep an
+    `example` flag so they never anchor a narrative page."""
+    artefacts = OrderedDict()
+    for entry in detail or []:
+        name = (entry.get("name") or "").strip()
+        category = entry.get("category") or ""
+        instance_of = (entry.get("instanceOf") or "").strip()
+        if not name or category in ("rulesets", "invariants", "mappings"):
+            continue
+        if category == "examples":
+            artefacts.setdefault(name, {"type": instance_of or "Bundle",
+                                        "intro": False, "example": True})
+            continue
+        if category == "other":
+            artefacts.setdefault(name, {"type": instance_of or "Basic",
+                                        "intro": False})
+            continue
+        rtype = DETAIL_CATEGORY_TYPE.get(category)
+        if rtype is None:
+            continue
+        artefacts.setdefault(name, {"type": rtype, "intro": False})
+    return artefacts
 
 
 # ==========================================================================
@@ -782,11 +940,19 @@ _FSH_ID = re.compile(r"^Id:\s*(\S+)")
 _FSH_INSTANCEOF = re.compile(r"^InstanceOf:\s*(\S+)")
 
 
-def collect_artefacts(source_root, target_root):
-    """(type, id) pairs from fsh-generated filenames, the FSH sources, and the
-    target's intro notes.  Nothing is invented: every entry comes from a file
-    that exists."""
+def collect_artefacts(source_root, target_root, preflight_detail=None):
+    """(type, id) pairs plus a label naming the census used.  Nothing is
+    invented: every entry comes from a file that exists.
+
+    Census order: (1) fsh-generated/resources - the GENERATED resourceType/id
+    census, which Gate 0's own `generated_crosscheck` names as its source of
+    record, and the only census that knows the ids intro notes are named by;
+    (2) where the generated tree is gone, Gate 0's `artifacts_detail`
+    (preflight-analysis.json) - its FSH-declaration census replaces the
+    input/fsh re-scan; (3) an input/fsh scan when neither exists.  The
+    target's intro notes fold in last in every case."""
     artefacts = OrderedDict()          # id -> {"type":..., "intro": bool}
+    census = ""
 
     generated = os.path.join(source_root, "fsh-generated", "resources")
     if os.path.isdir(generated):
@@ -798,6 +964,17 @@ def collect_artefacts(source_root, target_root):
                 continue
             rtype, rid = stem.split("-", 1)
             artefacts.setdefault(rid, {"type": rtype, "intro": False})
+    if artefacts:
+        census = "fsh-generated/resources (%d resources%s)" % (
+            len(artefacts),
+            "; cross-checked by Gate 0's generated_crosscheck"
+            if preflight_detail else "")
+
+    if not artefacts and preflight_detail:
+        artefacts = collect_artefacts_from_detail(preflight_detail)
+        if artefacts:
+            census = ("Gate 0 preflight artifacts_detail (%d declarations; "
+                      "no fsh-generated tree)" % len(artefacts))
 
     if not artefacts:
         fsh_root = os.path.join(source_root, "input", "fsh")
@@ -833,6 +1010,11 @@ def collect_artefacts(source_root, target_root):
                     ident = _FSH_ID.match(line)
                     if ident and current_type:
                         artefacts.setdefault(ident.group(1), {"type": current_type, "intro": False})
+        if artefacts:
+            census = "input/fsh scan (%d declarations)" % len(artefacts)
+
+    if not census:
+        census = "empty (no fsh-generated, no preflight census, no input/fsh)"
 
     if target_root:
         intro_dir = os.path.join(target_root, "input", "intro-notes")
@@ -844,7 +1026,7 @@ def collect_artefacts(source_root, target_root):
                 rtype, rid = match.group(1), match.group(2)
                 entry = artefacts.setdefault(rid, {"type": rtype, "intro": False})
                 entry["intro"] = True
-    return artefacts
+    return artefacts, census
 
 
 def build_token_frequency(artefacts):
@@ -867,7 +1049,7 @@ def match_artefact(page_slug, artefacts, frequency):
     candidates = []
     for rid, meta in artefacts.items():
         rtype = meta["type"]
-        if rtype in EXAMPLE_TYPES or "-exa-" in rid:
+        if meta.get("example") or rtype in EXAMPLE_TYPES or "-exa-" in rid:
             continue
         strong = len(page_compact) >= 4 and page_compact in compact(rid)
         ratio = 0.0
@@ -1078,13 +1260,17 @@ def agreed_pages(target_root, menu, target_pages):
 
 
 def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
-          target_pages, budget, folder_landing_pages=False):
+          target_pages, budget, folder_landing_pages=False,
+          routing_table=()):
     """Fill node.branch / .destination / .measurement for every source page.
 
     Evaluation order (the branch NUMBER reported is always the spec's):
       0  an EXACT agreed-page name or menu-label match decides rule 3 first -
          a page the humans already agreed on is a stronger signal than a
          name-similarity match against an artefact id;
+      0b the SEMANTIC routing table (references/routing-table.tsv) -> rule 3:
+         checked after the exact agreed-page match and before artefact-anchor
+         matching, so the spec-9 semantic mapping outranks name similarity;
       1  artefact anchor  -> rule 1;
       2  family overview  -> rule 2;
       3  fuzzy agreed-page match -> rule 3;
@@ -1093,11 +1279,21 @@ def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
     `folder_landing_pages` is set for a Simplifier guide tree, where every
     folder ships an `Index.page.md`.  Only the one at level 1 is the guide's
     index; the deeper ones are FOLDER landing pages and must not all be merged
-    into the target's `index.md`, so the name match is suppressed for them and
-    they are routed by their children like any other overview.
+    into the target's `index.md` - and their slug is the meaningless `index`,
+    so matching it against artefact ids ('...-eq5d5l-index') would anchor a
+    folder hub to one arbitrary artefact.  Name match, semantic match and
+    artefact anchor are all suppressed for them; they are routed by their
+    children like any other overview.
     """
+    def is_folder_landing(node):
+        return (folder_landing_pages and node.level > 1
+                and node.slug.lower() == "index")
+
     # -- pass 1: artefact anchors -----------------------------------------
     for node in nodes:
+        if is_folder_landing(node):
+            node.anchor, node.anchor_candidates, node.anchor_how = None, 0, ""
+            continue
         anchor, count, how = match_artefact(node.slug, artefacts, frequency)
         node.anchor = anchor
         node.anchor_candidates = count
@@ -1107,11 +1303,11 @@ def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
     for node in nodes:
         exact = agreed_slug.get(node.slug) or agreed_slug.get(node.slug.lower())
         by_label = agreed_title.get(compact(node.title)) if node.title else None
-        if (folder_landing_pages and node.level > 1
-                and node.slug.lower() == "index"):
-            exact = by_label = None
+        semantic = semantic_route(node, routing_table) if routing_table else None
+        if is_folder_landing(node):
+            exact = by_label = semantic = None
             node.notes.append("folder landing page - NOT matched against the target's "
-                              "index.md; routed by its own children")
+                              "index.md or an artefact id; routed by its own children")
         distinct_children = {c.anchor["id"] for c in node.children if c.anchor}
         node.is_family = len(node.children) >= 2 and len(distinct_children) >= 2
 
@@ -1119,6 +1315,14 @@ def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
             node.branch = "3"
             node.destination = "%s.md" % exact
             node.measurement = "agreed page named '%s' exists in the target" % exact
+        elif semantic:
+            node.branch = "3"
+            node.destination = "%s.md" % semantic["target"]
+            node.measurement = "semantic match '%s' -> %s (routing-table)" % (
+                semantic["pattern"], semantic["target"])
+            if target_pages and semantic["target"] not in target_pages:
+                node.notes.append("routing-table home '%s' is not a page in this "
+                                  "target - confirm the home" % semantic["target"])
         elif node.anchor and not node.is_family:
             node.branch = "1"
             node.destination = "input/intro-notes/%s-%s-intro.md" % (
@@ -1230,6 +1434,179 @@ def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
 
 
 # ==========================================================================
+# the page map (v2) - THE PRIMARY OUTPUT
+# ==========================================================================
+# One row per page of the SOURCE PAGE UNIVERSE (authoritative guide tree UNION
+# input/pagecontent UNION on-disk pages no toc lists), plus one RETIRED
+# summary row per non-authoritative guide tree.  Columns:
+#   source_page  path relative to the narrative source root (guide tree or
+#                input/pagecontent)
+#   target       repo-relative target path (input/pagecontent/x.md,
+#                input/intro-notes/<Type>-<id>-intro.md) or RETIRED
+#   reason       one human clause
+#   branch       1|2|3|4 per spec 9e; 5 = RETIRED (not migrated)
+#   measure      the measurement that forced the branch
+# The verifier reads columns 0-2 and ignores the rest (v1-compatible).
+
+PAGE_MAP_HEADER = "# source_page\ttarget\treason\tbranch\tmeasure"
+
+
+def target_slug(text):
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", text.strip()).strip("-").lower()
+    return slug or "page"
+
+
+def map_target_for(node, used_targets):
+    """The machine target path of one routed page.  Branch 1 already names a
+    path; branches 2/3 name their host page; branch 4 derives a NEW page name
+    from the source slug (a folder landing page takes its FOLDER's name - a
+    guide ships dozens of Index pages and they must not all become index.md),
+    deduplicated against the other branch-4 rows of this map."""
+    if node.branch == "1":
+        return node.destination
+    if node.branch in ("2", "3"):
+        host = re.sub(r"\.md$", "", node.destination.split()[-1])
+        return "input/pagecontent/%s.md" % host
+    base = node.slug
+    folder = os.path.basename(os.path.dirname(node.filename))
+    if base.lower() == "index" and folder:
+        base = folder
+    candidate = target_slug(base)
+    if candidate in used_targets and folder:
+        prefixed = target_slug("%s-%s" % (folder, base))
+        if prefixed != candidate and prefixed not in used_targets:
+            candidate = prefixed
+    stem, suffix = candidate, 2
+    while candidate in used_targets:
+        candidate = "%s-%d" % (stem, suffix)
+        suffix += 1
+    used_targets.add(candidate)
+    return "input/pagecontent/%s.md" % candidate
+
+
+def map_reason_for(node):
+    """One human clause per row - the WHY; the measure column keeps the number
+    that forced it."""
+    measurement = node.measurement
+    if node.branch == "1":
+        if measurement.startswith("child of") and node.parent is not None:
+            return "child of %s - same intro note" % node.parent.filename
+        return "content about one artefact - its intro note"
+    if node.branch == "2":
+        if measurement.startswith("child of") and node.parent is not None:
+            return "subsection of the family overview %s" % node.parent.filename
+        return "family overview - h3/h4 section on an artefact index page"
+    if node.branch == "3":
+        if measurement.startswith("semantic match"):
+            return "semantic home per references/routing-table.tsv"
+        if measurement.startswith("menu label"):
+            return "menu label points at the agreed page"
+        return "an agreed page already owns the concern"
+    presentation = "hub" if "(HUB)" in node.destination else "merged prose"
+    visibility = "menu entry" if "MENU entry" in node.destination else "pages:-nested"
+    return "cross-cutting narrative - own page (%s, %s)" % (presentation, visibility)
+
+
+def build_map_rows(routed_nodes, trees, chosen):
+    """The page-map rows: one per routed page (primary tree + union extras, in
+    document order), then one RETIRED summary row per non-authoritative guide
+    tree (`<tree>/**`), reason = its spec-5.1a disposition."""
+    rows = []
+    used_targets = set()
+    for node in routed_nodes:
+        rows.append({
+            "source": node.filename,
+            "target": map_target_for(node, used_targets),
+            "reason": map_reason_for(node),
+            "branch": node.branch or "4",
+            "measure": node.measurement,
+        })
+    for tree in trees or []:
+        if chosen is not None and tree is chosen:
+            continue
+        reason = re.sub(r"\*+", "", tree["disposition"]).strip() \
+            or "non-authoritative guide tree"
+        measure = ("dir version %s, guide.yaml version %s, lang %s, %d page "
+                   "file(s); authoritative: %s") % (
+            tree["version_name"] or "-", tree["version_yaml"] or "-",
+            tree["language"] or "-", tree["page_files"],
+            chosen["name"] if chosen else "none")
+        rows.append({
+            "source": "%s/**" % tree["name"],
+            "target": "RETIRED",
+            "reason": reason,
+            "branch": "5",
+            "measure": measure,
+        })
+    return rows
+
+
+def compute_universe(source_root, chosen):
+    """The source page universe, re-derived FROM DISK (independently of the
+    walkers, so a page a walker lost is a finding, not a silent hole):
+    input/pagecontent/*.md plus every *.page.md under the authoritative guide
+    tree."""
+    universe = OrderedDict()
+    page_dir = os.path.join(source_root, "input", "pagecontent")
+    if os.path.isdir(page_dir):
+        for name in sorted(os.listdir(page_dir)):
+            if name.endswith(".md"):
+                universe.setdefault(name, "input/pagecontent")
+    if chosen:
+        root = chosen["path"]
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+            for name in sorted(filenames):
+                if name.endswith(PAGE_SUFFIX):
+                    rel = os.path.relpath(os.path.join(dirpath, name),
+                                          root).replace(os.sep, "/")
+                    universe.setdefault(rel, "guide tree %s" % chosen["name"])
+    return universe
+
+
+def validate_coverage(rows, universe):
+    """The COVERAGE VALIDATION of the contract: every universe page has a row
+    with a non-empty target; every RETIRED row carries a reason.  Returns the
+    findings; an empty list is the pass."""
+    findings = []
+    covered = set()
+    for row in rows:
+        if row["target"].strip():
+            covered.add(row["source"])
+        if row["target"].strip() == "RETIRED" and not row["reason"].strip():
+            findings.append("RETIRED row `%s` carries NO reason - every "
+                            "retirement must say why" % row["source"])
+    for page, origin in universe.items():
+        if page not in covered:
+            findings.append("`%s` (%s) has NO page-map row with a target - "
+                            "the source page universe is not covered"
+                            % (page, origin))
+    return findings
+
+
+def _tsv_field(value):
+    return re.sub(r"[\t\r\n]+", " ", value).strip()
+
+
+def write_page_map(path, rows):
+    lines = [
+        PAGE_MAP_HEADER,
+        "# page-map v2 - GENERATED by page-structure-advice.py v%s; the "
+        "Markdown report is its rendering." % SCRIPT_VERSION,
+        "# branch: spec 9e routing branch 1-4; 5 = RETIRED "
+        "(non-authoritative guide tree, not migrated).",
+    ]
+    for row in rows:
+        lines.append("\t".join(_tsv_field(row[key]) for key in
+                               ("source", "target", "reason", "branch", "measure")))
+    directory = os.path.dirname(os.path.abspath(path))
+    if directory and not os.path.isdir(directory):
+        os.makedirs(directory)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+
+
+# ==========================================================================
 # report
 # ==========================================================================
 
@@ -1247,23 +1624,43 @@ def render_tree(nodes, roots, lines, prefix=""):
                         lines, prefix + ("   " if last else "|  "))
 
 
-def build_report(args, source_info, target_info, nodes, roots, queue1, budget):
+def build_report(args, source_info, target_info, nodes, roots, queue1, budget,
+                 map_info):
     out = []
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    routing = map_info["routing"]
+    preflight_info = map_info["preflight"]
     out.append("# Page-structure advice")
     out.append("")
-    out.append("**This report PROPOSES and never edits.** It reads the source and target "
-               "repositories read-only and writes nothing into either of them. Every routing "
-               "row below is the branch the MEASUREMENTS support - a human (or the skill at "
-               "step 5) decides and applies it.")
+    out.append("**This report PROPOSES and never edits a module.** It reads the source and "
+               "target repositories read-only; its only writes are this report and the "
+               "page-map v2 TSV (`--map`) - the map is the PRIMARY output and the contract "
+               "step 5 consumes, this report is its rendering. Every routing row below is "
+               "the branch the MEASUREMENTS support - a human (or the skill at step 5) "
+               "decides and applies it.")
     out.append("")
     out.append("| Input | Value |")
     out.append("| --- | --- |")
     out.append("| source repo | `%s` |" % md_escape(args.source))
     out.append("| target repo | `%s` |" % md_escape(args.target or "(not given)"))
+    out.append("| routing table | `%s` (%d pattern%s) |" % (
+        md_escape(routing["path"]), routing["count"],
+        "" if routing["count"] == 1 else "s"))
+    out.append("| Gate 0 preflight | %s |" % md_escape(
+        "`%s`" % preflight_info["path"] if preflight_info["data"] is not None
+        else "%s (%s)" % (preflight_info["path"] or "-",
+                          preflight_info["note"] or "absent")))
+    out.append("| artefact census | %s |" % md_escape(preflight_info["census"]))
+    out.append("| page map | %s |" % md_escape(
+        "`%s`" % map_info["path"] if map_info["path"]
+        else "(not written - re-run with --map)"))
     out.append("| generated | %s |" % now)
     out.append("| script | `page-structure-advice.py` v%s |" % SCRIPT_VERSION)
     out.append("")
+    for line_number, why in routing["skipped"]:
+        out.append("- routing-table line %d skipped: %s." % (line_number, why))
+    if routing["skipped"]:
+        out.append("")
     out.append("Contract limits in force: menu total <= %d, dropdown children <= %d, "
                "top level <= %d, menu depth <= %d; size gate at > %d words, > %d merged "
                "sources, or ANY repeated heading title; hub at >= %d children."
@@ -1515,22 +1912,171 @@ def build_report(args, source_info, target_info, nodes, roots, queue1, budget):
         out.append("")
 
     # ---- 6. run-log lines ----------------------------------------------
-    if nodes:
+    logged_nodes = list(nodes) + list(map_info["extra_nodes"])
+    if logged_nodes:
         out.append("## 6. Suggested `5.4c page-routing` run-log lines")
         out.append("")
-        out.append("One per source page, ready for the migration run log. The script does not "
-                   "write them; it only formats them.")
+        out.append("One per source page (union pages included), ready for the migration run "
+                   "log. The `5.4c page-routing` step IS the advice run that GENERATES the "
+                   "page map (`--map`) - the map is machine-written, never hand-written; "
+                   "these lines are only its run-log form.")
         out.append("")
         out.append("```")
-        for node in nodes:
+        for node in logged_nodes:
             out.append("5.4c page-routing\t%s\tbranch=%s\t%s\t%s" % (
                 node.filename, node.branch,
                 node.destination.replace("\t", " "),
                 node.measurement.replace("\t", " ")))
+        out.append("5.4c page-routing\tmap rows=%d retired=%d coverage=%s\tmap=%s" % (
+            len(map_info["rows"]), map_info["retired_count"],
+            "FAILED" if map_info["findings"] else "ok",
+            map_info["path"] or "(not written)"))
         out.append("```")
         out.append("")
 
+    # ---- 7. page map ----------------------------------------------------
+    out.append("## 7. Page map (v2) and coverage")
+    out.append("")
+    out.append("The page map is the CONTRACT of the narrative migration: this run generates "
+               "and validates it, step 5 consumes ONLY it, step 8 checks against it. "
+               "Columns: `source_page`, `target` (repo-relative path or `RETIRED`), "
+               "`reason`, `branch` (spec 9e 1-4; 5 = RETIRED), `measure`. One row per page "
+               "of the source page universe - the authoritative guide tree UNION "
+               "`input/pagecontent` UNION on-disk pages no toc lists.")
+    out.append("")
+    out.append("Rows: **%d** total - %d routed source pages (%d from the primary tree, "
+               "%d union pages outside it) and %d RETIRED guide-tree summary row(s)."
+               % (len(map_info["rows"]),
+                  len(map_info["rows"]) - map_info["retired_count"],
+                  len(nodes), len(map_info["extra_nodes"]),
+                  map_info["retired_count"]))
+    out.append("")
+    if map_info["extra_nodes"]:
+        out.append("### 7.1 Union pages outside the primary tree")
+        out.append("")
+        out.append("Pages of the universe the primary page tree does not list - routed by "
+                   "the same passes, after it (menu budget included).")
+        out.append("")
+        out.append("| Source page | Branch | Target | Measurement |")
+        out.append("| --- | --- | --- | --- |")
+        target_of = {row["source"]: row["target"] for row in map_info["rows"]}
+        for node in map_info["extra_nodes"]:
+            row_notes = " <br>_(%s)_" % "; ".join(node.notes) if node.notes else ""
+            out.append("| `%s` | %s | `%s` | %s%s |" % (
+                node.filename, node.branch,
+                md_escape(target_of.get(node.filename, node.destination)),
+                md_escape(node.measurement), md_escape(row_notes)))
+        out.append("")
+    if map_info["retired_count"]:
+        out.append("### 7.2 RETIRED guide trees")
+        out.append("")
+        out.append("| Tree | Reason |")
+        out.append("| --- | --- |")
+        for row in map_info["rows"]:
+            if row["target"] == "RETIRED":
+                out.append("| `%s` | %s |" % (row["source"], md_escape(row["reason"])))
+        out.append("")
+    out.append("### 7.3 Coverage validation")
+    out.append("")
+    out.append("Universe re-derived from disk: **%d** page(s). Every one needs a row with "
+               "a non-empty target; every RETIRED row needs a reason. The exit code "
+               "reports the result (0 covered, 1 not)."
+               % len(map_info["universe"]))
+    out.append("")
+    if map_info["findings"]:
+        out.append("**COVERAGE FAILED:**")
+        out.append("")
+        for finding in map_info["findings"]:
+            out.append("- %s" % finding)
+    else:
+        out.append("**Covered.** All %d universe pages have a target row; every RETIRED "
+                   "row carries a reason." % len(map_info["universe"]))
+    out.append("")
+
+    # ---- 8. M9 / other-bucket proposal ----------------------------------
+    out.extend(build_m9_section(preflight_info))
+
     return "\n".join(out) + "\n"
+
+
+def build_m9_section(preflight_info):
+    """Spec 9a M9: the seven optional (0..1) pages are DECIDED from the built
+    package's per-type counts, and every `artifacts.other` type needs a NAMED
+    placement.  Counts come from Gate 0's census; where generated resources
+    exist their resourceType counts are the authoritative ones
+    (`generated_crosscheck` - FSH declarations only know InstanceOf names)."""
+    out = ["## 8. M9 optional-page / other-bucket proposal (Gate 0 census)", ""]
+    data = preflight_info["data"]
+    if data is None:
+        out.append("_No Gate 0 preflight at `%s` (%s) - run Gate 0 first; the M9 and "
+                   "other-bucket proposals need its census._"
+                   % (preflight_info["path"] or "-",
+                      preflight_info["note"] or "absent"))
+        out.append("")
+        return out
+    artifacts = data.get("artifacts") or {}
+    crosscheck = artifacts.get("generated_crosscheck") or {}
+    counts = crosscheck.get("counts") or {}
+    other = crosscheck.get("other")
+    counts_label = "generated_crosscheck.counts (%s)" % (
+        crosscheck.get("source") or "fsh-generated/resources")
+    if not counts:
+        counts = {key: value for key, value in artifacts.items()
+                  if isinstance(value, int)}
+        other = None
+        counts_label = "FSH-declaration counts (no generated cross-check!)"
+    if other is None:
+        other = artifacts.get("other") or {}
+    out.append("Counts: %s. Rule (spec 9a): count 0 -> REMOVE the optional page, "
+               "count > 0 -> KEEP and fill it; artefacts are never deleted to force "
+               "a removal. Each proposal is a `5.4a` run-log line and a HUMAN "
+               "decision - this table only measures." % counts_label)
+    out.append("")
+    out.append("| Optional page | Census key | Count | Proposal |")
+    out.append("| --- | --- | ---: | --- |")
+    for page, key in OPTIONAL_PAGE_COUNT_KEY.items():
+        if key is None:
+            out.append("| `%s.md` | - | - | no artefact count decides it - source "
+                       "narrative does (human decision) |" % page)
+            continue
+        count = counts.get(key)
+        if count is None:
+            out.append("| `%s.md` | `%s` | ? | census has no `%s` count - decide "
+                       "by hand |" % (page, key, key))
+        elif count > 0:
+            out.append("| `%s.md` | `%s` | %d | **KEEP** (fill it, delete the "
+                       "banner + OPTIONAL-PAGE marker in both languages) |"
+                       % (page, key, count))
+        else:
+            out.append("| `%s.md` | `%s` | 0 | **REMOVE** per the template's "
+                       "docs/optional-pages.md procedure |" % (page, key))
+    out.append("")
+    if other:
+        out.append("Artefact types in the census's OTHER bucket - each has NO template "
+                   "page and needs its own named placement (its own `5.4a` line; a "
+                   "type nobody placed is a queue-1 item):")
+        out.append("")
+        out.append("| `artifacts.other` type | Count | Proposed placement |")
+        out.append("| --- | ---: | --- |")
+        for rtype in sorted(other):
+            host = TYPE_INDEX_PAGE.get(rtype, "artifacts")
+            out.append("| %s | %s | h3/h4 section on `%s.md` |" % (
+                rtype, other[rtype], host))
+        out.append("")
+    else:
+        out.append("_The census reports no `other`-bucket artefact types._")
+        out.append("")
+    mismatches = crosscheck.get("mismatches") or {}
+    if mismatches:
+        out.append("Declared-vs-generated mismatches Gate 0 reports (%d) - the GENERATED "
+                   "counts above are the authoritative ones: %s."
+                   % (len(mismatches),
+                      ", ".join("`%s` %s->%s" % (key,
+                                                 value.get("declared", "?"),
+                                                 value.get("generated", "?"))
+                                for key, value in sorted(mismatches.items()))))
+        out.append("")
+    return out
 
 
 # ==========================================================================
@@ -1544,6 +2090,12 @@ def main(argv=None):
     parser.add_argument("--source", required=True, help="the ORIGINAL module repository")
     parser.add_argument("--target", help="the MIGRATED repository (optional)")
     parser.add_argument("--out", help="write the Markdown report here (default: stdout)")
+    parser.add_argument("--map", dest="map",
+                        help="write the page-map v2 TSV here - the PRIMARY "
+                             "output; the report is its rendering")
+    parser.add_argument("--routing-table", dest="routing_table",
+                        help="the semantic routing table (default: the "
+                             "references/routing-table.tsv sibling of this script)")
     parser.add_argument("--guide-tree", dest="guide_tree",
                         help="HUMAN OVERRIDE: the directory name under "
                              "implementation-guides/ to treat as authoritative")
@@ -1556,26 +2108,33 @@ def main(argv=None):
     if target_root and not os.path.isdir(target_root):
         parser.error("--target is not a directory: %s" % target_root)
 
-    if args.out:
-        out_path = os.path.abspath(args.out)
-        # The rule this guard exists for is "never change a module": not the
-        # source (read-only by definition) and no CONTENT of the target. The
-        # target's `migration-log/` is the migration's own workspace, where
-        # every other artefact of the run already lives and is committed with
-        # the branch -- refusing it sent the report to /tmp, away from the
-        # evidence it belongs beside (measured on the Onkologie try-run, where
-        # the natural invocation failed outright).
-        if source_root and (out_path == source_root
-                            or out_path.startswith(source_root + os.sep)):
+    # The rule this guard exists for is "never change a module": not the
+    # source (read-only by definition) and no CONTENT of the target. The
+    # target's `migration-log/` is the migration's own workspace, where
+    # every other artefact of the run already lives and is committed with
+    # the branch -- refusing it sent the report to /tmp, away from the
+    # evidence it belongs beside (measured on the Onkologie try-run, where
+    # the natural invocation failed outright).  It guards EVERY file this
+    # script writes: the report (--out) and the page map (--map) alike.
+    def guard_write(path_argument):
+        path = os.path.abspath(path_argument)
+        if source_root and (path == source_root
+                            or path.startswith(source_root + os.sep)):
             parser.error("refusing to write inside the --source repository: %s "
-                         "(the source is read-only)" % out_path)
-        if target_root and (out_path == target_root
-                            or out_path.startswith(target_root + os.sep)):
+                         "(the source is read-only)" % path)
+        if target_root and (path == target_root
+                            or path.startswith(target_root + os.sep)):
             log_dir = os.path.join(target_root, "migration-log") + os.sep
-            if not out_path.startswith(log_dir):
+            if not path.startswith(log_dir):
                 parser.error("refusing to write into the target's CONTENT: %s "
                              "(this script never edits a module; write to "
-                             "%smigration-log/ instead)" % (out_path, target_root + os.sep))
+                             "%smigration-log/ instead)" % (path, target_root + os.sep))
+        return path
+
+    if args.out:
+        guard_write(args.out)
+    if args.map:
+        guard_write(args.map)
 
     # ---- source ---------------------------------------------------------
     # Fallback order, spec 9d/9e: (a) the sushi-config `pages:` block, (b) the
@@ -1610,6 +2169,13 @@ def main(argv=None):
     }
     findings = []
     origin = "pages-block" if found else "flat"
+    if found:
+        for node in nodes:
+            if not os.path.isfile(os.path.join(page_dir, node.filename)):
+                findings.append("`pages:` lists `%s` but `input/pagecontent/%s` "
+                                "does not exist - the toc entry is **dangling** "
+                                "and has no words to route." % (node.filename,
+                                                                node.filename))
     origin_label = ("(a) the `pages:` block of `%s`" % config_rel) if found else \
                    ("(c) a flat count of `input/pagecontent/*.md` - "
                     "no page tree available")
@@ -1686,14 +2252,72 @@ def main(argv=None):
     target_info = {"pages": target_pages, "menu": menu}
 
     # ---- routing --------------------------------------------------------
-    artefacts = collect_artefacts(source_root, target_root)
+    routing_path = os.path.abspath(args.routing_table) if args.routing_table \
+        else default_routing_table_path()
+    routing_rows, routing_skipped = load_routing_table(routing_path)
+    if not routing_rows and not os.path.isfile(routing_path):
+        routing_skipped = list(routing_skipped) + [
+            (0, "file not found - semantic routing DISABLED")]
+
+    preflight, preflight_path, preflight_note = load_preflight(target_root)
+    preflight_detail = (preflight or {}).get("artifacts_detail")
+    artefacts, census_label = collect_artefacts(source_root, target_root,
+                                                preflight_detail)
     frequency = build_token_frequency(artefacts)
     slug_index, title_index = agreed_pages(target_root, menu, target_pages)
     budget = MenuBudget(menu)
     queue1 = route(nodes, artefacts, frequency, slug_index, title_index,
-                   target_pages, budget, folder_landing_pages) if nodes else []
+                   target_pages, budget, folder_landing_pages,
+                   routing_rows) if nodes else []
 
-    report = build_report(args, source_info, target_info, nodes, roots, queue1, budget)
+    # ---- union extras: universe pages the primary tree does not list -----
+    chosen = guide_info["chosen"]
+    extra_nodes = []
+    routed_names = {node.filename for node in nodes}
+    pagecontent_extras = []
+    if os.path.isdir(page_dir):
+        for name in sorted(os.listdir(page_dir)):
+            if name.endswith(".md") and name not in routed_names:
+                extra = PageNode(name, 1, None)
+                extra.words = count_words(read_text(os.path.join(page_dir, name)))
+                extra.notes.append("union page: in input/pagecontent but not in "
+                                   "the primary page tree")
+                pagecontent_extras.append(extra)
+    if pagecontent_extras:
+        queue1 += route(pagecontent_extras, artefacts, frequency, slug_index,
+                        title_index, target_pages, budget, False, routing_rows)
+        extra_nodes.extend(pagecontent_extras)
+    if chosen is not None and origin != "guide-tree":
+        _guide_roots, guide_extras, _guide_walk = walk_guide_tree(chosen["path"])
+        for node in guide_extras:
+            node.notes.append("union page: the authoritative guide tree `%s` was "
+                              "not the primary input" % chosen["name"])
+        if guide_extras:
+            queue1 += route(guide_extras, artefacts, frequency, slug_index,
+                            title_index, target_pages, budget, True, routing_rows)
+            extra_nodes.extend(guide_extras)
+
+    # ---- the page map and its coverage validation ------------------------
+    map_rows = build_map_rows(list(nodes) + extra_nodes, trees, chosen)
+    universe = compute_universe(source_root, chosen)
+    coverage_findings = validate_coverage(map_rows, universe)
+    map_info = {
+        "rows": map_rows,
+        "retired_count": sum(1 for row in map_rows if row["target"] == "RETIRED"),
+        "extra_nodes": extra_nodes,
+        "findings": coverage_findings,
+        "universe": universe,
+        "path": args.map,
+        "routing": {"path": routing_path, "count": len(routing_rows),
+                    "skipped": routing_skipped},
+        "preflight": {"data": preflight, "path": preflight_path,
+                      "note": preflight_note, "census": census_label},
+    }
+    if args.map:
+        write_page_map(args.map, map_rows)
+
+    report = build_report(args, source_info, target_info, nodes, roots, queue1,
+                          budget, map_info)
 
     if args.out:
         directory = os.path.dirname(os.path.abspath(args.out))
@@ -1702,13 +2326,18 @@ def main(argv=None):
         with open(args.out, "w", encoding="utf-8") as handle:
             handle.write(report)
         sys.stderr.write(
-            "page-structure-advice: %d source pages (from %s), %d target pages, "
-            "%d artefacts -> %s\n"
-            % (len(nodes), source_info["origin"], len(target_pages),
-               len(artefacts), args.out))
+            "page-structure-advice: %d source pages (from %s) + %d union, "
+            "%d target pages, %d artefacts; map %d rows (%d retired) %s-> %s\n"
+            % (len(nodes), source_info["origin"], len(extra_nodes),
+               len(target_pages), len(artefacts), len(map_rows),
+               map_info["retired_count"],
+               "-> %s " % args.map if args.map else "(--map not given) ",
+               args.out))
     else:
         sys.stdout.write(report)
-    return 0
+    for finding in coverage_findings:
+        sys.stderr.write("COVERAGE: %s\n" % re.sub(r"[`*]", "", finding))
+    return 1 if coverage_findings else 0
 
 
 if __name__ == "__main__":

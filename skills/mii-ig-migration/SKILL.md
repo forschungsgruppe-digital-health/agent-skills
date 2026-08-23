@@ -254,26 +254,24 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    it is what the harvested set is **verified against**. Map the pages onto the template's FIXED page
    set in step 5 (spec §9), never one page per harvested page, and place the language per *Language*.
 
-3. **Create the skeleton** (spec §5.2). The migration happens **in place**: on a working branch of
-   the module's existing repository, vendor the template checked out in Preconditions 3 and run its
-   first-run bootstrap — do not mint a new repository; history, issues and consumers stay where they
-   are (a new repository is a human decision, recorded in the report, never a default). Replace
-   every `{{...}}` placeholder from the identity read in step 2. The template's CRMI `meta.profile`
-   claims **require the `hl7.fhir.uv.crmi` dependency** — add it to the carried source dependencies
-   and record it at Gate A (template machinery, not source identity). Then **delete the template's
-   example artefacts** (`input/fsh/profiles/example-patient.fsh`,
-   `input/fsh/instances/example-patient-instance.fsh` — verify the paths against the template you
-   actually checked out) so they cannot collide with the module's real examples. **Before copying
-   the template's FSH scaffold** (`input/fsh/aliases.fsh`, `input/fsh/rulesets/*`), diff its
-   `RuleSet:`/`Alias:` names against the module's FSH: **module definitions win** — the module's FSH
-   is never changed — so skip every colliding template file and log the skip list. Overwriting a
-   module's `aliases.fsh` broke a real migration with 234 SUSHI errors. Acceptance:
-   `bash "$ML" run 5.2 sushi-skeleton -- npx --yes fsh-sushi@3.20.0 .` runs clean (shape B: as
-   qualified in step 2b), and the skip list is in the log.
+3. **Create the skeleton** (spec §5.2). The migration happens **in place**: on a working branch of the module's existing repository, vendor the template
+   checked out in Preconditions 3 and run its first-run bootstrap — do not mint a new repository; history, issues and consumers stay where they are (a new
+   repository is a human decision, recorded in the report, never a default). Replace every `{{...}}` placeholder from the identity read in step 2. The
+   template's CRMI `meta.profile` claims **require the `hl7.fhir.uv.crmi` dependency** — add it to the carried source dependencies, recorded at Gate A
+   (template machinery, not source identity). **Scaffold filenames that embed the module's name derive from the module ID, never the repository slug**
+   (`ig.ini`'s `ig=` path, `ImplementationGuide-<id>` references, the step-6 `.po`): SUSHI writes `ImplementationGuide-<id>.json` from the `id` and nothing
+   else, so a slug-derived name builds green until the publisher finds no IG resource — the id-vs-slug class check P5 catches. Then **delete the template's
+   example artefacts** (`input/fsh/profiles/example-patient.fsh`, `input/fsh/instances/example-patient-instance.fsh` — verify the paths against the template
+   you actually checked out) so they cannot collide with the module's real examples. **Before copying the template's FSH scaffold** (`input/fsh/aliases.fsh`,
+   `input/fsh/rulesets/*`), diff its `RuleSet:`/`Alias:` names against the module's FSH — **module definitions win**, the module's FSH is never changed: a
+   **shared alias file** (`aliases.fsh`) is resolved **per DEFINITION** (append only the template definitions the module lacks), every other colliding
+   scaffold file **per file** (skipped whole). Log both lists — overwriting a module's `aliases.fsh` broke a real migration with 234 SUSHI errors.
+   Acceptance: `bash "$ML" run 5.2 sushi-skeleton -- npx --yes fsh-sushi@3.20.0 .` runs clean (shape B: as qualified in step 2b), and the skip/append lists are in the log.
 
-4. **Transfer the artefacts.** Move the FSH sources across; convert JSON/XML with a pinned
-   `npx --yes gofsh@2.6.1` where that is all the source has — for shape B that happened in step 2b,
-   so what moves here is its post-processed output. IDs and URLs unchanged.
+4. **Transfer the artefacts — structure-preserving.** Move the FSH sources across **keeping the source's directory layout**; convert JSON/XML with a pinned
+   `npx --yes gofsh@2.6.1` where that is all the source has — for shape B that happened in step 2b, so what moves here is its post-processed output. IDs and
+   URLs unchanged. **Acceptance is path-level, not count-level:** `comm -3` over the sorted repo-relative FSH path lists of source and target is empty apart
+   from scaffold additions named in the log — counts alone prove nothing about structure.
 
 5. **Migrate the narrative.** Its **source** is step 2c; this step maps it. Move the Manteldokument
    content into `input/pagecontent/*.md` and translate Simplifier and FQL directives into IG
@@ -289,12 +287,16 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    a `tee` reports 0. Apply each printed recommendation; mapping in [the FQL crosswalk](references/fql-crosswalk.md),
    rules in [`references/fql-rules.tsv`](references/fql-rules.tsv). In doubt, write `TODO:REVIEW`.
 
-   **Route every source page BEFORE writing — spec §9e, first match wins:** one artefact → `input/intro-notes/<Type>-<id>-intro.md`
-   (German mirror, same filename, renders atop the artifact page); a family overview → a section on an index page that
-   exists; an agreed page owns it → merge; only cross-cutting narrative becomes a page — a **hub** (≤250 words, one line
-   per child) at ≥3 children, with a menu entry only inside the budget (≤33 entries, ≤10 per dropdown, top level ≤8,
-   depth ≤2), else `pages:`-nested and linked. **Size gate:** >2500 words, >4 merged sources or ANY repeated heading re-runs
-   it (PROs shipped a 6214-word host, 13 colliding anchors). Log `5.4c page-routing` per page; `page-structure-advice.py` proposes, from the source's `pages:` block or its guide tree.
+   **Route every source page BEFORE writing — spec §9e, first match wins:** one artefact → `input/intro-notes/<Type>-<id>-intro.md` (German mirror, same
+   filename, renders atop the artifact page); a family overview → a section on an index page that exists; an agreed page owns it → merge; only cross-cutting
+   narrative becomes a page — a **hub** (≤250 words, one line per child) at ≥3 children, with a menu entry only inside the budget (≤33 entries, ≤10 per
+   dropdown, top level ≤8, depth ≤2), else `pages:`-nested and linked. **Size gate:** >2500 words, >4 merged sources or ANY repeated heading re-runs it (PROs
+   shipped a 6214-word host, 13 colliding anchors). **The routing is GENERATED, not judged** — the `5.4c page-routing` run IS `page-structure-advice.py`
+   `--map` (invocation under *Verification*): it WRITES `migration-log/page-map.tsv` (v2: `source_page⇥target⇥reason⇥branch⇥measure`) from these branches
+   plus the semantic routing table `references/routing-table.tsv`, VALIDATES coverage of the full source page universe (authoritative guide tree ∪
+   `input/pagecontent` ∪ on-disk pages no toc lists; exit 1 until every page has a target and every RETIRED row a reason — dangling toc entries are findings)
+   and proposes the M9/other-bucket decisions from Gate 0. **The map is THE contract (spec §9f): a human reviews/edits it BEFORE anything is written; this
+   step then consumes ONLY the map** — a page not in the map is not written, a map row left unhandled is a defect; step 7b checks against the same map.
    **Text you WRITE (overviews, hub one-liners, bridges) is DERIVED — mark it per §9d** so it renders as a review box;
    run `5.4d derived-scan` (writes `migration-log/derived-content.tsv`, which C7 reads and ② is generated from); moved or
    split content is never marked. §9 records the reference module's use-case gap: report it, never fill it.
@@ -331,25 +333,22 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    language must appear in **`translation-sources`**, not only `i18n-lang`, or every `.po` is
    silently ignored. Modules from template **v0.5.0** also drop its breadcrumb override.
 
-7. **Build and QA.** SUSHI, then the IG Publisher — both through `bash "$ML" run 5.6 …`, so the two
-   numbers this step exists to produce end up in the log: SUSHI's error count, and `qa.txt`'s summary
-   line copied into an INFO (spec §5.6 has the block). The target pins its toolchain in the build
-   workflow's `env:` block — read the pins from there rather than from this file. Acceptance:
-   `qa.txt` reports `Errors: 0` and every example validates — shape B: as qualified in step 2b, the
-   named escalations excepted and every *other* error still a stop. Then run the **same-module
-   verification** with `fhir-ig-analysis` (measure the unmigrated source, then the migrated tree — an
-   equal `packageId` triggers the comparison; the SOURCE is the first input): identity, published
-   artifact set and canonical URLs must all read **IDENTISCH** and a DIVERGIERT is a stop; the
-   narrative per-language table goes into the report's QA triage. **That sibling skill is a checked
-   precondition, not an assumption** — `bash "$SKILL_DIR/scripts/sibling-skill-check.sh" --skill-dir
-   "$SKILL_DIR"` finds it or WARNs `sibling-skill-unavailable:` with the exact **pinned**
-   `npx skills add` command, and **never installs it**: a tool grant is permission, not a dependency,
-   and an unrelated run must not write into the operator's skills directory (spec §5.6a).
+7. **Build and QA.** SUSHI, then the IG Publisher — both through `bash "$ML" run 5.6 …`, so the two numbers this step exists to produce end up in the log:
+   SUSHI's error count, and `qa.txt`'s summary line copied into an INFO (spec §5.6 has the block). The target pins its toolchain in the build workflow's
+   `env:` block — read the pins from there rather than from this file. Acceptance: `qa.txt` reports `Errors: 0` and every example validates — shape B: as
+   qualified in step 2b, the named escalations excepted and every *other* error still a stop. Then run the **same-module verification** with
+   `fhir-ig-analysis` (measure the unmigrated source, then the migrated tree — the POSTFLIGHT measurement, kept as `migration-log/postflight-analysis.json`;
+   an equal `packageId` triggers the comparison, the SOURCE is the first input): identity, published artifact set and canonical URLs must all read
+   **IDENTISCH** and a DIVERGIERT is a stop; the narrative per-language table goes into the report's QA triage. **Then DIFF the two measurements** with
+   `scripts/prepost-delta.py` (invocation under *Verification*; spec §5.6): one verdict per compared property (`unchanged · improved · REGRESSION ·
+   expected-change`), and **exit 1 = a property got WORSE** (an artefact count dropped, licence turned contradictory, dependency-injection risk appeared, an
+   identity field changed) — a stop to fix, never a delta to file. **That sibling skill is a checked precondition, not an assumption** —
+   `bash "$SKILL_DIR/scripts/sibling-skill-check.sh" --skill-dir "$SKILL_DIR"` finds it or WARNs `sibling-skill-unavailable:` with the exact **pinned**
+   `npx skills add` command, and **never installs it**: a tool grant is permission, not a dependency, and an unrelated run must not write into the
+   operator's skills directory (spec §5.6a).
 
-7b. **Verify — mechanically, and it exits non-zero.** Spec §11 is normative. It replaces the prose
-   checklist a human used to perform: four real migrations passed that checklist on a green build
-   while shipping unreachable artefacts, a stale rendered provenance, a broken page header, a
-   silently truncated file and a wrong dependency pin.
+7b. **Verify — mechanically, and it exits non-zero.** Spec §11 is normative. It replaces the prose checklist a human used to perform: four real migrations
+   passed that checklist on a green build while shipping unreachable artefacts, a stale rendered provenance, a broken page header, a silently truncated file and a wrong dependency pin.
 
    ```bash
    bash "$ML" run 11 verify-migration --emits-runlog \
@@ -358,23 +357,20 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
        --rendered output --source-lang de --template-latest <latest module-template release>
    ```
 
-   Four layers plus the log. **Conservation:** every source artefact present **and reachable from
-   `artifacts.html`** — present is a different property, and step 7's set comparison proves only the
-   first; every source page migrated/retired/MISSING per `migration-log/page-map.tsv`, a **required
-   artefact of step 5**; every source text run present somewhere. **Fidelity:** identity, **dependency
-   pins identical to the source's**, `license` asserted from a tier and never defaulted.
-   **Provenance:** the template package+version **read out of the rendered `qa.html`**, the publisher
-   version, the pinned guide version — comparing like with like, because the ig-template PACKAGE
-   version and the module-template REPO release are different numbers (measured: repo `v0.6.0`
-   vendors package `0.5.1`). **Rendering integrity:** empty tables/tabs, missing images, header
-   markers like `Unknown region code`, and **language parity** — a translated page byte-identical to
-   the default is a fallback, not a translation. **The run log is the SECOND ORACLE** (§11.6): it
-   records what each step *intended and measured* where the tree records the *outcome*, so it alone
-   catches an unactioned `silent-partial-success:` WARN, **a step that emitted no line at all**
-   (`references/expected-steps.tsv` is the manifest), an open `identity-contradiction:`, and
-   log-versus-artefact count mismatches. **Three verdicts, not two:** `IDENTISCH`, `DIVERGIERT`
-   (named, with evidence) and **`NICHT PRÜFBAR`**, so an unmechanisable check is never silently
-   written as a pass. Exit 0 clean · 1 divergence · **3 incomplete, which is not a pass**.
+   Four layers plus the log. **Conservation:** every source artefact present **and reachable from `artifacts.html`** — present is a different property, and
+   step 7's set comparison proves only the first; every page of the **UNION source set** (authoritative guide tree ∪ `input/pagecontent` — never a fallback
+   chain: one pagecontent stub must not suppress a 149-page guide tree) migrated/retired/MISSING per `migration-log/page-map.tsv`, the reviewed contract the
+   step-5 advice run **generated**; every source text run present somewhere. **Fidelity:** identity, **dependency pins identical to the source's**,
+   `license` asserted from a tier and never defaulted — and reconciled against the LICENSE **file's** own text (mismatch DIVERGIERT, unrecognized text NICHT
+   PRÜFBAR). **Provenance:** the template package+version **read out of the rendered `qa.html`**, the publisher version, the pinned guide version —
+   comparing like with like, because the ig-template PACKAGE version and the module-template REPO release are different numbers (measured: repo `v0.6.0`
+   vendors package `0.5.1`) — plus **P5**: `ig.ini`'s `ig=` names the IG resource SUSHI actually writes (`ImplementationGuide-<id>.json`, derived from the
+   `id`, never from the repo slug). **Rendering integrity:** empty tables/tabs, missing images, header markers like `Unknown region code`, and **language
+   parity** — a translated page byte-identical to the default is a fallback, not a translation. **The run log is the SECOND ORACLE** (§11.6): it records
+   what each step *intended and measured* where the tree records the *outcome*, so it alone catches an unactioned `silent-partial-success:` WARN, **a step
+   that emitted no line at all** (`references/expected-steps.tsv` is the manifest), an open `identity-contradiction:`, and log-versus-artefact count
+   mismatches. **Three verdicts, not two:** `IDENTISCH`, `DIVERGIERT` (named, with evidence) and **`NICHT PRÜFBAR`**, so an unmechanisable check is never
+   silently written as a pass. Exit 0 clean · 1 divergence · **3 incomplete, which is not a pass**.
 
 8. **Report.** Write `migration-log/migration-report.md` **from
    [the report template](references/migration-report-template.md)** — three reviewer queues (① decide,
@@ -448,17 +444,19 @@ Three facts, easy to conflate.
 
 ## Verification
 
-**Mechanical, and it exits non-zero — step 7b, spec §11.** The list of sentences that used to stand here is now `scripts/verify-migration.py`: four layers plus the run log as a second oracle, three verdicts, one row per checked subject in `migration-log/verification-findings.tsv`. What a human still owes is each **NICHT PRÜFBAR** row — named, with its action and its gate; exit 3 says the phase is *incomplete*, not passed. It compares the migrated guide against **the Simplifier-rendered source**, not against itself, on six aspects — a qa error count catches none of them. **Toolchain provenance** (`P1`–`P3`): the template package the rendered site *reports*, the one the tree carries, and the latest release are **three different numbers** (§11.3 — repo tag `v0.6.0` vendors package `0.5.1`; comparing the first against the third manufactures a confident, wrong finding), plus the publisher version against the workflow pin. **Page set and menu** (`C3`, `C5`): every source page migrated / retired-with-a-reason / MISSING; every menu entry leading somewhere; every narrative page *in* a menu; every target page traceable to a source page or to `references/template-pages.tsv`; a translated menu wherever there are translated pages. **Artefact completeness and reachability** (`C1`, `C2`): present is not the same property as listed, in both directions — artefacts SUSHI generated, and artefacts rendered from `input/resources` that the forward pass cannot see. `C1` names an artefact by its **id or its canonical url**, because a SearchParameter may have only the latter and the migration reassigns the id; a variant is a directory that renders pages, so the multi-language build's redirect-stub ROOT is not one (§11.5a — reading it as one reported a false BLOCKER on all four migrations). **Rendering integrity** (`R1`, `R2`): tables, tabs and images non-empty where the source's were, and the header/footer regions, where a jurisdiction the publisher cannot resolve renders as `Unknown region code` at `Errors: 0`. **Content placement** (`C6`): not *whether* a text run survived — that is `C4` — but *which page it landed on*, against the map. **Language parity** (`R3`, `R5`): a translated page byte-identical to the default is a fallback, not a translation. Two inputs decide how much of that is mechanisable, and **earlier steps write them, not the verifier**: `migration-log/page-map.tsv` (`source_page⇥target_page|RETIRED⇥reason`, step 5) — without it `C3` cannot run at all and `C6` degrades to a landing distribution a human reads — and the step-5.1c harvest. Absent, they yield NICHT PRÜFBAR, never a pass.
+**Mechanical, and it exits non-zero — step 7b, spec §11.** The list of sentences that used to stand here is now `scripts/verify-migration.py`: four layers plus the run log as a second oracle, three verdicts, one row per checked subject in `migration-log/verification-findings.tsv`. What a human still owes is each **NICHT PRÜFBAR** row — named, with its action and its gate; exit 3 says the phase is *incomplete*, not passed. It compares the migrated guide against **the Simplifier-rendered source**, not against itself, on six aspects — a qa error count catches none of them. **Toolchain provenance** (`P1`–`P5`): the template package the rendered site *reports*, the one the tree carries, and the latest release are **three different numbers** (§11.4 — repo tag `v0.6.0` vendors package `0.5.1`; comparing the first against the third manufactures a confident, wrong finding), plus the publisher version against the workflow pin, the pinned guide version, and `ig.ini` pointing at the IG resource SUSHI actually writes (`P5`, the id-vs-slug class). **Page set and menu** (`C3`, `C5`): every page of the **union source set** (authoritative guide tree ∪ `input/pagecontent`, chosen by the same rule as the advice script and overridable via `--source-guide-tree` — never an all-or-nothing fallback) migrated / retired-with-a-reason / MISSING; every menu entry leading somewhere; every narrative page *in* a menu; every target page traceable to a source page or to `references/template-pages.tsv`; a translated menu wherever there are translated pages. **Artefact completeness and reachability** (`C1`, `C2`): present is not the same property as listed, in both directions — artefacts SUSHI generated, and artefacts rendered from `input/resources` that the forward pass cannot see. `C1` names an artefact by its **id or its canonical url**, because a SearchParameter may have only the latter and the migration reassigns the id; a variant is a directory that renders pages, so the multi-language build's redirect-stub ROOT is not one (§11.5a — reading it as one reported a false BLOCKER on all four migrations). **Rendering integrity** (`R1`, `R2`): tables, tabs and images non-empty where the source's were, and the header/footer regions, where a jurisdiction the publisher cannot resolve renders as `Unknown region code` at `Errors: 0`. **Content placement** (`C6`): not *whether* a text run survived — that is `C4` — but *which page it landed on*, against the map. **Language parity** (`R3`, `R5`): a translated page byte-identical to the default is a fallback, not a translation. Two inputs decide how much of that is mechanisable, and **earlier steps write them, not the verifier**: `migration-log/page-map.tsv` (v2, `source_page⇥target⇥reason⇥branch⇥measure`, of which the verifier reads the first three columns — **generated by the step-5 advice run and human-reviewed, never hand-written**) — without it `C3` cannot run at all and `C6` degrades to a landing distribution a human reads — and the step-5.1c harvest. Absent, they yield NICHT PRÜFBAR, never a pass. `F3` also reconciles the LICENSE **file's** recognized text against the declared licence (mismatch DIVERGIERT, unrecognized NICHT PRÜFBAR, absent an ok note).
 
 ```bash
 grep -rn '{{' . --include='*.yaml' --include='*.yml' --include='*.md' --include='*.json' | grep -v '\${{'
 bash "$ML" run 7 sushi-verify -- npx --yes fsh-sushi@3.20.0 .
 bash "$ML" run 5.4 fql-scan --emits-runlog -- bash "$SKILL_DIR/scripts/fql-scan.sh" --strict
+bash "$ML" run 5.4c page-routing -- python3 "$SKILL_DIR/scripts/page-structure-advice.py" --source <src> --target . --out migration-log/page-structure-advice.md --map migration-log/page-map.tsv
+bash "$ML" run 7 prepost-delta -- python3 "$SKILL_DIR/scripts/prepost-delta.py" --pre migration-log/preflight-analysis.json --post migration-log/postflight-analysis.json --out migration-log/prepost-delta.md --tsv migration-log/prepost-delta.tsv
 bash "$ML" run 11 verify-migration --emits-runlog --expected-nonzero 'findings are the output' -- \
   python3 "$SKILL_DIR/scripts/verify-migration.py" --target . --source <src> --rendered output
 ```
 
-Those three keep their own acceptance: every `{{...}}` accounted for (an unreplaced one ships a bogus artefact **silently**); SUSHI clean and `qa.txt` `Errors: 0` — both shape B **as qualified in step 2b**, while the IDENTISCH criteria are not qualified by shape; `fql-scan.sh --strict` exits 0 **with a non-zero scanned-file count** (an empty target set exits 2 and is not a pass) and no `[UNKNOWN]` findings. Everything else — the six aspects above, identity/licence/pins, parent snapshots, and the run log's own completeness — is a numbered check in spec §11, measured rather than recalled. **Every code printed anywhere (M1–M11, C1–C7, F/P/R/L, gates, marker kinds) is glossed inline by the generator and listed in [`references/codes.md`](references/codes.md).**
+These keep their own acceptance: every `{{...}}` accounted for (an unreplaced one ships a bogus artefact **silently**); SUSHI clean and `qa.txt` `Errors: 0` — both shape B **as qualified in step 2b**, while the IDENTISCH criteria are not qualified by shape; `fql-scan.sh --strict` exits 0 **with a non-zero scanned-file count** (an empty target set exits 2 and is not a pass) and no `[UNKNOWN]` findings; the advice run regenerates the page map with full coverage — exit 1 names the unrouted page and is not a pass (re-running overwrites the reviewed map, so re-apply and re-review human edits); `prepost-delta.py` reports **no REGRESSION row** (exit 1 is a stop to fix). Everything else — the six aspects above, identity/licence/pins, parent snapshots, and the run log's own completeness — is a numbered check in spec §11, measured rather than recalled. **Every code printed anywhere (M1–M11, C1–C7, F/P/R/L, gates, marker kinds) is glossed inline by the generator and listed in [`references/codes.md`](references/codes.md).**
 
 **Auto-fix is optional and bounded** (spec §12): `bash "$SKILL_DIR/scripts/autofix-loop.sh" --skill-dir "$SKILL_DIR"` repairs only the four **allowlisted** mechanical classes, at most **3** iterations, snapshotting each fix, **reverting any whose finding did not clear**, and stopping the moment the finding set stops shrinking. Identity, narrative, anything the SOURCE declares and every judgement call are excluded by construction — they go to the ① queue.
 

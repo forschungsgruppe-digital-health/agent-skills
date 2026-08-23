@@ -327,6 +327,16 @@ literal, so the placeholder gate in §2.3 never touches it, and MII modules comm
 published content. Read the source's `license`, carry it over, and treat any divergence exactly
 like the canonical: report it, raise it at Gate A, let a human decide.
 
+**The LICENSE *file* is reconciled too, mechanically (check F3, §11.3).** A repository commonly
+carries both a declared `license` scalar and a LICENSE file, and the two can disagree without any
+build noticing. The verifier recognizes the file's text — `Attribution 4.0 International` →
+`CC-BY-4.0`, `CC0 1.0 Universal` / `Creative Commons Zero` → `CC0-1.0`, `Apache License` →
+`Apache-2.0`, `MIT License` → `MIT` — and compares the recognized id against the declared scalar:
+a mismatch is **DIVERGIERT**; a LICENSE file whose text matches none of the known bodies is
+**NICHT PRÜFBAR** (a human reads it); an absent file is an ok note, because the scalar then stands
+alone. The §2.1 tier evidence (the SPDX id `repo-identity.sh` reads out of the same file) and this
+reconciliation are two independent reads of one fact — they must agree.
+
 **One deliberate exception (template ≥ v1.1): `publisher` is template CHROME, not module
 identity.** The template sets `publisher: NUM-DIZ` (site root URL) because NUM-DIZ takes over IG
 development and maintenance from the MII — the footer's `IG © <year> <publisher>` line names the
@@ -1428,31 +1438,53 @@ migration report, never a default.) Replace the placeholders (§2.3) using the i
 `input/fsh/profiles/example-patient.fsh` and
 `input/fsh/instances/example-patient-instance.fsh`; confirm the paths in the template you actually
 checked out. **Collision rule for the FSH scaffold:** diff the template's `RuleSet:`/`Alias:`
-names against the module's FSH before copying; module definitions win, colliding template files
-are skipped, the skip list goes into the report (§ SKILL.md step 3 has the known collision set).
+names against the module's FSH before copying; module definitions win — the module's FSH is never
+changed. The resolution granularity differs by file kind: a **shared alias file** (`aliases.fsh`,
+or any scaffold file whose definitions both sides contribute to) is resolved **per DEFINITION** —
+append only the template definitions the module lacks; every **other** colliding scaffold file is
+resolved **per file** — skipped whole. Both the appended-definition list and the skipped-file list
+go into the report (SKILL.md step 3 has the known collision set).
+
+**Scaffold filenames are derived from the module ID, never from the repository slug.** Every
+scaffold coordinate that embeds the module's name — `ig.ini`'s `ig=` path, the
+`ImplementationGuide-<id>` references in pages and includes, the `.po` catalogue name (§5.5) —
+uses the `id` read in §2.1, because SUSHI writes
+`fsh-generated/resources/ImplementationGuide-<id>.json` from that `id` and from nothing else. A
+slug-derived filename builds green right up until the publisher looks for the IG resource and
+finds none — the id-vs-slug failure class that check **P5** (§11.4) exists for.
 
 → **Acceptance:** `npx --yes fsh-sushi@3.20.0 .`, run through the helper so its exit status survives
 (`bash "$ML" run 5.2 sushi-skeleton --raw-log migration-log/sushi-skeleton.log -- npx --yes
 fsh-sushi@3.20.0 .`), runs without error — **shape B: as qualified in §5.1b.4** — no template
-examples remain; no `{{` left unaccounted for; the skipped-collision list is in the log.
+examples remain; no `{{` left unaccounted for; the skipped/appended collision lists are in the
+log; `ig.ini`'s `ig=` names a file SUSHI actually writes (P5's subject).
 
 ### 5.3 Transfer the artefacts
 
 Move the FSH sources from the source repository. Where only JSON/XML exists, convert with `gofsh`;
 for source shape B that conversion and its post-processing already happened in §5.1b, so what moves
 here is that output. IDs and URLs unchanged — including the ids goFSH minted for resources that had
-none, which are confirmed at Gate A rather than re-minted here.
+none, which are confirmed at Gate A rather than re-minted here. **The transfer is
+structure-preserving:** the source's directory layout under `input/fsh/` is carried over, not
+reorganized — a reshuffled tree holds the same artefacts and still wrecks every deep link, review
+diff and downstream path reference.
 
-→ **Acceptance:** the SUSHI build produces every artefact, and **the canonical URL diff against the
-source is empty.**
+→ **Acceptance:** the SUSHI build produces every artefact; **the canonical URL diff against the
+source is empty**; and structure preservation is proved at **path level** — `comm -3` over the
+sorted repo-relative FSH path lists of source and target is empty apart from scaffold additions
+named in the log (counts alone prove nothing about structure).
 
 ### 5.4 Migrate the narrative
 
 **Where the narrative comes from is §5.1d** (pointed at the guide §5.1c discovered) — the
 repository's own pages where it has them, the authenticated project download where credentials
-exist, otherwise the verified guide harvest. This
-section maps whatever that produced onto the template's **fixed** page set (§9); it never invents a
-page, and never creates one page per harvested page.
+exist, otherwise the verified guide harvest. **Where each page GOES is not decided here:** this
+section performs the mapping **consuming only `migration-log/page-map.tsv`** — the contract §9e
+generates and §9f binds, human-reviewed before this step touches it. A source page with no map row
+is **not written** (its absence is a coverage failure the generator already refused with exit 1),
+and a map row this step leaves unhandled is a defect the report must carry. It never invents a
+page, and never creates one page per harvested page — the targets are the template's **fixed**
+page set (§9).
 
 Move the Manteldokument content into the page set — **which language goes where is decided by
 §4.2**: when the source narrative is not in the target's default language (the normal KDS case:
@@ -1480,10 +1512,11 @@ Respect the Liquid build guard: no `{% … %}` or `{{ … }}` literals in `pagec
 inside HTML comments. An invalid `{% … %}` breaks the build hard; an unknown `{{ … }}` silently
 empties and leaks into the HTML.
 
-→ **Acceptance:** every page of the template's set exists; each mandatory Manteldokument section has
-its home per the mapping in §9, and any the source did not supply is listed in the report as a gap
-rather than silently absent; the scan reports no `[UNKNOWN]` and no unintentionally remaining
-directives.
+→ **Acceptance:** every row of `migration-log/page-map.tsv` is handled — the target written, or the
+`RETIRED` reason confirmed — and nothing outside the map was written; every page of the template's
+set exists; each mandatory Manteldokument section has its home per the mapping in §9, and any the
+source did not supply is listed in the report as a gap rather than silently absent; the scan
+reports no `[UNKNOWN]` and no unintentionally remaining directives.
 
 ### 5.5 Bilingual setup
 
@@ -1649,7 +1682,31 @@ A missing Jekyll on the runner surfaces as `Cannot run program "jekyll"`. Copy `
 line into the log as above: the file itself is build output that may not be committed, and a report
 claiming `Errors: 0` needs a log line behind it (§10.6).
 
-→ **Acceptance (and then §11, which checks the rest mechanically):** `qa.txt` reports `Errors: 0` — **shape B: as qualified in §5.1b.4**, where the
+**Then measure the target with the same instrument and DIFF the two measurements.** The sibling
+skill's `ig-stats.py` writes `migration-log/postflight-analysis.json` (the §9c command, pointed at
+the migrated tree), and `scripts/prepost-delta.py` compares it against the Gate-0 pre-flight:
+
+```bash
+bash "$ML" run 7 postflight-analysis --emits-runlog -- \
+  python3 "$ANALYSIS_SKILL_DIR/scripts/ig-stats.py" analyze . \
+    -o migration-log/postflight-analysis.json
+bash "$ML" run 7 prepost-delta -- \
+  python3 "$SKILL_DIR/scripts/prepost-delta.py" \
+    --pre migration-log/preflight-analysis.json --post migration-log/postflight-analysis.json \
+    --out migration-log/prepost-delta.md --tsv migration-log/prepost-delta.tsv
+```
+
+One row per compared property — the identity fields; the licence `contradictory` flag; the
+dependency-injection risk; the artefact counts per class **including the `other` bucket**;
+narrative pages, intro notes and translation pages; the directive counts; the dual-source flag —
+each carrying pre, post and a verdict `unchanged | improved | REGRESSION | expected-change`.
+**Exit 1 means at least one property got WORSE** (licence contradictory `false→true`, injection
+risk `false→true`, any artefact count dropped, an identity field changed): that is a **stop to
+fix**, never a delta to file. The TSV mirror (`property⇥pre⇥post⇥verdict`) is what the report's
+generator reads.
+
+→ **Acceptance (and then §11, which checks the rest mechanically):** the pre/post delta ran and
+reports **no REGRESSION row** (exit 0); `qa.txt` reports `Errors: 0` — **shape B: as qualified in §5.1b.4**, where the
 residual errors are the named escalations and every *other* error is still a stop; every example
 validates (an example blocked by an unresolvable parent is named, not counted as validated); the
 same-module comparison of the catalog's `fhir-ig-analysis` skill (source first, migrated tree
@@ -2064,8 +2121,10 @@ migration and names what kind — and one block may legitimately carry both.
 
 ## 9e. Page routing and presentation (where content goes, and what the host looks like)
 
-**Where a source page's content goes is decided per source page during step 5, BEFORE any of it is
-written — and it is measured, not judged.** Measured on the PROs try-run, routing by judgement
+**Where a source page's content goes is decided per source page BEFORE any of it is written — and
+it is measured, not judged: `scripts/page-structure-advice.py` GENERATES the decisions as
+`migration-log/page-map.tsv` (`--map`, v2 columns — §9f) and VALIDATES the map's coverage, a human
+reviews it, and only then does step 5 consume it.** Measured on the PROs try-run, routing by judgement
 produced `researcher-guidance.html` at **6214 words across 147 headings** (58 `h3`, 84 `h4`, zero
 `h2`), four heading titles repeated on the same page, and 13 numeric-suffix anchors of the
 `#overview-2` kind. The anchors are the part that does not merely read badly: the publisher numbers
@@ -2073,7 +2132,8 @@ them by order of appearance, so adding one sibling section renumbers every later
 German mirror renumbers independently — the two languages' deep links cannot be kept in
 correspondence at all.
 
-**The routing rule.** Apply in order; the first branch that matches wins:
+**The routing rule — what the generator mechanizes.** Applied in order; the first branch that
+matches wins:
 
 1. Content about ONE artefact (one questionnaire, profile, extension, operation) →
    `input/intro-notes/<Type>-<id>-intro.md` plus its per-language mirror (§9's per-profile row).
@@ -2094,14 +2154,32 @@ correspondence at all.
    **ANY** repeated heading title → re-run the routing preferring branches 1 and 2, or split. Three
    countable numbers; none of them is a matter of taste.
 
+**The semantic half of the routing is a TABLE, not prose:**
+[`references/routing-table.tsv`](routing-table.tsv) mechanizes §9's section mapping as
+`pattern⇥target⇥note` rows — patterns are lowercase compacted tokens (alphanumerics only; German
+aliases included, and since compaction strips umlauts, `ae`/`oe`/`ue` spellings appear both ways
+where needed). A source page whose compacted slug OR compacted title CONTAINS a pattern (≥ 3
+chars) routes to the named target home — consulted AFTER the exact agreed-page match and BEFORE
+artefact-anchor matching, so a `KontextImGesamtprojekt` page lands on `implementer-guidance` (§9's
+Bezüge row) instead of wherever an artefact name happens to echo. Extending the semantic mapping
+means adding a table row, which the next generated map picks up — never a hand-edit of one map.
+
+**The generated map is VALIDATED for coverage before anything consumes it.** The source page
+universe is the authoritative guide tree (§5.1a) ∪ `input/pagecontent` ∪ on-disk pages no toc
+lists; every member must have a row with a non-empty target, a toc entry whose page is not on disk
+is a finding (dangling), and a `RETIRED` row must carry a reason. The generator exits 1 until that
+holds — an uncovered map is not reviewable, let alone consumable — and proposes the M9 and
+other-bucket placements (§9a) in the same pass, from the Gate-0 counts.
+
 **Where the menu numbers come from.** Surveyed across published IGs: MII Basis 26, Genomics
 Reporting 26, SDC 31, US Core 33, mCODE 33, `ig-guidance` 35 entries — 33 is the top of the range
 real readers navigate, not an invented ceiling. And **every IG-Publisher IG surveyed caps menu depth
 at 2**: the module template supports ONE sub-menu level and Bootstrap 3 renders no third, so a third
 level is not a crowded menu, it is an unreachable page (the C5 defect, §11.2).
 
-**Every decision is logged, one line per source page** (§10.2 format, alongside §9a's `5.4a` and
-`5.4b`):
+**Every decision is logged, one line per source page — and the lines come from the GENERATOR's
+output, never from a hand count** (§10.2 format, alongside §9a's `5.4a` and `5.4b`; the run that
+writes the map IS run-log step `5.4c` — SKILL.md step 5 has the invocation):
 
 ```text
 5.4c  page-routing  source=<source page> branch=<1|2|3|4|5> target=<path> measure=<what forced it>
@@ -2109,14 +2187,40 @@ level is not a crowded menu, it is an unreachable page (the C5 defect, §11.2).
 
 For branch 4 the line also carries `presentation=<hub|prose>` and `visibility=<menu|nested>`, the two
 decisions 4a and 4b. The `measure=` token is not optional: "chose branch 2" is an assertion,
-`words=2731 gate=2500` is a decision a reviewer can check. **Where the menu budget forced
-ToC-nesting instead of a menu entry, that is also a ① queue item** — the budget is a default, and a
-human may decide to spend it differently.
+`words=2731 gate=2500` is a decision a reviewer can check — the generator fills it from its own
+measurements. **Where the menu budget forced ToC-nesting instead of a menu entry, that is also a ①
+queue item** — the budget is a default, and a human may decide to spend it differently, by editing
+the reviewed map (§9f).
 
 **Interlock with §9d.** Branches 2 and 4a make the migration WRITE text — family overviews, hub
 one-liners, the bridges between merged sections — so every such block carries a `DERIVED:` marker
 (`summary` or `bridge`) and a row in `derived-content.tsv`. Content merely MOVED or SPLIT carries
 none: routing decides where words go, §9d marks only the words the migration added.
+
+## 9f. The map is the contract
+
+**Generate — validate — bind.** `migration-log/page-map.tsv` is the binding intermediate of the
+whole narrative migration, in its machine form: **step 3 GENERATES and VALIDATES it** — the §9e
+advice run, the structural rule plus [`references/routing-table.tsv`](routing-table.tsv),
+coverage-checked against the full source page universe, exit 1 until covered — a human **reviews
+and edits the file itself** before anything consumes it (the review has a machine form, not a
+conversation), **step 5 CONSUMES ONLY it** — a source page with no row is not written, and a row
+step 5 leaves unhandled is a defect the report must carry — and **step 8 CHECKS against it** (C3
+and C6, §11.2). No routing decision lives anywhere else: extending the semantic mapping is a
+routing-table row the next generated map picks up, overriding one page's route is an edit to the
+reviewed map, and the run log's `5.4c` lines are the generator's own output (§9e), never a hand
+count.
+
+**page-map v2 columns** — backward compatible: a v1 parser (the verifier included) reads columns
+0–2 and ignores the rest.
+
+| Column | Carries |
+| --- | --- |
+| `source_page` | path relative to the narrative source root (guide tree or `pagecontent`) |
+| `target` | repo-relative target path (`input/pagecontent/x.md`, `input/intro-notes/<Type>-<id>-intro.md`) — or `RETIRED` |
+| `reason` | one human clause; REQUIRED on every `RETIRED` row |
+| `branch` | the §9e routing branch, `1`–`5` |
+| `measure` | the measurement that forced the branch (`words=… gate=…`, the matched routing-table pattern, …) |
 
 ## 9b. The CapabilityStatement: absence, suggestion, and inline rendering
 
@@ -2486,7 +2590,7 @@ built. Each NICHT PRÜFBAR row carries **why** it could not be mechanised and **
 | --- | --- | --- |
 | **C1** artefact presence | source artefact set (source tree by content, or `source-inventory.json`) against `fsh-generated/resources`, matched **by id OR by canonical url** | a source artefact is absent from the target under both identities |
 | **C2** artefact **reachability** | every generated resource against each rendered **variant's** `artifacts.html` (§11.5a — the site root is not a variant) | a page is rendered but **not listed**, or a resource has no page |
-| **C3** guide-page accounting | every source page against `migration-log/page-map.tsv` | a page is in no row (MISSING), mapped to a page that does not exist, or "retired" with no reason |
+| **C3** guide-page accounting | every page of the union source set (below) against `migration-log/page-map.tsv` | a page is in no row (MISSING), mapped to a page that does not exist, or "retired" with no reason |
 | **C4** narrative text runs | every ≥40-character text run of each source page against the target's corpus **in the source's language** | a run survives nowhere |
 | **C3/C4/C6** the target CORPUS | `input/pagecontent` (or the source-language mirror) **plus `input/intro-notes/` and its per-language mirror** — §9 ROUTES the per-profile narrative there whenever a module carries more than two profiles, so a corpus without it reports the whole routed set as lost (measured on the PROs try-run: 13 false C3 rows, and 12-of-12 "lost" runs on a page whose text was present all along). Page-map targets written as PATHS resolve against the same set |
 | **C5** navigation and the reverse page question | every `menu.xml` entry against the pages that exist; every narrative page against the menus; every target page against the source set and [`references/template-pages.tsv`](template-pages.tsv) | a menu entry leads nowhere; a page renders but is in **no menu** (reachable only by typing its URL — the C2 defect one level up); a target page traces to neither a source page nor the template; the template's demo page survived step 3. **Manifest-currency tripwire:** the manifest records the module-template tag it was MEASURED at; when that differs from the tag the module vendors (run-log `skeleton-vendored ref=`), C5c downgrades to NICHT PRÜFBAR instead of judging against the wrong page set (measured: two false DIVERGIERT on the Studie try-run, manifest v0.10.3 vs vendored v0.11.0) |
@@ -2502,6 +2606,17 @@ comparison proves the first and says nothing about the second. And C4 uses **the
 the same normalisation as `guide-page-to-md.py`'s `missing_runs=`**, so the harvest's loss count and
 the migration's loss count are comparable numbers rather than two different definitions.
 
+**The source-page set for the whole layer is a UNION, never a fallback chain:** the authoritative
+guide tree — chosen by the SAME rule the advice script applies (§5.1a: the highest version in the
+source narrative language, `guide.yaml` `version:` as the tiebreak, overridable via
+`--source-guide-tree`), so the verifier measures conservation against the tree the routing actually
+saw — ∪ the source's `input/pagecontent` ∪ the harvested pages, de-duplicated by basename across the
+homes. The old all-or-nothing fallback let ONE SUSHI stub in `input/pagecontent` suppress a 149-page
+guide tree (measured on Onkologie, 2026-08-23), and the layer then verified conservation of nothing.
+With the union set, C3 accounts **every guide-tree page**; non-authoritative trees (parallel
+languages, historical versions) stay out — their content is translation seed, not conservation
+reference (§5.1a).
+
 **C1 NAMES AN ARTEFACT BY WHAT IT ACTUALLY HAS.** A canonical resource does not need an `id`
 element: six of Consent's SearchParameters carry only a `url`, and the migration legitimately gives
 the generated resource a new id (`mii-sp-consent-policyuri` → `MII-SP-Consent-PolicyUri`). So the
@@ -2513,10 +2628,13 @@ still cannot key (neither id nor url) is **counted and reported NICHT PRÜFBAR b
 fraction it did cover. A check may narrow its subject; it may never narrow its subject silently and
 call the remainder green.
 
-**`migration-log/page-map.tsv` is a required artefact of step 5** — `source_page`, `target_page` (or
-`RETIRED`), `reason`. Without it C3 is NICHT PRÜFBAR: a migration that cannot say where each page
-went has not proved conservation, it has only not been contradicted. Any of the page's names may be
-used as the key (harvested file, guide title, URL slug); the checker resolves all three.
+**`migration-log/page-map.tsv` is a required artefact of step 3 — GENERATED by the §9e advice run
+(`--map`) and validated for coverage there, human-reviewed, and only then consumed by step 5
+(§9f); it is never written by hand.** The verifier reads the v2 columns `source_page`, `target` (or
+`RETIRED`), `reason` and ignores the rest. Without the map C3 is NICHT PRÜFBAR: a migration that
+cannot say where each page went has not proved conservation, it has only not been contradicted. Any
+of the page's names may be used as the key (harvested file, guide title, URL slug); the checker
+resolves all three.
 
 ### 11.3 Layer 2 — fidelity
 
@@ -2524,7 +2642,7 @@ used as the key (harvested file, guide title, URL slug); the checker resolves al
 | --- | --- |
 | **F1** identity, field by field (`id`, `packageId`, `canonical`, `version`, `status`, `title`, `license`, `publisher`, `fhirVersion`) | a field differs from the source's. `version` is the one human decision (§2.1) and is reported NICHT PRÜFBAR for confirmation, never as a defect. An unresolved contradiction in the ledger is **not** a source value: it is reported as one, pointing at L3. |
 | **F2** dependency pins | a source pin is missing or carries a different version. The source's pins are read from the source tree where `--source` is given and otherwise **from the claims ledger** (`dependency:<name>` rows, or an aggregate `dependencies` row) — see below. A target-only dependency (the template's CRMI requirement is the legitimate case) is NICHT PRÜFBAR; contradicting readings of one pin are NICHT PRÜFBAR too, never resolved by precedence, because an adopted-by-machine pin is the very defect F2 exists to catch. `hl7.fhir.r4.core` is declared through `fhirVersion`, which F1 compares, so it is not expected as a dependency. |
-| **F3** `license` explicitly asserted | the declared licence has **no tier evidence** behind it in `identity-claims.tsv`, or the tiers assert something else. Relicensing by default is the quietest defect in this specification: the template's `CC-BY-4.0` is a literal, so no placeholder check flags it. |
+| **F3** `license` explicitly asserted | the declared licence has **no tier evidence** behind it in `identity-claims.tsv`, or the tiers assert something else. Relicensing by default is the quietest defect in this specification: the template's `CC-BY-4.0` is a literal, so no placeholder check flags it. **F3 additionally reconciles the LICENSE *file*** (§2.2): the recognized file text — `Attribution 4.0 International` → `CC-BY-4.0`, `CC0 1.0 Universal` / `Creative Commons Zero` → `CC0-1.0`, `Apache License` → `Apache-2.0`, `MIT License` → `MIT` — against the declared scalar. A mismatch is DIVERGIERT; a file whose text matches no known body is NICHT PRÜFBAR (a human reads it); an absent file is an ok note, the scalar then stands alone. |
 | **F4** FSH residue | `.fhir_comments` rules, or a code reference whose system name carries whitespace, remain in `input/fsh` — the two shapes `postprocess-gofsh.py` models. Auto-fixable (§12). |
 
 **F2 MUST NOT DEPEND ON AN INPUT NOBODY SUPPLIES.** It originally read the source's pins only from
@@ -2545,6 +2663,7 @@ exactly the class the table at the head of §11 describes.
 | **P2** vendored ref | `5.2 skeleton-vendored … ref=` in the run log | `--template-latest`, the module template's latest **release** |
 | **P3** IG Publisher | `IG Publisher Version:` in `qa.txt`/`qa.html` | the pin in the target's build workflow `env:` |
 | **P4** source-guide pin | the `?version=` of the URLs pages were fetched from | must be a **published** version, never `current` |
+| **P5** ig.ini → the IG resource | the `ig =` path in `ig.ini` | the file on disk under the target. SUSHI derives its output name from the sushi-config `id` (`fsh-generated/resources/ImplementationGuide-<id>.json`) and from nothing else, so a path derived from the repository SLUG names a file SUSHI never writes — **DIVERGIERT** when the file does not exist beside built siblings (the id-vs-slug failure class, §5.2); where SUSHI has not run in the checkout, the id-derived name is the reference |
 
 **The measured trap, encoded: the ig-template PACKAGE version and the module-template REPO release
 are different numbers.** Measured 2026-08-06 — repo tag `v0.6.0` vendors package version `0.5.1`,
