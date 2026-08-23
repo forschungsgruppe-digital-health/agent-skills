@@ -42,6 +42,17 @@ WHAT COUNTS AS A REGRESSION, verbatim from the contract:
   * ANY artefact count DROPPED -- per class, INCLUDING every class inside the
     other-bucket, `other_total` and `total`. A rise is expected-change (the
     migration added content; the report names it), a drop is content lost.
+    EXCEPTION -- census modes. When the two measurements' top-level `mode`
+    fields DIFFER (ig-stats reports `reduced` for a raw-resource census and
+    `static` for a full FSH-declaration one -- they diverge on the
+    Consent/harvest source shape, where the source repo holds Forge XML and
+    the target holds FSH), per-class counts are NOT comparable: the two
+    census styles classify the same artefacts differently
+    (measured on PROs: 130 vs 47 examples on the SAME module). Every
+    artefact-count difference is then reported as expected-change with the
+    modes named, never as a regression -- and conservation of the artefacts
+    themselves is the verifier's C1 question, answered by id, not by count.
+    Identity, licence, directive and flag regressions are unaffected.
   * the directive count ROSE. A drop is improved -- converting the
     Simplifier/FQL directives away is one of the things the migration is FOR.
 
@@ -294,12 +305,53 @@ def compare_flags(pre, post):
     return rows
 
 
+def census_modes(pre, post):
+    """The two measurements' top-level `mode` fields and whether they differ.
+    Differing modes (ig-stats: `reduced` = raw-resource census, `static` =
+    full FSH-declaration census) make per-class counts incomparable -- see
+    the docstring's EXCEPTION."""
+    pre_mode = dig(pre, "mode")
+    post_mode = dig(post, "mode")
+    differ = (pre_mode is not MISSING and post_mode is not MISSING
+              and pre_mode != post_mode)
+    return pre_mode, post_mode, differ
+
+
 def compare_artifacts(pre, post):
     rows = []
     pre_a = dig(pre, "artifacts")
     post_a = dig(post, "artifacts")
     pre_a = pre_a if isinstance(pre_a, dict) else {}
     post_a = post_a if isinstance(post_a, dict) else {}
+
+    pre_mode, post_mode, modes_differ = census_modes(pre, post)
+    mode_why = ("census modes differ (pre=%s, post=%s): a raw-resource census "
+                "and an FSH-declaration census classify the same artefacts "
+                "differently, so a count difference here is not evidence of "
+                "loss -- conservation is checked by id, not by count (the "
+                "verifier's C1)" % (fmt(pre_mode), fmt(post_mode)))
+    if pre_mode is MISSING or post_mode is MISSING:
+        if pre_mode is not MISSING or post_mode is not MISSING:
+            # one side measured its census mode, the other did not: that is
+            # not "unchanged", it is unmeasurable -- and count comparisons
+            # below stay UNguarded, because a missing mode is no evidence
+            # the censuses were comparable OR incomparable
+            rows.append(Row("artifacts", "mode", pre_mode, post_mode,
+                            NOT_MEASURABLE,
+                            "the census mode is absent from %s measurement"
+                            % ("the pre" if pre_mode is MISSING
+                               else "the post")))
+    else:
+        rows.append(Row("artifacts", "mode", pre_mode, post_mode,
+                        EXPECTED if modes_differ else UNCHANGED,
+                        mode_why if modes_differ else ""))
+
+    def guard(verdict, why):
+        """Count verdicts are downgraded to expected-change when the modes
+        differ; unchanged and not-measurable stay what they are."""
+        if modes_differ and verdict in (REGRESSION, EXPECTED):
+            return EXPECTED, mode_why
+        return verdict, why
 
     def is_count(d, k):
         return (k in d and isinstance(d[k], int)
@@ -315,12 +367,12 @@ def compare_artifacts(pre, post):
         b = dig(post_a, cls)
         if a is MISSING and b is MISSING:
             continue
-        verdict, why = verdict_for_count(
+        verdict, why = guard(*verdict_for_count(
             a, b,
             "the count DROPPED by %d -- artefacts of this class were lost in "
             "the migration",
             "the count rose by %d -- artefacts added by the migration; the "
-            "report names what and why")
+            "report names what and why"))
         rows.append(Row("artifacts", "artifacts.%s" % cls, a, b, verdict, why))
 
     # The other-bucket: classes the analyzer had no named counter for. Inside
@@ -335,12 +387,12 @@ def compare_artifacts(pre, post):
         for cls in sorted(set(pre_o) | set(post_o)):
             a = pre_o.get(cls, 0)
             b = post_o.get(cls, 0)
-            verdict, why = verdict_for_count(
+            verdict, why = guard(*verdict_for_count(
                 a, b,
                 "the count DROPPED by %d -- artefacts of this class were lost "
                 "in the migration",
                 "the count rose by %d -- artefacts added by the migration; "
-                "the report names what and why")
+                "the report names what and why"))
             rows.append(Row("artifacts", "artifacts.other.%s" % cls,
                             a, b, verdict, why))
 
@@ -349,11 +401,11 @@ def compare_artifacts(pre, post):
         b = dig(post_a, total_key)
         if a is MISSING and b is MISSING:
             continue
-        verdict, why = verdict_for_count(
+        verdict, why = guard(*verdict_for_count(
             a, b,
             "the total DROPPED by %d -- the migration ships fewer artefacts "
             "than the source",
-            "the total rose by %d -- consistent with the per-class rises above")
+            "the total rose by %d -- consistent with the per-class rises above"))
         rows.append(Row("artifacts", "artifacts.%s" % total_key,
                         a, b, verdict, why))
     return rows
@@ -543,6 +595,15 @@ def main(argv):
 
     log("INFO", "%s  pre=%s post=%s out=%s tsv=%s"
         % (OPEN_WORD, a.pre, a.post, a.out, a.tsv or "-"))
+
+    pre_mode, post_mode, modes_differ = census_modes(pre, post)
+    if modes_differ:
+        log("WARN", "census-mode-mismatch: pre=%s post=%s -- artefact-count "
+                    "differences reported as expected-change, never as "
+                    "regressions" % (fmt(pre_mode), fmt(post_mode)),
+            ["The two census styles classify the same artefacts differently;",
+             "conservation of the artefacts themselves is the verifier's C1",
+             "question, answered by id, not by count."])
 
     rows = []
     rows.extend(compare_identity(pre, post))

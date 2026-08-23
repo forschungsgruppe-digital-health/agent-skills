@@ -117,7 +117,9 @@ absence check **L2** reports — is [`references/expected-steps.tsv`](expected-s
 
 **page-map v2 columns.** `migration-log/page-map.tsv` — the contract the narrative migration binds to:
 GENERATED and coverage-validated at step 3 by `page-structure-advice.py --map` (the `5.4c page-routing`
-run), human-reviewed, consumed by step 5, checked by C3/C6 at step 8 — carries
+run — its page universe spans the `pages:` block, the authoritative guide tree, `input/pagecontent`
+AND the step-2c harvest manifest, so every source shape enters the same contract), human-reviewed,
+consumed by step 5, checked by C3/C6 at step 8 — carries
 `source_page` · `target` (or `RETIRED`) · `reason` · `branch` (the spec-§9e routing branch, 1–5) ·
 `measure` (the measurement that forced the branch). Backward compatible: a v1 parser (the verifier
 included) reads the first three columns and ignores the rest.

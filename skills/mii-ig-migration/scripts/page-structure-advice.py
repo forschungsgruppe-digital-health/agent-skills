@@ -32,14 +32,19 @@ USAGE
                                   [--target <migrated-repo>] \
                                   [--out <file.md>] \
                                   [--map <page-map.tsv>] \
-                                  [--routing-table <routing-table.tsv>]
+                                  [--routing-table <routing-table.tsv>] \
+                                  [--harvest-tsv <guide-harvest.tsv>] \
+                                  [--harvest-dir <pagecontent-dir>]
 
   --source  the ORIGINAL module repository. The page tree comes from the FIRST
-            of three inputs that yields pages:
+            of four inputs that yields pages:
               (a) the `pages:` block of sushi-config.yaml
               (b) the AUTHORITATIVE Simplifier guide tree under
                   implementation-guides/ (spec 5.1a), walked from its toc.yaml
               (c) a flat count of input/pagecontent/*.md
+              (d) the step-2c harvest manifest (spec 5.1d - the shape whose
+                  narrative exists only on the rendered Simplifier guide;
+                  auto-discovered from <target>/migration-log/)
             fsh-generated/resources or input/fsh give the artefact index used
             by branch 1.
   --target  the MIGRATED repository (input/includes/menu.xml for the menu
@@ -56,12 +61,24 @@ USAGE
   --map     write the page-map v2 TSV (header: `# source_page<TAB>target<TAB>
             reason<TAB>branch<TAB>measure`): one row per page of the SOURCE
             PAGE UNIVERSE - the authoritative guide tree UNION
-            input/pagecontent UNION on-disk pages no toc lists - plus one
-            RETIRED summary row (`<tree>/**`) per non-authoritative guide
-            tree. The COVERAGE VALIDATION then re-derives the universe from
-            disk and checks every page has a row with a non-empty target and
-            every RETIRED row carries a reason; exit 1 when it fails, 0 when
-            covered.
+            input/pagecontent UNION on-disk pages no toc lists UNION the
+            step-2c harvest manifest - plus one RETIRED summary row
+            (`<tree>/**`) per non-authoritative guide tree. The COVERAGE
+            VALIDATION then re-derives the universe from disk and checks
+            every page has a row with a non-empty target and every RETIRED
+            row carries a reason; a harvest-SKIPPED page is in the universe
+            with no routable content and fails coverage until re-harvested or
+            deliberately retired; exit 1 when it fails, 0 when covered.
+  --harvest-tsv
+            the step-2c guide-harvest manifest (default: the target's
+            migration-log/guide-harvest.tsv when present). Harvested pages
+            are routed like every other source page; a harvested twin of a
+            primary-tree page (compacted-slug match) keeps a visible row
+            bound to the primary's target.
+  --harvest-dir
+            the harvested pagecontent directory (default:
+            guide-harvest/pagecontent beside the manifest), used to count
+            each harvested page's words.
   --routing-table
             the semantic routing table (default: the references/
             routing-table.tsv sibling of this script). Pattern rows route a
@@ -87,7 +104,7 @@ import re
 import sys
 from collections import Counter, OrderedDict
 
-SCRIPT_VERSION = "1.2.0"
+SCRIPT_VERSION = "1.3.0"
 
 # --------------------------------------------------------------------------
 # Contract limits (spec 9e).  Changing these changes the advice, so they are
@@ -444,6 +461,9 @@ class PageNode(object):
         self.anchor_how = ""
         self.is_family = False
         self.notes = []
+        # a harvested twin of a primary-tree page: its map row binds to the
+        # primary's target instead of being routed independently
+        self.mirror_of = None
 
 
 def parse_pages_block(config_text):
@@ -929,6 +949,142 @@ def walk_guide_tree(tree_path):
     walk.sweep_unvisited()
     walk.normalise_levels()
     return walk.roots, walk.nodes, walk
+
+
+# ==========================================================================
+# SOURCE (d): the harvested Simplifier guide (spec 5.1d - the Consent shape,
+# whose narrative exists ONLY on the rendered guide and reaches disk through
+# the step-2c harvest)
+# ==========================================================================
+
+HARVEST_TSV_NAME = "guide-harvest.tsv"
+
+
+def default_harvest_tsv(target_root):
+    """Step 2c writes the manifest into the target's migration-log; picked up
+    without a flag, mirroring load_preflight - the chain, not the operator,
+    carries the intermediate forward."""
+    if not target_root:
+        return None
+    path = os.path.join(target_root, "migration-log", HARVEST_TSV_NAME)
+    return path if os.path.isfile(path) else None
+
+
+def _harvest_level(url):
+    """Page depth from the guide URL (/guide/<key>/<Root>[/<page>...]): the
+    root page is level 1, one more per path segment below it - the same
+    shallowest-at-1 convention the guide-tree walker normalises to."""
+    path = url.split("?", 1)[0].split("#", 1)[0]
+    parts = [p for p in path.split("/") if p]
+    try:
+        index = parts.index("guide")
+    except ValueError:
+        return 1
+    return max(1, len(parts) - index - 2)
+
+
+def load_harvest(tsv_path, harvest_dir):
+    """The step-2c harvest manifest as routable PageNodes.
+
+    Returns (nodes, universe, skipped, notes).  `universe` maps page name ->
+    origin for the coverage validation.  A row the harvest SKIPPED enters the
+    universe WITHOUT a node - it is a discovered source page with no routable
+    content, so the coverage validation fails loudly until the harvest is
+    clean or a human retires the page in the reviewed map.  Columns per
+    guide-harvest.sh: url, status, kind, reason, file, src_text_chars,
+    md_text_chars, missing_runs, title.
+    """
+    nodes, universe, skipped, notes = [], OrderedDict(), [], []
+    text = read_text(tsv_path)
+    if not text.strip():
+        return nodes, universe, skipped, [
+            "harvest manifest unreadable or empty: %s" % tsv_path]
+    tsv_dir = os.path.dirname(os.path.abspath(tsv_path))
+    stack = []          # (level, node): parent linkage in discovery order
+    for line in text.splitlines():
+        if not line.strip() or line.startswith("url\t"):
+            continue
+        cols = line.split("\t")
+        if len(cols) < 2:
+            continue
+        url, status = cols[0].strip(), cols[1].strip()
+        kind = cols[2].strip() if len(cols) > 2 else ""
+        reason = cols[3].strip() if len(cols) > 3 else ""
+        file_field = cols[4].strip() if len(cols) > 4 else ""
+        # the title is the LAST column precisely because titles contain
+        # anything; if one carried a tab, its fragments are re-joined here
+        title = " ".join(c.strip() for c in cols[8:]).strip() \
+            if len(cols) > 8 else ""
+        if status != "harvested":
+            skipped.append((url, reason or status))
+            continue
+        name = os.path.basename(file_field)
+        if not name:
+            skipped.append((url, "harvested row carries no file column"))
+            continue
+        if name in universe:
+            # two URLs flattened onto ONE file name: the harvester overwrote
+            # the first page's content with the second's - a loss the loader
+            # must surface, never model as two routable pages sharing a file
+            notes.append("harvest manifest names `%s` TWICE (second url: %s) "
+                         "- the harvester overwrote the first page's content; "
+                         "re-harvest with distinct names before routing"
+                         % (name, url))
+            continue
+        level = _harvest_level(url)
+        while stack and stack[-1][0] >= level:
+            stack.pop()
+        parent = stack[-1][1] if stack else None
+        # The matching key is the page's OWN name. The harvest flattens the
+        # parent path into the file name, and a parent segment must not
+        # outvote the page's own (measured on Consent:
+        # `anwendungsfaelle...-uml.md` routed to logical-models via the longer
+        # parent pattern instead of `uml` -> uml-diagrams; the tree walker
+        # keys by basename for the same reason). So when the file stem
+        # demonstrably carries flattened parents - it ENDS with the URL's
+        # last segment but is longer - the segment is the key; otherwise the
+        # stem is (the root page's file is `index.md`, and `index` must keep
+        # its exact agreed-page match rather than adopt the guide's name).
+        tail = [p for p in url.split("?", 1)[0].split("#", 1)[0].split("/") if p]
+        own_name = tail[-1] if tail else ""
+        stem = re.sub(r"\.md$", "", name)
+        slug = stem
+        if own_name:
+            c_stem, c_own = compact(stem), compact(own_name)
+            if c_own and c_stem != c_own and c_stem.endswith(c_own):
+                slug = own_name
+        node = PageNode(name, level, parent, slug=slug)
+        if parent is not None:
+            parent.children.append(node)
+        stack.append((level, node))
+        node.title = title
+        for candidate in (file_field,
+                          os.path.join(tsv_dir, file_field),
+                          os.path.join(harvest_dir, name) if harvest_dir else ""):
+            if candidate and os.path.isfile(candidate):
+                node.words = count_words(read_text(candidate))
+                break
+        else:
+            node.notes.append("harvested file not found on disk - 0 words "
+                              "routed; pass --harvest-dir")
+        page_note = "harvested guide page (kind=%s)" % (kind or "unknown")
+        if kind == "artefact-view":
+            page_note += (" - a RENDERING of artefacts, not narrative; it "
+                          "regenerates from the artefacts themselves")
+        node.notes.append(page_note)
+        universe.setdefault(name, "guide harvest %s"
+                            % os.path.basename(tsv_path))
+        nodes.append(node)
+    for url, reason in skipped:
+        tail = [p for p in
+                url.split("?", 1)[0].split("#", 1)[0].split("/") if p]
+        key = "%s.md" % tail[-1] if tail else url
+        if key in universe:
+            key = url
+        universe[key] = ("guide harvest SKIPPED (%s) - re-harvest, or retire "
+                         "it deliberately in the reviewed map"
+                         % (reason or "no reason recorded"))
+    return nodes, universe, skipped, notes
 
 
 # ==========================================================================
@@ -1437,8 +1593,9 @@ def route(nodes, artefacts, frequency, agreed_slug, agreed_title,
 # the page map (v2) - THE PRIMARY OUTPUT
 # ==========================================================================
 # One row per page of the SOURCE PAGE UNIVERSE (authoritative guide tree UNION
-# input/pagecontent UNION on-disk pages no toc lists), plus one RETIRED
-# summary row per non-authoritative guide tree.  Columns:
+# input/pagecontent UNION on-disk pages no toc lists UNION the step-2c harvest
+# manifest), plus one RETIRED summary row per non-authoritative guide tree.
+# Columns:
 #   source_page  path relative to the narrative source root (guide tree or
 #                input/pagecontent)
 #   target       repo-relative target path (input/pagecontent/x.md,
@@ -1510,16 +1667,38 @@ def map_reason_for(node):
 def build_map_rows(routed_nodes, trees, chosen):
     """The page-map rows: one per routed page (primary tree + union extras, in
     document order), then one RETIRED summary row per non-authoritative guide
-    tree (`<tree>/**`), reason = its spec-5.1a disposition."""
+    tree (`<tree>/**`), reason = its spec-5.1a disposition.  A node marked
+    `mirror_of` (a harvested twin of a primary page) binds to the SAME target
+    the primary's row got - visible, never silently dropped, and never routed
+    into a second target file for the same content."""
     rows = []
     used_targets = set()
+    target_of = {}
+    mirrors = [n for n in routed_nodes if n.mirror_of is not None]
     for node in routed_nodes:
+        if node.mirror_of is not None:
+            continue
+        target = map_target_for(node, used_targets)
+        target_of[id(node)] = (target, node.branch or "4")
         rows.append({
             "source": node.filename,
-            "target": map_target_for(node, used_targets),
+            "target": target,
             "reason": map_reason_for(node),
             "branch": node.branch or "4",
             "measure": node.measurement,
+        })
+    for node in mirrors:
+        bound = target_of.get(id(node.mirror_of))
+        target, branch = bound if bound else (
+            map_target_for(node.mirror_of, used_targets),
+            node.mirror_of.branch or "4")
+        rows.append({
+            "source": node.filename,
+            "target": target,
+            "reason": "harvested twin of `%s` (slug match) - one page, two "
+                      "sources; confirm at map review" % node.mirror_of.filename,
+            "branch": branch,
+            "measure": "slug '%s' matches the primary page" % node.slug,
         })
     for tree in trees or []:
         if chosen is not None and tree is chosen:
@@ -1646,6 +1825,13 @@ def build_report(args, source_info, target_info, nodes, roots, queue1, budget,
     out.append("| routing table | `%s` (%d pattern%s) |" % (
         md_escape(routing["path"]), routing["count"],
         "" if routing["count"] == 1 else "s"))
+    harvest = map_info.get("harvest") or {}
+    if harvest.get("tsv"):
+        out.append("| harvest manifest | `%s`%s (%d page%s, %d skipped) |" % (
+            md_escape(harvest["tsv"]),
+            " (auto-discovered)" if harvest.get("auto") else "",
+            harvest["pages"], "" if harvest["pages"] == 1 else "s",
+            harvest["skipped"]))
     out.append("| Gate 0 preflight | %s |" % md_escape(
         "`%s`" % preflight_info["path"] if preflight_info["data"] is not None
         else "%s (%s)" % (preflight_info["path"] or "-",
@@ -1671,7 +1857,7 @@ def build_report(args, source_info, target_info, nodes, roots, queue1, budget,
     # ---- 1. source ------------------------------------------------------
     out.append("## 1. Source page tree")
     out.append("")
-    out.append("The tree is taken from the FIRST of three inputs that yields pages: "
+    out.append("The tree is taken from the FIRST of four inputs that yields pages: "
                "**(a)** the `pages:` block of the source `sushi-config.yaml`, **(b)** the "
                "authoritative Simplifier guide tree under `%s/` (spec 5.1a), "
                "**(c)** a flat count of `input/pagecontent/*.md`." % GUIDE_DIR_NAME)
@@ -2099,6 +2285,15 @@ def main(argv=None):
     parser.add_argument("--guide-tree", dest="guide_tree",
                         help="HUMAN OVERRIDE: the directory name under "
                              "implementation-guides/ to treat as authoritative")
+    parser.add_argument("--harvest-tsv", dest="harvest_tsv",
+                        help="the step-2c guide-harvest manifest - source (d), "
+                             "for a module whose narrative exists only on the "
+                             "rendered Simplifier guide (default: "
+                             "<target>/migration-log/guide-harvest.tsv when "
+                             "present)")
+    parser.add_argument("--harvest-dir", dest="harvest_dir",
+                        help="the harvested pagecontent directory (default: "
+                             "guide-harvest/pagecontent beside the manifest)")
     args = parser.parse_args(argv)
 
     source_root = os.path.abspath(args.source)
@@ -2138,10 +2333,13 @@ def main(argv=None):
 
     # ---- source ---------------------------------------------------------
     # Fallback order, spec 9d/9e: (a) the sushi-config `pages:` block, (b) the
-    # authoritative Simplifier guide tree, (c) a flat file count.  A module that
-    # authors its narrative on Simplifier - the normal MII shape - has no usable
-    # `pages:` block, and reporting "0 source pages" for it made the routing
-    # rule unusable exactly where it matters most.
+    # authoritative Simplifier guide tree, (c) a flat file count, (d) the
+    # step-2c harvest manifest.  A module that authors its narrative on
+    # Simplifier - the normal MII shape - has no usable `pages:` block, and
+    # reporting "0 source pages" for it made the routing rule unusable exactly
+    # where it matters most; the Consent shape (raw Forge XML, narrative only
+    # on the RENDERED guide) has no tree on disk either, and its pages reach
+    # this script only through the harvest.
     config_path = os.path.join(source_root, "sushi-config.yaml")
     if not os.path.isfile(config_path):
         config_path = os.path.join(source_root, "sushi-config.yml")
@@ -2233,6 +2431,38 @@ def main(argv=None):
                     "guide tree `%s` yielded no pages when walked; fell back to the flat "
                     "file count." % chosen["name"])
 
+    # ---- source (d): the harvested Simplifier guide ----------------------
+    harvest_tsv = args.harvest_tsv or default_harvest_tsv(target_root)
+    harvest_dir = args.harvest_dir or (
+        os.path.join(os.path.dirname(os.path.abspath(harvest_tsv)),
+                     "guide-harvest", "pagecontent") if harvest_tsv else None)
+    harvest_nodes, harvest_universe, harvest_skipped, harvest_notes = \
+        load_harvest(harvest_tsv, harvest_dir) if harvest_tsv \
+        else ([], OrderedDict(), [], [])
+    harvest_info = {
+        "tsv": harvest_tsv,
+        "auto": bool(harvest_tsv) and not args.harvest_tsv,
+        "pages": len(harvest_nodes),
+        "skipped": len(harvest_skipped),
+        "notes": harvest_notes,
+    }
+    if harvest_nodes and not nodes:
+        nodes = harvest_nodes
+        roots = [n for n in harvest_nodes if n.parent is None]
+        origin = "guide-harvest"
+        origin_label = ("(d) the step-2c harvest manifest `%s` - the narrative "
+                        "exists only on the rendered Simplifier guide (spec "
+                        "5.1d)" % harvest_tsv)
+        tree_note = ("Parsed from the harvest manifest in discovery order; "
+                     "levels derive from the guide URL depth, shallowest at 1.")
+    for url, reason in harvest_skipped:
+        findings.append("the harvest SKIPPED `%s` (%s) - a discovered source "
+                        "page with NO routable content. The coverage "
+                        "validation below fails until the harvest is clean or "
+                        "a human retires the page in the reviewed map."
+                        % (url, reason))
+    findings.extend(harvest_notes)
+
     source_info = {
         "found": found,
         "origin": origin,
@@ -2296,10 +2526,41 @@ def main(argv=None):
             queue1 += route(guide_extras, artefacts, frequency, slug_index,
                             title_index, target_pages, budget, True, routing_rows)
             extra_nodes.extend(guide_extras)
+    if harvest_nodes and origin != "guide-harvest":
+        # A page harvested to disk AND sitting in the primary tree is ONE
+        # page.  Matching is by COMPACTED slug (case-insensitive - Simplifier
+        # URL segments are TitleCase, tree basenames often are not), and a
+        # match is never silently dropped: the harvested twin keeps a visible
+        # map row BOUND to the primary page's target, so wrong twin-detection
+        # is a reviewable row, not an erased page.
+        primary_by_compact = {}
+        for n in list(nodes) + extra_nodes:
+            primary_by_compact.setdefault(compact(n.slug), n)
+        harvest_fresh = []
+        for n in harvest_nodes:
+            match = primary_by_compact.get(compact(n.slug))
+            if match is None:
+                n.notes.append("union page: harvested from the rendered guide "
+                               "but absent from the primary page tree")
+                harvest_fresh.append(n)
+            else:
+                n.mirror_of = match
+                n.notes.append("harvested twin of primary page `%s` (slug "
+                               "match) - its map row binds to the same target"
+                               % match.filename)
+        if harvest_fresh:
+            queue1 += route(harvest_fresh, artefacts, frequency, slug_index,
+                            title_index, target_pages, budget, False,
+                            routing_rows)
+        extra_nodes.extend(harvest_nodes)
 
     # ---- the page map and its coverage validation ------------------------
     map_rows = build_map_rows(list(nodes) + extra_nodes, trees, chosen)
     universe = compute_universe(source_root, chosen)
+    for page, page_origin in harvest_universe.items():
+        # every harvested page keeps its universe entry: routed, twin-bound
+        # or SKIPPED, each has a map row or a loud coverage finding
+        universe.setdefault(page, page_origin)
     coverage_findings = validate_coverage(map_rows, universe)
     map_info = {
         "rows": map_rows,
@@ -2312,6 +2573,7 @@ def main(argv=None):
                     "skipped": routing_skipped},
         "preflight": {"data": preflight, "path": preflight_path,
                       "note": preflight_note, "census": census_label},
+        "harvest": harvest_info,
     }
     if args.map:
         write_page_map(args.map, map_rows)
