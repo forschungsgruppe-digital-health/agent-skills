@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.22.0...v0.23.0) (2026-08-24)
+
+
+### Skills and capabilities
+
+* the report gains a generated sign-off checklist and a walkable comparison table ([#93](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/93)) ([8206ae8](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/8206ae87ccd2cf37b71e96599bdae2e58fbe7ace))
+
 ## [0.22.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.21.0...v0.22.0) (2026-08-23)
 
 
