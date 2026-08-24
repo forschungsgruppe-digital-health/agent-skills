@@ -379,7 +379,7 @@ below, and verify it against the target's `sushi-config.yaml` rather than trusti
    provenance requires proof (build the unmigrated source to claim "pre-existing"). **Its reader has
    never seen this skill, spec or repo**: every labelled line the template lists is mandatory (incl.
    **if nobody acts**, who decides, effort, reversibility), codes are glossed where used, and ids tie
-   the queues to *Sign-off*. **The protocol section is generated FROM `migration-log/run.log`**
+   the queues to *Sign-off*. Two GENERATED aids are pasted, never retyped (invocations in the template's *How to re-run*): `qa-checklist.py` renders every open obligation from the ledgers as per-gate `- [ ]` checkboxes into *Sign-off*, and `comparison-table.py` renders the map as clickable rendered-source ↔ rendered-target rows plus the template-page provenance into *Content map*. **The protocol section is generated FROM `migration-log/run.log`**
    (spec §10.6): every claim traces to a line, every WARN/ERROR lands in a queue, the log wins.
 
 9. **Open a pull request** with the report as its description. **Do not publish.** Name the working branch `migration/<source-version>-template-<module-template-tag>` (spec step 9 — five try-runs each invented a different scheme). Determine the PR's target branch from the module repository's own convention — **discover it, do not assume it**:

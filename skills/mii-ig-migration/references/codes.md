@@ -109,6 +109,20 @@ Content merely **moved** or **split** is never marked — only text that did not
 | **QA-n** | a build/validation finding — queue ③, triaged by provenance |
 | **FIX-n** | a change the migration already applied, revertible on its own commit |
 
+The report's *Sign-off* section carries a **generated QA checklist** (`qa-checklist.py`): one
+`- [ ]` checkbox per open obligation from the machine ledgers, grouped under the gate that owns it
+(findings verdicted DIVERGIERT or NICHT PRÜFBAR, per-field identity contradictions — which REPLACE
+the verifier's one-line L3 finding whenever the claims ledger is present — derived-content pages,
+retirements and harvested twins, plus the fixed release items). Checkboxes for the report-authored
+DEC/REV/QA items are added by the report author — the generator cannot enumerate judgement.
+
+## The two source shapes
+
+| Shape | Means |
+|---|---|
+| **A** | the source repository ships FSH (`input/fsh/`) — the artefact definitions are portable as they are |
+| **B** | the source ships only raw XML/JSON resources (the Forge/Consent shape) — the FSH is DERIVED once via goFSH, then both shapes follow the same procedure |
+
 ## Run-log step ids
 
 The first field of a run-log line. They follow the specification's section numbers, so `5.4c` is the step
