@@ -100,6 +100,7 @@ evidence file is right and this report is stale: regenerate it.
 | the page-routing map generator (menu budget, hub and size gates, and the page-map contract — spec §9e/§9f) | `python3 {path}/page-structure-advice.py --source {source} --target . --out migration-log/page-structure-advice.md --map migration-log/page-map.tsv` | the page-map v2 TSV + its report regenerated; exit 0 = coverage holds, exit 1 = a source page has no target, a RETIRED row has no reason, or a harvest-skipped page is unresolved (the step-2c harvest manifest is auto-discovered from `migration-log/`). Re-generating overwrites the reviewed map — re-apply (and re-review) any human edits |
 | the pre/post delta (spec §5.6) | `python3 {path}/prepost-delta.py --pre migration-log/preflight-analysis.json --post migration-log/postflight-analysis.json --out migration-log/prepost-delta.md --tsv migration-log/prepost-delta.tsv` | exit 0 = no REGRESSION row; exit 1 = a property got worse (an artefact count dropped, licence turned contradictory, injection risk appeared, an identity field changed) — a stop to fix, never a delta to file. When the two measurements' census `mode` fields differ (raw-resource vs FSH-declaration census — the harvested source shape), count differences report as expected-change with the modes named, never as regressions |
 | the sign-off checklist generator | `python3 {path}/qa-checklist.py --log-dir migration-log --out migration-log/qa-checklist.md` | one `- [ ]` per open obligation, per gate, from the four ledgers; a missing ledger is SAID, not an empty list. Re-add the report-authored DEC/REV/QA checkboxes after regenerating |
+| the LICENSE aligner (spec §5.2) | `python3 {path}/license-align.py --source {source} --target .` | exit 0 = aligned (replaced or already aligned; the from→to announcement is the `license-replaced:` line, a normalized/removed variant file its own `license-variant-…:` line); exit 1 = a human must decide (no licence anywhere, no vendored text for the declared id, or a source-internal contradiction carried visibly); exit 2 = a filesystem/setup failure — nothing changed, or the error names exactly what was left behind |
 | the comparison-table generator | `python3 {path}/comparison-table.py --log-dir migration-log --preview-url {FULL base of the rendered preview, incl. any branches/… path} --out migration-log/comparison-table.md` | the map as clickable rendered-source ↔ rendered-target rows + the template-page provenance table; add `--source-guide-url {pinned guide root}` for guide-tree sources without a harvest, and `--source-repo-url {source repo file-view base, e.g. …/blob/main}` for pagecontent-shaped sources that have no rendered home — the table warns when no source cell could be linked |
 
 **The verifier is not vendored in this repository** — it ships with the `mii-ig-migration` skill at
@@ -157,6 +158,20 @@ check a rule, never as a substitute for stating the rule.
 <!-- One dedicated commit per fix, so each can be reverted alone. Name the FULL blast radius of each
      commit, not the headline: a reviewer who reverts to undo one thing must know what else goes.
      Delete no row; if the migration applied none, write "none". -->
+
+<!-- MANDATORY when step 5.2 license-align REPLACED the LICENSE file: one FIX-n row stating
+     "LICENSE replaced: {from-licence} (template scaffold) → {to-licence} ({source file verbatim |
+     the official legal code, vendored with the skill — the source declares {id} but ships no
+     file})", citing the `license-replaced:` run-log line. The person migrating must never learn
+     about a licence change from a diff. -->
+
+**FIX-{n} — LICENSE aligned with the source's licence.** {The target's `LICENSE` (the template
+scaffold's {CC-BY-4.0}) was replaced with {CC0-1.0}: {copied verbatim from the source's `LICENSE` |
+the official legal code vendored with the skill, because the source declares {CC0-1.0} in
+{package.json} but ships no LICENSE file}. Evidence: the `license-replaced:` line in
+`migration-log/run.log`. Revert: this fix's own commit. | not applicable — the licences already
+agreed | NOT aligned: {no licence anywhere | no vendored text for {id}} — a ① Gate-A decision, see
+the `license-missing:`/`license-unvendored:` WARN.}
 
 Accepting these needs no action — merging accepts all of them. To reject one, revert it on branch
 `{branch}`. **Revert newest first:** {FIX-n, FIX-n, …}. Reverting out of order conflicts where the
@@ -496,6 +511,9 @@ the line and the check that confirms the fix** — a partial transfer left unpro
 
 | WARN class | Means | Goes to |
 |---|---|---|
+| `license-unvendored:` / `license-missing:` | the LICENSE could NOT be aligned — the source declares an id the skill has no text for, or carries no licence at all; the template's file stays only if Gate A says so | ①, Gate A |
+| `license-variant-kept:` | an old `LICENSE.md`/`.txt` beside the aligned `LICENSE` could not be renamed or removed — it may contradict the aligned text; remove it by hand | ①, Gate A |
+| `identity-contradiction:` (from `license-align`) | the source's own LICENSE file contradicts its declared scalar — the file was copied, the conflict stays visible | ①, Gate A |
 | `anticipated-nonzero-exit:` | the shape-B `sushi-after` escalation | ①, one row per residual error |
 | `exit-status-truncated:` / `exit-status-disagrees:` | believe the printed error count, not the status | ③ |
 | `stale-raw-log:` / `count-above-expected:` | the log and the tree disagree | ③, or ① if it is a loss |

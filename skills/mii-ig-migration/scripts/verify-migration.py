@@ -2021,9 +2021,10 @@ def layer_fidelity(f, a, ctx):
                        "the file text is %s (header: %r) while the module declares %s -- "
                        "two licences in one repository" % (recognized, matched,
                                                            tlic or "NO licence"),
-                       action="align them: keep the licence the SOURCE asserts and replace "
-                              "the other copy (the template's CC-BY-4.0 LICENSE file "
-                              "surviving next to a CC0-1.0 module is the measured case). "
+                       action="re-run the 5.2 license-align step (license-align.py: the "
+                              "source's licence wins, every replacement announced) - a "
+                              "mismatch AFTER a run that included it means the alignment "
+                              "was skipped or overridden, which is itself the finding. "
                               "Gate A decides; never default")
 
     # F4 -- the two MECHANICAL goFSH residues, which are also the auto-fix
