@@ -324,7 +324,12 @@ def compute_preflight(igdir, identity, deps_items, gendir, genkind=None, deps_bl
             lic_file = {"source": cand, "value": first}
             ev.append(lic_file)
             break
-    lic_pat = re.compile(r"(CC[- ]?BY[- 0-9.]*|CC0[^A-Za-z]|Creative Commons|Apache[- ]2\.0|MIT License)", re.I)
+    # CC0 must capture its optional version suffix ("CC0-1.0", "CC0 1.0"):
+    # the earlier pattern CC0[^A-Za-z] captured exactly one trailing
+    # non-letter, so page evidence ("cc0-") could never equal a config value
+    # ("cc0-1.0") and every CC0 page mention read as a contradictory licence
+    # (measured on the Onkologie migration; issue #95).
+    lic_pat = re.compile(r"(CC[- ]?BY[- 0-9.]*|CC0(?:[- ]?1\.0)?|Creative Commons|Apache[- ]2\.0|MIT License)", re.I)
     hits = []
     for fp in glob.glob(os.path.join(igdir, "input", "pagecontent", "*.md")) + \
               glob.glob(os.path.join(igdir, "ImplementationGuide*", "**", "*.md"), recursive=True):
@@ -333,7 +338,10 @@ def compute_preflight(igdir, identity, deps_items, gendir, genkind=None, deps_bl
             hits.append({"source": rel(igdir, fp),
                          "value": re.sub(r"[^0-9A-Za-z.\-]+$", "", m.group(1).strip())})
     ev.extend(hits[:5])
-    values = {re.sub(r"[^0-9a-z.\-]+$", "", e["value"].lower().replace(" ", "")) for e in ev}
+    def _norm(v):
+        v = re.sub(r"[^0-9a-z.\-]+$", "", v.lower().replace(" ", ""))
+        return "cc0-1.0" if v in ("cc0", "cc0-", "cc0-1.0", "cc01.0") else v
+    values = {_norm(e["value"]) for e in ev}
     licence = {"evidence": ev, "declared_anywhere": bool(ev),
                "contradictory": len(values) > 1, "distinct_values": sorted(values)}
     # (b) canonical-space census - predicts the special-url list and exposes
