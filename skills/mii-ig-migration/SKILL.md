@@ -63,7 +63,7 @@ Discover the context: assume none of it, create nothing that is missing.
 
 3. **The target template.** Determine which state the module is in — discovery only here, the
    skeleton comes in step 3 of the procedure. In every state, read
-   `forschungsgruppe-digital-health/mii-kds-module-template` at the ref you intend to use rather
+   `medizininformatik-initiative/mii-kds-module-template` at the ref you intend to use rather
    than relying on this skill's description of it.
    - **Already on the module template** — a vendored `ig-template/`, or an `ig.ini` `template` entry pointing at it. A *re-migration*: report what is in place before changing anything.
    - **Plain Simplifier project** — Simplifier files only (`.simplifier/`, `project.yaml`, `implementation-guides/`), no IG-Publisher scaffolding. The normal starting state.
