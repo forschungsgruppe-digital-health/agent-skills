@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.2](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.24.1...v0.24.2) (2026-08-27)
+
+
+### Miscellaneous
+
+* cut v0.24.2 carrying the template-location sweep ([#103](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/103)) ([fd6fef1](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/fd6fef1742580469e8ec8b88709e22b2a81a7e4f))
+
 ## [0.24.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.24.0...v0.24.1) (2026-08-27)
 
 
