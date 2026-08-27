@@ -73,7 +73,7 @@ which are the translations — this skill reads that rather than assuming it.
      header/footer/CSS, inherited UI-string catalogues, and the choice of default language.
 
    For the MII KDS module template that template package is
-   <https://github.com/forschungsgruppe-digital-health/ig-template-mii-kds>, which carries its own
+   <https://github.com/medizininformatik-initiative/ig-template-mii-kds>, which carries its own
    skill for those obligations. If the task is "keep the template's overrides language-neutral",
    that is the template's problem, not this one.
 
@@ -297,7 +297,7 @@ If a skill of this name is provided both by this catalog and locally, the local 
 ## Provenance
 
 Derived from `skills/ig-translate` in
-`forschungsgruppe-digital-health/mii-kds-module-template` at commit
+`medizininformatik-initiative/mii-kds-module-template` at commit
 `b5beedb17a66a4397d597429668c7b6d54202c62`, which in turn adapted the `ig-translate` skill of
 `forschungsgruppe-digital-health/mii-kds-sample-ig-inoffiziell` (CC-BY-4.0) and refocused it on the
 module side. Both steps of that lineage are recorded deliberately.

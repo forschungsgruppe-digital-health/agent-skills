@@ -229,7 +229,7 @@ If a skill of this name is provided both by this catalog and locally, the local 
 ## Provenance
 
 Derived from `skills/ig-analyze` in
-`forschungsgruppe-digital-health/mii-kds-module-template` at commit
+`medizininformatik-initiative/mii-kds-module-template` at commit
 `b5beedb17a66a4397d597429668c7b6d54202c62`, which in turn adapted the `ig-analyze` skill of
 `forschungsgruppe-digital-health/mii-kds-sample-ig-inoffiziell` (CC-BY-4.0). Both steps of that
 lineage are recorded deliberately.
