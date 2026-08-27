@@ -327,7 +327,10 @@ literal, so the placeholder gate in §2.3 never touches it, and MII modules comm
 published content. Read the source's `license`, carry it over, and treat any divergence exactly
 like the canonical: report it, raise it at Gate A, let a human decide.
 
-**The LICENSE *file* is reconciled too, mechanically (check F3, §11.3).** A repository commonly
+**The LICENSE *file* is ALIGNED at step 5.2 and reconciled at step 8 (check F3, §11.3).** The
+`5.2 license-align` step makes the migrated module's LICENSE file carry the source's licence —
+source file verbatim, else the vendored official text of the declared id — announcing every
+replacement (§5.2); F3 stays the independent net. A repository commonly
 carries both a declared `license` scalar and a LICENSE file, and the two can disagree without any
 build noticing. The verifier recognizes the file's text — `Attribution 4.0 International` →
 `CC-BY-4.0`, `CC0 1.0 Universal` / `Creative Commons Zero` → `CC0-1.0`, `Apache License` →
@@ -1434,6 +1437,30 @@ the template and run its first-run bootstrap — do not mint a new repository; t
 issues and consumers stay where they are. (A new repository is a human decision, recorded in the
 migration report, never a default.) Replace the placeholders (§2.3) using the identity read in
 §2.1 — the licence per §2.2 is carried from the source, not left at the template's literal.
+
+**Align the LICENSE *file* with the source's licence — mechanically, and announced**
+(`scripts/license-align.py`, run-log step `5.2 license-align`). The template scaffold ships the
+CC BY 4.0 legal code as `LICENSE` (its first line, `Attribution 4.0 International`, is that
+licence's formal title); left in place it silently relicenses every module whose real licence is
+something else. Measured across the `medizininformatik-initiative` kerndatensatz repositories
+(2026-08-27): 11 modules declare CC-BY-4.0, 6 declare CC0-1.0 — and **none of the CC0 modules
+ships a LICENSE file**, so the declared-CC0-beside-shipped-CC-BY contradiction was the NORMAL
+outcome of a CC0 migration. The contract, first matching row acts:
+
+| Source state | Action |
+| --- | --- |
+| a `LICENSE`/`LICENSE.md`/`LICENSE.txt` file exists | copy it **VERBATIM** over the target's `LICENSE`; announce from → to |
+| no file, declared SPDX id with a vendored legal code (`references/licenses/<id>.txt` — CC0-1.0 and CC-BY-4.0 ship with the skill, covering every licence the KDS modules use today) | write the vendored **official** text; announce from → to |
+| no file, declared id **without** a vendored text | change nothing; WARN `license-unvendored:` and exit 1 — a human supplies the official text at Gate A |
+| no file, no declaration | change nothing; WARN `license-missing:` and exit 1 — the template's licence stays in effect **only** if Gate A decides so; licensing a module is a human act, never a tool's |
+
+A source whose own file contradicts its declared scalar is copied anyway (the shipped text is the
+operative grant) with an `identity-contradiction:` WARN — carried visibly, never resolved by the
+tool. Every replacement is ANNOUNCED: a `license-replaced: from=<id> to=<id> mode=<source-file |
+declared-vendored>` log line, and a **FIX row in the report's Applied-fixes queue** naming both
+licences, so the person migrating always learns what was replaced with what. Only the LICENSE
+*file* is aligned — licence mentions inside template pages are page content (§9), and F3 plus the
+pre/post delta remain the independent nets that catch whatever still disagrees.
 **Delete the template's example artefacts** — at the time of writing
 `input/fsh/profiles/example-patient.fsh` and
 `input/fsh/instances/example-patient-instance.fsh`; confirm the paths in the template you actually
@@ -1470,9 +1497,11 @@ reorganized — a reshuffled tree holds the same artefacts and still wrecks ever
 diff and downstream path reference.
 
 → **Acceptance:** the SUSHI build produces every artefact; **the canonical URL diff against the
-source is empty**; and structure preservation is proved at **path level** — `comm -3` over the
+source is empty**; structure preservation is proved at **path level** — `comm -3` over the
 sorted repo-relative FSH path lists of source and target is empty apart from scaffold additions
-named in the log (counts alone prove nothing about structure).
+named in the log (counts alone prove nothing about structure); and **`5.2 license-align` ran and
+exited 0** (the from→to announcement is in the log) **or its exit-1 WARN is a named Gate-A item**
+— a missing `license-align` line is an L2 finding, never an implicit pass.
 
 ### 5.4 Migrate the narrative
 
@@ -2652,7 +2681,7 @@ resolves all three.
 | --- | --- |
 | **F1** identity, field by field (`id`, `packageId`, `canonical`, `version`, `status`, `title`, `license`, `publisher`, `fhirVersion`) | a field differs from the source's. `version` is the one human decision (§2.1) and is reported NICHT PRÜFBAR for confirmation, never as a defect. An unresolved contradiction in the ledger is **not** a source value: it is reported as one, pointing at L3. |
 | **F2** dependency pins | a source pin is missing or carries a different version. The source's pins are read from the source tree where `--source` is given and otherwise **from the claims ledger** (`dependency:<name>` rows, or an aggregate `dependencies` row) — see below. A target-only dependency (the template's CRMI requirement is the legitimate case) is NICHT PRÜFBAR; contradicting readings of one pin are NICHT PRÜFBAR too, never resolved by precedence, because an adopted-by-machine pin is the very defect F2 exists to catch. `hl7.fhir.r4.core` is declared through `fhirVersion`, which F1 compares, so it is not expected as a dependency. |
-| **F3** `license` explicitly asserted | the declared licence has **no tier evidence** behind it in `identity-claims.tsv`, or the tiers assert something else. Relicensing by default is the quietest defect in this specification: the template's `CC-BY-4.0` is a literal, so no placeholder check flags it. **F3 additionally reconciles the LICENSE *file*** (§2.2): the recognized file text — `Attribution 4.0 International` → `CC-BY-4.0`, `CC0 1.0 Universal` / `Creative Commons Zero` → `CC0-1.0`, `Apache License` → `Apache-2.0`, `MIT License` → `MIT` — against the declared scalar. A mismatch is DIVERGIERT; a file whose text matches no known body is NICHT PRÜFBAR (a human reads it); an absent file is an ok note, the scalar then stands alone. |
+| **F3** `license` explicitly asserted | the declared licence has **no tier evidence** behind it in `identity-claims.tsv`, or the tiers assert something else. Relicensing by default is the quietest defect in this specification: the template's `CC-BY-4.0` is a literal, so no placeholder check flags it. **F3 additionally reconciles the LICENSE *file*** (§2.2): the recognized file text — `Attribution 4.0 International` → `CC-BY-4.0`, `CC0 1.0 Universal` / `Creative Commons Zero` → `CC0-1.0`, `Apache License` → `Apache-2.0`, `MIT License` → `MIT` — against the declared scalar. A mismatch is DIVERGIERT; a file whose text matches no known body is NICHT PRÜFBAR (a human reads it); an absent file is an ok note, the scalar then stands alone. The `5.2 license-align` step (§5.2) prevents this class at the source — the source's licence wins and the replacement is announced — so an F3 mismatch after a run that included `5.2 license-align` means the alignment was skipped or overridden, which is itself the finding. |
 | **F4** FSH residue | `.fhir_comments` rules, or a code reference whose system name carries whitespace, remain in `input/fsh` — the two shapes `postprocess-gofsh.py` models. Auto-fixable (§12). |
 
 **F2 MUST NOT DEPEND ON AN INPUT NOBODY SUPPLIES.** It originally read the source's pins only from

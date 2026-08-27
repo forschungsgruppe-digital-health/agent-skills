@@ -39,6 +39,7 @@ pre.5	toolchain	both	always	The pinned SUSHI/goFSH versions are the run's only r
 5.1b.5	parent-snapshots	B	a parent package ships no snapshots	A hand-rolled snapshot fabricates a parent; the detect run is what proves none was needed.
 5.2	skeleton-vendored	both	always	Records the template ref and commit the skeleton came from — the provenance check (P2) reads it from here.
 5.2	sushi-skeleton	both	always	The skeleton must compile before any artefact is transferred, or the first error is unattributable.
+5.2	license-align	both	always	The target LICENSE is aligned with the SOURCE's licence (license-align.py: the source's own file verbatim, else the vendored official text of the declared id) and every replacement is announced from->to. Silence here means the template's CC BY 4.0 legal code silently stands in a module that declares something else - the relicensing-by-default class F3 exists to catch, now prevented at the source instead of only detected.
 5.3	transfer-artefacts	both	always	The step that moves the module's own content; silence here is a migration that moved nothing.
 5.4	fql-scan	both	always	An unconverted Simplifier/FQL directive renders as nothing at all.
 5.4a	optional-page-decisions	both	target template >= v0.8	The seven OPTIONAL (0..1) pages must each be decided — keep (banner + marker deleted, both languages) or remove per the template's procedure (spec §9a); the template's M9 fails a module release while undecided, and a migration with no line here silently shipped seven "decide me" banners.
