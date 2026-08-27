@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.1](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.24.0...v0.24.1) (2026-08-27)
+
+
+### Fixes
+
+* **fhir-ig-analysis:** licence detection captures CC0 versions ([f8e9f8b](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/f8e9f8b070ae446baff45851a60a9064c7a6803c))
+
 ## [0.24.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.23.0...v0.24.0) (2026-08-27)
 
 
