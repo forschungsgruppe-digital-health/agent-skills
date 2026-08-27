@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.23.0...v0.24.0) (2026-08-27)
+
+
+### Skills and capabilities
+
+* the migration replaces the target LICENSE with the source's licence, announced ([#98](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/98)) ([e7e4fde](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/e7e4fde80e4f4e2701c3697f93e42ad5abaa7d43))
+
 ## [0.23.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.22.0...v0.23.0) (2026-08-24)
 
 
