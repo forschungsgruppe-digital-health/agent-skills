@@ -1,0 +1,239 @@
+{
+ "title": "Wo ist was? &nbsp;&mdash;&nbsp; Modul Bildgebung",
+ "subtitle": "Vom Simplifier-Implementierungsleitfaden zum neuen IG auf dem MII-KDS-Modul-Template (HL7 IG Publisher, zweisprachig DE/EN)",
+ "footer": "Wo ist was? — MII KDS-Modul Bildgebung: Simplifier → IG Publisher (Migration PR #108)",
+ "meta": [
+  [
+   "Alt (Quelle)",
+   "Simplifier: <i>MII IG Modul Bildgebung v2026</i> &mdash; hierarchischer Seitenbaum, deutschsprachig"
+  ],
+  [
+   "Neu (Ziel)",
+   "IG Publisher auf dem MII-KDS-Modul-Template v0.11.3 &mdash; Themen-Men&uuml; + generierte Artefaktseiten, Englisch als Default, Deutsch als vollst&auml;ndige Sprachversion (Umschalter oben rechts)"
+  ],
+  [
+   "Stand",
+   "Migrations-Branch <font face='Courier' size='7.5'>migration/2026.0.0-template-v0.11.3</font>, PR #108; Preview nach CI-Freigabe unter <font face='Courier' size='7'>.../kerndatensatz-bildgebung/branches/migration-2026.0.0-template-v0.11.3/</font>"
+  ]
+ ],
+ "ideas": [
+  [
+   "1&nbsp;&nbsp;Themen-Men&uuml; statt Seitenbaum",
+   "Der linke Navigationsbaum von Simplifier wird zu einem flachen Themen-Men&uuml; (Startseite &middot; Anleitung &middot; Konformit&auml;t &middot; Artefakte &middot; Downloads &middot; &Auml;nderungshistorie &middot; Metadaten). Erz&auml;hlende Inhalte wandern auf wenige Themenseiten."
+  ],
+  [
+   "2&nbsp;&nbsp;Profilseiten werden Artefaktseiten",
+   "Jede Simplifier-Seite zu einem Profil oder einer Extension ist jetzt die <b>generierte Artefaktseite</b> derselben Ressource: der beschreibende Text steht als Einleitung oben, darunter rendert der IG Publisher automatisch Struktur, detaillierte Beschreibungen, Mappings, Beispiele, XML und JSON als Tabs. Die alten FQL-/Tab-Bl&ouml;cke entfallen, weil die Seite diese Ansichten selbst erzeugt."
+  ],
+  [
+   "3&nbsp;&nbsp;MII-weite Inhalte werden verlinkt statt kopiert",
+   "Die Conformance-Kapitel (Anforderungssprache, Must-Support, fehlende Daten) und die Namenskonventionen werden zentral im Meta-Modul gepflegt; das Konformit&auml;t-Men&uuml; verlinkt dorthin, statt den Text im Modul zu duplizieren. Modulspezifisch bleibt die Seite &bdquo;Sicherheit und Datenschutz&ldquo;."
+  ]
+ ],
+ "shots_note": "Screenshots: Simplifier = publizierter Guide v2026.0.0 (17.07.2026); neuer IG = lokaler Build des Migrations-Branch (2027.0.0-ballot). Inhaltliche Unterschiede der St&auml;nde sind auf der letzten Seite vermerkt.",
+ "simplifier": {
+  "heading": "Alt: der Simplifier-Navigationsbaum (vollst&auml;ndig ausgeklappt)",
+  "images": [
+   "simplifier-nav-1.png",
+   "simplifier-nav-2.png"
+  ],
+  "caption": "Der komplette Baum des publizierten Guides (links: oberer Teil, rechts: ab UML). Die Zuordnung jeder Seite zu ihrem neuen Ort steht in der Tabelle ab Seite 5."
+ },
+ "menus": {
+  "heading": "Neu: das Themen-Men&uuml; des IG-Publisher-Leitfadens (deutsche Sprachversion)",
+  "items": [
+   {
+    "text": "<b>Anleitung</b> &mdash; hier landet das Erz&auml;hlende: Szenarien, Implementierungshinweise (Kontext/Modulbez&uuml;ge, Referenzen), Datens&auml;tze, UML.",
+    "img": "ig-menu-anleitung.png",
+    "max_w": 150,
+    "max_h": 62
+   },
+   {
+    "text": "<b>Konformit&auml;t</b> &mdash; Links (Pfeil-Symbol = extern) zum zentral gepflegten Meta-Modul; &bdquo;Sicherheit und Datenschutz&ldquo; ist die modul-eigene Seite.",
+    "img": "ig-menu-konformitaet.png",
+    "max_w": 130,
+    "max_h": 62
+   },
+   {
+    "text": "<b>Artefakte</b> &mdash; die generierten Artefakt-Listen: Profile, Extensions, CapabilityStatements, Logische Modelle, ValueSets, CodeSystems, Beispiele und die Gesamt&uuml;bersicht.",
+    "img": "ig-menu-artefakte.png",
+    "max_w": 130,
+    "max_h": 85
+   }
+  ]
+ },
+ "artifact": {
+  "heading": "Das wichtigste Muster: Profilseite &rarr; Artefaktseite mit Intro",
+  "body": "Beispiel <b>Bildgebungsstudie (ImagingStudy)</b>: Der deutsche Text der alten Simplifier-Seite (Beschreibung + DICOM-Tag-Mapping) steht jetzt als Einleitung direkt auf der generierten Artefaktseite. Die Tabs <i>Inhalt / Detaillierte Beschreibungen / Mappings / Beispiele / XML / JSON</i> ersetzen die alten eingebetteten FQL-Tabellen und XML/JSON-Bl&ouml;cke. Das gilt f&uuml;r alle 12 Profil- und 14 Extension-Seiten.",
+  "img": "ig-artefaktseite-intronote.png",
+  "caption": "Erreichbar &uuml;ber Artefakte &rarr; Profile &rarr; jeweiliges Profil, oder direkt per URL-Schema <font face='Courier' size='7.5'>StructureDefinition-&lt;id&gt;.html</font>."
+ },
+ "mapping": {
+  "heading": "Die Zuordnung im Detail: jede Simplifier-Seite und ihr neuer Ort",
+  "columns": [
+   "Simplifier (alter Baum)",
+   "Neuer Ort im IG",
+   "Seite / URL"
+  ],
+  "sections": [
+   {
+    "title": "Wurzelebene",
+    "rows": [
+     [
+      "MII IG Modul Bildgebung (Startseite)",
+      "Startseite &mdash; inkl. Ver&ouml;ffentlichungstabelle, Impressum, Ansprechpartner, Autoren, Copyright, Disclaimer",
+      "index.html"
+     ],
+     [
+      "Release Notes",
+      "&Auml;nderungshistorie (alle Versionen 2025.0.0&ndash;2027.0.0-ballot)",
+      "changes.html"
+     ],
+     [
+      "Beschreibung Modul",
+      "Startseite, Abschnitt &bdquo;Beschreibung des Moduls&ldquo; (Teilmodule Metadaten/Befundbericht)",
+      "index.html"
+     ],
+     [
+      "Kontext im Gesamtprojekt / Bez&uuml;ge zu anderen Modulen",
+      "Anleitung &rarr; Anleitung f&uuml;r Implementierende (Abschnitt Kontext + alle Modul-Beziehungen)",
+      "implementer-guidance.html"
+     ],
+     [
+      "Referenzen",
+      "Anleitung &rarr; Anleitung f&uuml;r Implementierende, Abschnitt &bdquo;Referenzen&ldquo;",
+      "implementer-guidance.html"
+     ]
+    ]
+   },
+   {
+    "title": "Anwendungsf&auml;lle / Informationsmodell",
+    "rows": [
+     [
+      "(Index-Seite, war bewusst leer)",
+      "entf&auml;llt",
+      "&mdash;"
+     ],
+     [
+      "Beschreibung von Szenarien f&uuml;r die Anwendung",
+      "Anleitung (Szenario Morbus-Bechterew-MRT)",
+      "guidance.html"
+     ],
+     [
+      "Datens&auml;tze inkl. Beschreibungen",
+      "Artefakte &rarr; Logische Modelle (Narrativ + gerendertes Logical Model)",
+      "logical-models.html"
+     ],
+     [
+      "UML / UML Metadaten / UML Befund",
+      "Anleitung &rarr; UML-Diagramme (alle 6 Diagramme auf einer Seite: Gesamt, abstrakt, Metadaten, Befund in 3 Varianten)",
+      "uml-diagrams.html"
+     ]
+    ]
+   },
+   {
+    "title": "Technische Implementierung",
+    "rows": [
+     [
+      "(Index-Seite, war bewusst leer)",
+      "entf&auml;llt",
+      "&mdash;"
+     ],
+     [
+      "FHIR-Profile (&Uuml;bersichtstext)",
+      "Artefakte &rarr; Profile; die MII-Namenskonventionen sind dort ins zentrale Kerndatensatz-Wiki verlinkt statt kopiert",
+      "profiles.html"
+     ],
+     [
+      "BodyStructure",
+      "Artefaktseite K&ouml;rperstruktur (Intro oben, Tabs darunter)",
+      "StructureDefinition-mii-pr-bildgebung-koerperstruktur.html"
+     ],
+     [
+      "CarePlan",
+      "Artefaktseite Behandlungsempfehlung",
+      "StructureDefinition-mii-pr-bildgebung-behandlungsempfehlung.html"
+     ],
+     [
+      "Composition",
+      "Artefaktseite semistrukturierter Befundbericht",
+      "StructureDefinition-mii-pr-bildgebung-semistrukt-befundbericht.html"
+     ],
+     [
+      "Device",
+      "Artefaktseite Ger&auml;t",
+      "StructureDefinition-mii-pr-bildgebung-geraet.html"
+     ],
+     [
+      "DiagnosticReport",
+      "Artefaktseite radiologischer Befund (inkl. der 4 Stufen)",
+      "StructureDefinition-mii-pr-bildgebung-radiologischer-befund.html"
+     ],
+     [
+      "ImagingProcedure",
+      "Artefaktseite Bildgebungsprozedur",
+      "StructureDefinition-mii-pr-bildgebung-bildgebungsprozedur.html"
+     ],
+     [
+      "ImagingStudy (+ Unterseite je Extension)",
+      "Artefaktseite Bildgebungsstudie; jede der 12 Extension-Unterseiten ist die Artefaktseite der jeweiligen Extension (Bildgebungsgrund, Gr&ouml;&szlig;e, Gewicht, Modalit&auml;t CT/MG-CR-DX/MR/PT/NM/US, Kontrastmittel, Schichtdicke, Instanzdetails)",
+      "StructureDefinition-mii-pr-bildgebung-bildgebungsstudie.html u. a."
+     ],
+     [
+      "Observation (+ Serien-/SOP-UID)",
+      "Artefaktseite radiologische Beobachtung; UID-Extensions je eigene Artefaktseite",
+      "StructureDefinition-mii-pr-bildgebung-radiologische-beobachtung.html"
+     ],
+     [
+      "Constrast MedicationAdministration",
+      "Artefaktseite Kontrastmittelgabe",
+      "StructureDefinition-mii-pr-bildgebung-kontrastmittelgabe.html"
+     ],
+     [
+      "ReadProcedure",
+      "Artefaktseite radiologische Befundungsprozedur",
+      "StructureDefinition-mii-pr-bildgebung-radiologische-befundungsprozedur.html"
+     ],
+     [
+      "ServiceRequest",
+      "Artefaktseite Anforderung Bildgebung",
+      "StructureDefinition-mii-pr-bildgebung-anforderung-bildgebung.html"
+     ],
+     [
+      "Terminologien",
+      "aufgeteilt: Artefakte &rarr; CodeSystems (eigene CS, DICOM-Hinweis, SNOMED/LOINC/RadLex, UCUM) und Artefakte &rarr; ValueSets (DICOM-Value-Sets)",
+      "code-systems.html + value-sets.html"
+     ],
+     [
+      "CapabilityStatement",
+      "Artefakte &rarr; CapabilityStatements (Anforderungstext + CapabilityStatement inline gerendert)",
+      "capability-statements.html"
+     ],
+     [
+      "Conformance",
+      "Konformit&auml;t-Men&uuml;: Links zum zentral gepflegten Meta-Modul (Text wird nicht mehr im Modul dupliziert); modulspezifisch: Sicherheit und Datenschutz",
+      "security-and-privacy.html + Meta-Wiki"
+     ]
+    ]
+   }
+  ]
+ },
+ "extras": {
+  "heading": "Neu ohne Simplifier-Vorg&auml;nger &mdash; und was entfallen ist",
+  "rows": [
+   [
+    "Neu dazugekommen",
+    "Artefakt-&Uuml;bersicht (artifacts.html) &middot; Beispiele-Seite mit allen Beispielketten (examples.html) &middot; Downloads (Paket, Definitionen) &middot; Metadaten-&Uuml;bersicht &middot; Versionierung &middot; &Uuml;bersetzungshinweise &middot; komplette <b>englische Sprachversion</b> (Default; Umschalter oben rechts) &middot; Extensions-&Uuml;bersichtsseite"
+   ],
+   [
+    "Entfallen / ersetzt",
+    "Leere Index-Zwischenseiten (&bdquo;Diese Seite wurde absichtlich leer gelassen&ldquo;) &middot; eingebettete FQL-/XML-/JSON-Bl&ouml;cke (ersetzt durch die generierten Tabs) &middot; Suchparameter-Tabellen auf den Profilseiten (stehen im CapabilityStatement) &middot; MII-Namenskonventionen und Conformance-Boilerplate (zentral im Meta-Modul/Wiki) &middot; TNM-Befundungsprozedur-Seite (Profil wurde im 2027er-Stand entfernt)"
+   ],
+   [
+    "Hinweis zu den St&auml;nden",
+    "Screenshots links zeigen den publizierten Guide <b>v2026.0.0</b>; der neue IG tr&auml;gt den aktuellen main-Stand <b>2027.0.0-ballot</b>. 2027 neu und daher nur rechts: Profil &bdquo;radiologische Messung&ldquo; (StructureDefinition-mii-pr-bildgebung-radiologische-messung.html), K&ouml;rpergr&ouml;&szlig;e/-gewicht-Extensions."
+   ]
+  ]
+ },
+ "source_note": "Quelle der Zuordnung: migration-log/page-map.tsv (48 Zeilen, generiert + reviewt) auf dem Migrations-Branch; erstellt 2026-08-28."
+}

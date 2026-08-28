@@ -49,6 +49,21 @@
       }
     },
     {
+      "url": "skill://mii-ig-wo-ist-was/SKILL.md",
+      "path": "skills/mii-ig-wo-ist-was/SKILL.md",
+      "frontmatter": {
+        "name": "mii-ig-wo-ist-was",
+        "description": "Produces a short \"Wo ist was?\" orientation PDF after an MII KDS module migration from Simplifier onto the MII KDS module template (IG Publisher) - screenshots of the old Simplifier navigation tree and the new topic menus, the artifact-page-with-intro pattern as an image, and the complete mapping table of every old page to its new location, derived from the migration's page-map.tsv. Use this skill when a migration performed with mii-ig-migration is done (page-map.tsv exists) and someone asks \"wo ist was\", \"Wo-ist-was-PDF\", \"Umzugs-PDF\", \"Überblick für die Modul-Autoren/TF-KDS\", or a module team needs to find their content in the new guide. Do not use for performing the migration itself (see mii-ig-migration) or for measuring an IG (see fhir-ig-analysis)."
+      },
+      "metadata": {
+        "fgdh.tier": "domain",
+        "fgdh.domain": "fhir-ig",
+        "fgdh.owner": "@ThomasDeBe",
+        "fgdh.language": "de",
+        "fgdh.status": "experimental"
+      }
+    },
+    {
       "url": "skill://skill-authoring/SKILL.md",
       "path": "skills/skill-authoring/SKILL.md",
       "frontmatter": {
