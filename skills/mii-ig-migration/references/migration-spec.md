@@ -2718,8 +2718,8 @@ exactly the class the table at the head of §11 describes.
 
 | Check | Reads | Against |
 | --- | --- | --- |
-| **P1** template of the render | `Templates: <pkg>#<ver>` in `output/qa.html` | `ig-template/package/package.json` in the tree |
-| **P2** vendored ref | `5.2 skeleton-vendored … ref=` in the run log | `--template-latest`, the module template's latest **release** |
+| **P1** template of the render | `Templates: <pkg>#<ver>` in `output/qa.html` | what the build CONSUMED: the `release=` of the run log's `5.2 template-reference` line under the URL form (a vendored `ig-template/` BESIDE a URL reference is itself DIVERGIERT); `ig-template/package/package.json` in legacy vendored modules |
+| **P2** scaffold ref | `5.2 skeleton-vendored … ref=` in the run log (the action id keeps its historical name) | `--template-latest`, the module template's latest **release** |
 | **P3** IG Publisher | `IG Publisher Version:` in `qa.txt`/`qa.html` | the pin in the target's build workflow `env:` |
 | **P4** source-guide pin | the `?version=` of the URLs pages were fetched from | must be a **published** version, never `current` |
 | **P5** ig.ini → the IG resource | the `ig =` path in `ig.ini` | the file on disk under the target. SUSHI derives its output name from the sushi-config `id` (`fsh-generated/resources/ImplementationGuide-<id>.json`) and from nothing else, so a path derived from the repository SLUG names a file SUSHI never writes — **DIVERGIERT** when the file does not exist beside built siblings (the id-vs-slug failure class, §5.2); where SUSHI has not run in the checkout, the id-derived name is the reference |
@@ -2727,9 +2727,10 @@ exactly the class the table at the head of §11 describes.
 **The measured trap, encoded: the ig-template PACKAGE version and the module-template REPO release
 are different numbers.** Measured 2026-08-06 — repo tag `v0.6.0` vendors package version `0.5.1`,
 and repo tag `v0.5.1` vendors `0.3.0`. Comparing the rendered `…template#0.5.1` against the release
-`v0.6.0` therefore produces a confident, **wrong** finding. P1 compares the rendered value with the
-vendored package (like with like); P2 compares the vendored ref with the release. Two checks, two
-references — and P1 without a build is NICHT PRÜFBAR, never a pass, because provenance is a property
+`v0.6.0` therefore produces a confident, **wrong** finding. P1 compares the rendered value with what the build
+consumed - the recorded `template-reference` release under the URL form, the vendored package in
+legacy modules (like with like); P2 compares the scaffold's module-template ref with the release.
+Two checks, two references — and P1 without a build is NICHT PRÜFBAR, never a pass, because provenance is a property
 of the rendered site and of nothing else.
 
 ### 11.5 Layer 4 — rendering integrity
@@ -2844,7 +2845,7 @@ The allowlist has ONE definition, `python3 scripts/autofix-fix.py classes`, whic
 | `gofsh-residue` | F4 | — | The two shapes goFSH leaves behind that SUSHI cannot parse. Repaired by the skill's own `postprocess-gofsh.py`, which classifies every occurrence **before** writing anything, writes nothing on a shape it does not model, and is idempotent — measured 41 → 5 SUSHI errors on the reference module. |
 | `template-example-link` | R4 | — | A link into the template's example artefacts, which step 3 deletes. **It cannot be the module's narrative:** the module's text predates the template and cannot reference its examples — that provenance argument is what makes a page file touchable at all. The fix removes the link and never the text, and **refuses unless the file's text is byte-identical afterwards**; in a menu it drops the dead entry and refuses if the result does not parse as XML. |
 | `po-missing-unit` | R5 | — | A page-title unit missing for a page that **exists** in the tree. Added by `gen-page-title-po.py` with an **empty msgstr**: the gap is made visible, never filled with an invented translation (guardrail 3). Its exit 1 means "written, with untranslated units" — the documented, expected outcome of this class, not a failure. |
-| `revendor-template` | P1/P2 | a rebuild | A stale vendored template, re-vendored **at the ref the run recorded** — never at a floating branch. Offered only with `--rebuild-cmd`, because the confirming check reads the RENDERED output: without a rebuild nothing can confirm it, so it is not applied. |
+| `revendor-template` | P1/P2 | a rebuild | LEGACY vendored modules only (a URL-form P1 divergence is a rebuild/re-record, not a re-vendor): a stale vendored template, re-vendored **at the ref the run recorded** — never at a floating branch. Offered only with `--rebuild-cmd`, because the confirming check reads the RENDERED output: without a rebuild nothing can confirm it, so it is not applied. |
 
 ### 12.2 Never auto-fixed
 
