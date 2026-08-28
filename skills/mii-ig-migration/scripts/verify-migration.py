@@ -87,7 +87,9 @@ repo tag `v0.6.0` vendors `ig-template/package/package.json` version `0.5.1`, an
 repo tag `v0.5.1` vendors `0.3.0`. A check that compares the rendered
 `Templates: de.medizininformatikinitiative.template#0.5.1` against the repo's
 latest release `v0.6.0` therefore reports a confident, WRONG finding. P1 compares
-the rendered value against the VENDORED PACKAGE (like with like) and P2 compares
+the rendered value against what the build CONSUMED - the vendored package in
+legacy modules, the run log's recorded `template-reference` release under the
+URL form (decision 2026-08-28) - and P2 compares
 the vendored REPO REF against the latest release -- two checks, two references.
 
 FALSE POSITIVES ARE WORSE THAN NO CHECK, because a verification phase that cries
@@ -213,7 +215,7 @@ CHECK_TITLES = {
     "F3": "the licence is asserted from evidence, never defaulted",
     "F4": "no mechanical FSH conversion residue is left",
     "P1": "the rendered site reports the template package it was built with",
-    "P2": "the vendored template ref matches what the run log recorded",
+    "P2": "the module-template ref the skeleton came from is the latest release",
     "P3": "the IG Publisher version matches the workflow pin",
     "P4": "the source guide was pinned to a published version, not 'current'",
     "P5": "ig.ini points at the IG resource the build actually writes",
@@ -2068,12 +2070,24 @@ def layer_provenance(f, a, ctx):
     qa_html = ctx["qa_html"]
     qa_txt = ctx["qa_txt"]
 
-    # P1 -- the template package+version READ OUT OF THE RENDERED OUTPUT, against
-    # the template the tree actually carries. Like with like: see the module
-    # docstring's measured trap.
+    # P1 -- the template package+version READ OUT OF THE RENDERED OUTPUT,
+    # against the template the build ACTUALLY consumed. Three ig.ini forms
+    # (module-template decision 2026-08-28): the interim repository URL -- no
+    # local copy, so the run log's `5.2 template-reference ... release=` line
+    # is the comparison target -- the vendored `#ig-template` fallback (and
+    # every pre-decision migration), where ig-template/package/package.json
+    # is the target, and the published id#version pin. A migrated module must
+    # not carry the vendored folder NEXT TO a URL reference; the leftover is
+    # its own finding.
     vendored = read_json(os.path.join(ctx["target"], "ig-template", "package", "package.json"))
     vname = (vendored or {}).get("name")
     vver = (vendored or {}).get("version")
+    p1_ini = read_text(os.path.join(ctx["target"], "ig.ini"))
+    tpl_match = re.search(r"^\s*template\s*=\s*(\S+)", p1_ini, re.M) \
+        if p1_ini else None
+    tpl_value = tpl_match.group(1) if tpl_match else None
+    tpl_is_url = bool(tpl_value) and tpl_value.startswith(("http://", "https://"))
+    tpl_reference = ctx["log_values"].get("template-reference", {})
     rendered_tpl = None
     if qa_html:
         m = re.search(r"Templates:\s*([^<]+)", qa_html)
@@ -2085,6 +2099,37 @@ def layer_provenance(f, a, ctx):
                          % (ctx["qa_html_path"] or "qa.html not found"),
                          "build the IG (step 7); the rendered output is the only place this "
                          "value can be READ rather than assumed")
+    elif tpl_is_url and vendored:
+        f.diverges("provenance", "P1", "template",
+                   "ig.ini references the template repository by URL, yet the "
+                   "tree STILL carries a vendored ig-template/ (%s#%s)"
+                   % (vname, vver),
+                   action="delete ig-template/ and its sync machinery from the "
+                          "migrated module -- beside a URL reference the "
+                          "vendored copy is dead weight that goes stale "
+                          "invisibly (module-template decision 2026-08-28)")
+    elif tpl_is_url:
+        recorded = tpl_reference.get("release")
+        if not recorded:
+            f.unmechanisable("provenance", "P1", "rendered template version",
+                             "rendered output says %s; ig.ini references the "
+                             "template by URL and the run log records no "
+                             "`5.2 template-reference ... release=` line"
+                             % rendered_tpl,
+                             "record what the build fetches: bash \"$ML\" info "
+                             "5.2 template-reference \"url=<repo url> "
+                             "release=<latest template release tag>\"")
+        elif rendered_tpl.split("#")[-1].lstrip("v") == recorded.lstrip("v"):
+            f.ok("provenance", "P1", "template",
+                 "rendered %s == recorded template release %s (URL reference)"
+                 % (rendered_tpl, recorded))
+        else:
+            f.diverges("provenance", "P1", "template",
+                       "rendered output was built from %s, the run log records "
+                       "template release %s" % (rendered_tpl, recorded),
+                       action="STALE RENDER, or the template repository moved "
+                              "between recording and building: rebuild, "
+                              "re-record the reference, re-verify")
     elif not vver:
         f.unmechanisable("provenance", "P1", "vendored template version",
                          "rendered output says %s; the tree carries no "
@@ -2102,25 +2147,27 @@ def layer_provenance(f, a, ctx):
                               "site whose header names another version than its tree is the "
                               "'preview v0.5.0 under v0.5.1' class")
 
-    # P2 -- the vendored REPO REF against the latest release. A different number
-    # from P1's, on purpose.
+    # P2 -- the MODULE-TEMPLATE ref the skeleton was scaffolded from, against
+    # that repository's latest release. A different number from P1's, on
+    # purpose: P1 is the ig-template PACKAGE the render consumed, P2 the
+    # scaffold's origin.
     ref = ctx["log_values"].get("skeleton-vendored", {}).get("ref")
     if not ref:
-        f.unmechanisable("provenance", "P2", "vendored template ref",
+        f.unmechanisable("provenance", "P2", "scaffold template ref",
                          "no `5.2 skeleton-vendored … ref=` line in the run log",
-                         "emit it when vendoring: "
+                         "emit it when scaffolding: "
                          "`bash \"$ML\" info 5.2 skeleton-vendored \"… ref=<tag> commit=<sha>\"`")
     elif not a.template_latest:
-        f.unmechanisable("provenance", "P2", "vendored template ref",
-                         "vendored at %s; the latest release was not supplied" % ref,
+        f.unmechanisable("provenance", "P2", "scaffold template ref",
+                         "scaffolded at %s; the latest release was not supplied" % ref,
                          "re-run with --template-latest <tag> (it needs the network, which "
                          "this script deliberately does not use)")
     elif ref.lstrip("v") == a.template_latest.lstrip("v"):
-        f.ok("provenance", "P2", "vendored template ref",
+        f.ok("provenance", "P2", "scaffold template ref",
              "%s == latest release %s" % (ref, a.template_latest))
     else:
-        f.diverges("provenance", "P2", "vendored template ref",
-                   "vendored %s, latest release %s" % (ref, a.template_latest),
+        f.diverges("provenance", "P2", "scaffold template ref",
+                   "scaffolded at %s, latest release %s" % (ref, a.template_latest),
                    autofix="revendor-template",
                    action="re-vendor at the pinned ref and REBUILD -- the render check (P1) "
                           "is what confirms it, so without a rebuild command this is not "
