@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.24.2...v0.25.0) (2026-08-28)
+
+
+### Skills and capabilities
+
+* migrated modules reference the IG template by URL - no vendored copy ([#105](https://github.com/forschungsgruppe-digital-health/agent-skills/issues/105)) ([7676eb3](https://github.com/forschungsgruppe-digital-health/agent-skills/commit/7676eb3a2d48f63913f13af97af82c385268a951))
+
 ## [0.24.2](https://github.com/forschungsgruppe-digital-health/agent-skills/compare/v0.24.1...v0.24.2) (2026-08-27)
 
 
