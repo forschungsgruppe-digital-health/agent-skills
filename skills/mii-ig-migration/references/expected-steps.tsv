@@ -37,7 +37,8 @@ pre.5	toolchain	both	always	The pinned SUSHI/goFSH versions are the run's only r
 5.1b.3	postprocess-gofsh	B	always	The two mechanical repairs; a parse error otherwise TRUNCATES a file while SUSHI still exports the instance.
 5.1b.3	sushi-after	B	always	The "5": the residual, which must be named unresolvable parents and nothing else.
 5.1b.5	parent-snapshots	B	a parent package ships no snapshots	A hand-rolled snapshot fabricates a parent; the detect run is what proves none was needed.
-5.2	skeleton-vendored	both	always	Records the template ref and commit the skeleton came from — the provenance check (P2) reads it from here.
+5.2	skeleton-vendored	both	always	Records the MODULE-TEMPLATE ref and commit the skeleton was scaffolded from — the provenance check (P2) reads it from here (the action id keeps its historical name).
+5.2	template-reference	both	always	Records the IG-template repository URL and the release the build will fetch (url=… release=…). A migrated module carries NO vendored ig-template/ anymore (decision 2026-08-28): ig.ini references the repository by URL, and P1 compares the rendered Templates: line against THIS recorded release — silence leaves P1 blind.
 5.2	sushi-skeleton	both	always	The skeleton must compile before any artefact is transferred, or the first error is unattributable.
 5.2	license-align	both	always	The target LICENSE is aligned with the SOURCE's licence (license-align.py: the source's own file verbatim, else the vendored official text of the declared id) and every replacement is announced from->to. Silence here means the template's CC BY 4.0 legal code silently stands in a module that declares something else - the relicensing-by-default class F3 exists to catch, now prevented at the source instead of only detected.
 5.3	transfer-artefacts	both	always	The step that moves the module's own content; silence here is a migration that moved nothing.

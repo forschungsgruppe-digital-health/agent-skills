@@ -71,8 +71,8 @@ column beside every one of these, and `migration-log/verification.md` carries th
 | **F2** | dependency versions are pinned exactly as the source pinned them |
 | **F3** | the licence is asserted from evidence, never defaulted |
 | **F4** | no mechanical FSH conversion residue is left |
-| **P1** | the rendered site reports the template package it was built with |
-| **P2** | the vendored template ref matches what the run log recorded |
+| **P1** | the rendered site reports the template it was built with — compared against the vendored copy, or (URL reference, decision 2026-08-28) against the release the run log recorded; a vendored folder beside a URL reference is itself a divergence |
+| **P2** | the module-template ref the skeleton came from is the latest release |
 | **P3** | the IG Publisher version matches the workflow pin |
 | **P4** | the source guide was pinned to a published version, not "current" |
 | **P5** | `ig.ini` points at the IG resource the build actually writes — SUSHI names it from the sushi-config `id`, so a path derived from the repository slug names a file that never exists |

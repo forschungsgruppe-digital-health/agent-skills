@@ -1432,11 +1432,25 @@ Consent ist ein Basismodul des Kerndatensatzes (KDS) der Medizininformatik-Initi
 
 ### 5.2 Create the skeleton
 
-Create the skeleton **in place**: on a working branch of the module's existing repository, vendor
-the template and run its first-run bootstrap — do not mint a new repository; the module's history,
-issues and consumers stay where they are. (A new repository is a human decision, recorded in the
-migration report, never a default.) Replace the placeholders (§2.3) using the identity read in
-§2.1 — the licence per §2.2 is carried from the source, not left at the template's literal.
+Create the skeleton **in place**: on a working branch of the module's existing repository,
+scaffold from the module template checked out at a named ref and run its first-run bootstrap — do
+not mint a new repository; the module's history, issues and consumers stay where they are. (A new
+repository is a human decision, recorded in the migration report, never a default.) Replace the
+placeholders (§2.3) using the identity read in §2.1 — the licence per §2.2 is carried from the
+source, not left at the template's literal.
+
+**The migrated module carries NO vendored template copy (decision 2026-08-28).** The scaffold's
+`ig.ini` references the IG template by repository URL —
+`template = https://github.com/medizininformatik-initiative/ig-template-mii-kds`, the interim form
+until the published `de.medizininformatikinitiative.template#<version>` pin exists — and that line
+is KEPT as-is. Delete from the migrated module whatever vendoring machinery the scaffold ref still
+ships: the `ig-template/` folder, `.github/workflows/sync-ig-template.yml`,
+`scripts/sync-ig-template.sh` and `scripts/resolve-ig-template-source.sh` — beside a URL reference
+a vendored copy is dead weight that goes stale invisibly, and check P1 reports the leftover as a
+divergence. Record BOTH provenance lines: `5.2 skeleton-vendored … ref=<module-template tag>
+commit=<sha>` (the scaffold's origin — the action id keeps its historical name) and
+`5.2 template-reference url=<repo url> release=<latest ig-template release>` (what the build will
+fetch — P1 compares the rendered `Templates:` line against this recorded release).
 
 **Align the LICENSE *file* with the source's licence — mechanically, and announced**
 (`scripts/license-align.py`, run-log step `5.2 license-align`). The template scaffold ships the
@@ -2018,12 +2032,13 @@ migration surface; do not rewrite them.
 
 **Two template refs in a re-migration — name the axis (P2 reads `ref=`).** A module carries TWO
 template coordinates: the module-template REPO tag whose page STRUCTURE it implements (what
-`--template-latest` and check P2 compare), and the ig-template PACKAGE it vendors under
-`ig-template/` (what the rendered `Templates:` line and check P1 compare). A re-vendor line that
-writes `ref=v1.2.1` (an ig-template tag) makes P2 report a false divergence against the
-module-template release — measured on the 2026-08-15 Dokument re-migration. Write the `5.2
-skeleton-vendored … ref=<module-template tag>` line for the structure axis, and log the package
-re-vendor as its own 5.2 line naming the ig-template tag explicitly.
+`--template-latest` and check P2 compare), and the ig-template PACKAGE the render consumes (what
+the rendered `Templates:` line and check P1 compare) — since 2026-08-28 fetched by URL at build
+time and recorded as `5.2 template-reference … release=<tag>`; in pre-decision modules the vendored
+`ig-template/` copy. A line that writes `ref=v1.2.1` (an ig-template tag) makes P2 report a false
+divergence against the module-template release — measured on the 2026-08-15 Dokument re-migration.
+Write the `5.2 skeleton-vendored … ref=<module-template tag>` line for the structure axis, and the
+`5.2 template-reference` line for the package axis, each naming its own tag explicitly.
 
 **Presentation parity with the template's index (measured on five try-runs, user-decided
 2026-08-20).** Authors and contacts on `index.md` are SIMPLE LISTS (one `*` item per person),
@@ -2567,8 +2582,13 @@ therefore normative here:
   exactly what L1 reports.
 - **`decision: … field=<name> …`** — an INFO closing an `identity-contradiction:` by naming the field
   and the value a human chose. It records the decision; it never makes one.
-- **`5.2 skeleton-vendored … ref=<tag> commit=<sha>`** — the template ref the skeleton came from.
-  P2 reads the provenance of the vendored template out of this line and nowhere else.
+- **`5.2 skeleton-vendored … ref=<tag> commit=<sha>`** — the MODULE-TEMPLATE ref the skeleton was
+  scaffolded from (the action id keeps its historical name). P2 reads the scaffold's provenance out
+  of this line and nowhere else.
+- **`5.2 template-reference url=<repo url> release=<tag>`** — the IG-template repository the
+  migrated module's `ig.ini` references by URL, and the release the build will fetch. P1 compares
+  the rendered `Templates:` line against this recorded release; a migrated module carries no
+  vendored `ig-template/` anymore (decision 2026-08-28).
 
 ## 11. The verification phase (normative)
 
