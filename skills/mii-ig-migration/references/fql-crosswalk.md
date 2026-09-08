@@ -29,10 +29,10 @@ a specific rule already matched, keyed on `file:line`.
 | `{{link:<id>}}` | artefact link `[Text](<Type>-<id>.html)` |
 | `{{render:<image>}}` (png/jpg/svg…) | copy the image into `input/images/`. With the module template **> v0.4.0** a plain Markdown image `![Alt](file.png)` is safe: the template's CSS block-centers and width-caps content images (opt back into a float with `class="float"` raw HTML). On **older** templates wrap it in raw HTML — `<div style="text-align: center;"><img src="file" alt="…" style="max-width: 100%;"/></div>` — because their base CSS floats `p > img` (text wraps beside it) and caps no width |
 | `{{render:<canonical>}}` (resource) | usually remove — the artefact page is generated. EXCEPTION: on `capability-statements.md` render the CS INLINE via `{% lang-fragment CapabilityStatement-<id>-html.xhtml %}` (the `-html` fragment is the rendered narrative; the bare `<id>.xhtml` does not exist and fails Jekyll — measured 2026-08-20). Spec §9b |
-| `{{tree}}` / `{{tree, expand}}` | the `-snapshot` fragment (or `-dict` / `-diff`) |
+| `{{tree}}` / `{{tree, expand}}` | the `-snapshot` fragment (or `-dict-diff` / `-diff`) |
 | `{{xml}}` | **prefer a link to the artefact page**; when an inline rendering is genuinely needed: the `-xml-html` fragment |
 | `{{json}}` | **prefer a link to the artefact page**; inline: the `-json-html` fragment |
-| `<fql … for differential.element select id, short>` | element table: the `-dict` fragment |
+| `<fql … for differential.element select id, short>` | element table: a profile → the `-dict-diff` fragment; a logical model → the `{% sql %}` element query in [Element or dataset table](#replacing-fql-query-tables) (never `-dict`: it renders the snapshot — 458 KB for a 98-element model, module-template issue #29) |
 | `<fql>` metadata (url/status/version) | drop it — the publisher generates the header |
 | FQL code block (`@` plus a fenced block) | treat as `<fql>` |
 | `<tabs>` / `<tab>` (rendering/XML/JSON) | when the vendored template ships `includes/structure-tabs.html` (module template > v0.4.0): the parameterized include — one line, renders Structure/Differential/XML/JSON as real tabs on the narrative page, `lang="de"` in the German mirror. Otherwise **prefer a link to the artefact page**, which renders the same views as tabs like the official FHIR specification pages; sequential inline fragments are the last resort |
@@ -77,9 +77,23 @@ are full of `{{PLACEHOLDER}}` values that must be replaced before the guide buil
 FQL's main use in KDS guides is generating tables over resource contents. There are three
 replacements, and choosing between them is a judgement call:
 
-- **Element or dataset table** (FQL `for differential.element select id, short`) → the `-dict`
-  fragment, which renders the element dictionary with paths and definitions inline; or a static
-  Markdown table when the FQL query was doing something the dictionary does not express.
+- **Element or dataset table** (FQL `for differential.element select id, short`) → for a
+  **profile** the `-dict-diff` fragment: the differential-only element dictionary (paths,
+  definitions, cardinality; no inherited boilerplate). For a **logical model** — the Simplifier
+  two-column *Datensatz / Erklärung* table — query the model's own JSON in `package.db`: the
+  `Resources` row carries the full resource in `Json`, and the publisher's SQLite has JSON1
+  (verified by building it, IG Publisher 2.3.2: ~1 KB instead of 36 KB for an 8-element model):
+
+  ```
+  {% sql { "query" : "select json_extract(e.value, '$.path') as Element, json_extract(e.value, '$.min') || '..' || json_extract(e.value, '$.max') as Kardinalitaet, json_extract(e.value, '$.definition') as Erklaerung from Resources r, json_each(json_extract(r.Json, '$.differential.element')) e where r.Url = '<canonical of the model>'", "class" : "grid", "columns" : [ { "name" : "Datensatz", "type" : "text", "source" : "Element" }, { "name" : "Kard.", "type" : "text", "source" : "Kardinalitaet" }, { "name" : "Erklärung", "type" : "markdown", "source" : "Erklaerung" } ] } %}
+  ```
+
+  Type the element column `text`: the default `auto` type auto-links artefact names, and for a
+  logical model that link lacks `.html` → a QA broken link. Never `-dict` for a logical model: it
+  renders the **snapshot** — `.id`/`.extension`/`.modifierExtension` between the module's own
+  elements, 458 KB for a 98-element model (module-template issue #29; full recipe with the
+  measured variants: `docs/recipes/render-existing-artifacts.md` in the module template). A
+  static Markdown table only when the FQL query did something neither form expresses.
 - **Cross-resource table** (FQL over several resources) → Liquid over `site.data.*`
   (`structuredefinitions.json`, `resources.json`, `artifacts.json`), iterating and emitting table
   rows. The publisher populates those data files, so this is the supported route rather than a
@@ -101,7 +115,8 @@ replacements, and choosing between them is a judgement call:
 1. **Scan.** `scripts/fql-scan.sh [path…]` lists file, line, directive and recommendation per
    finding; `[UNKNOWN]` marks directives no rule covered.
 2. **Transform.** Apply the recommendation per finding. Ambiguous cases — `{{render:<canonical>}}`
-   as remove versus include, `<fql>` as `-dict` versus a static table — take professional
+   as remove versus include, `<fql>` as `-dict-diff` versus the `{% sql %}` element query versus a
+   static table — take professional
    judgement. When in doubt, mark `TODO:REVIEW` and **invent nothing**.
 3. **Re-scan.** `scripts/fql-scan.sh --strict` should exit 0, with the only acceptable exception
    being findings deliberately left as marked `TODO:REVIEW`.
