@@ -14,9 +14,9 @@ index-root	\{\{index:root\}\}	Remove -- the table of contents and navigation are
 pagelink	\{\{pagelink	[Text](<Type>-<id>.html) -- hint = artefact name -> id (e.g. MII_PR_X -> mii-pr-x).
 link	\{\{link[:}]	Artefact link [Text](<Type>-<id>.html).
 render	\{\{render:	Image ({{render:file.png|svg|jpg|gif}}) -> copy into input/images/ + <img src="file"> or a Markdown image; otherwise a resource/artefact/bare id ({{render:CapabilityStatement}}, {{render:mii-cs-x}}) -> usually remove (the artefact page is generated) OR {% include <Type>-<id>-<view>.xhtml %}.
-tree	\{\{tree	{% include <Type>-<id>-snapshot.xhtml %} (or -dict for the element dictionary / -diff).
+tree	\{\{tree	{% include <Type>-<id>-snapshot.xhtml %} (or -dict-diff for the differential-only element dictionary / -diff; not -dict on a logical model, it renders the snapshot).
 xml	\{\{xml[:}]	{% include <Type>-<id>-xml.xhtml %} (also {{xml:Example}}).
 json	\{\{json[:}]	{% include <Type>-<id>-json-html.xhtml %} (also {{json:Example}}).
-fql-tag	<fql	Element table: {% include <Type>-<id>-dict.xhtml %}; metadata (url/status/version): drop it, the header is generated; otherwise a static table or Liquid over site.data.
+fql-tag	<fql	Element table of a profile: {% include <Type>-<id>-dict-diff.xhtml %}; data-element table of a logical model: {% sql %} with json_each over Resources.Json (fql-crosswalk.md 'Element or dataset table'), never -dict (renders the snapshot, 458 KB at 98 elements); metadata (url/status/version): drop it, the header is generated; otherwise a static table or Liquid over site.data.
 fql-at	@```	Simplifier FQL code block: treat as <fql>.
 tabs	</?tab	<tabs>/<tab> (rendering/XML/JSON): replace with the matching {% include %} fragments.
