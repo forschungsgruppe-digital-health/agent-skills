@@ -7,7 +7,7 @@
 # scripts/check_owners.py and scripts/watch_specs.py deliberately use urllib
 # rather than requests so that the only third-party dependency in this
 # repository is the YAML parser.
-PyYAML==6.0.3
+PyYAML==6.0.4
 
 # The reference validator from the Agent Skills project, used by CI for
 # specification conformance. Pinned here rather than installed ad hoc in the
